@@ -123,7 +123,7 @@ DeviceView: `id`, `name`, `host`, `sshPort`, `username`, `fingerprint`, `rootPat
 ### DELETE /api/v1/bookmarks/{id}
 - query/body 없음. 204. 미존재도 204.
 
-ActivityView 필드: `id:String`, `kind:String`(FILES/TERMINAL/REMOTE/APP/DOCKER/GPU/DESKTOP), `targetId:String`, `label:String`, `path:String`(파일 외 빈 문자열 가능), `occurredAt:long`(epoch milliseconds). 검색에는 고정 DESKTOP/kakaotalk 항목도 포함한다.
+ActivityView 필드: `id:String`, `kind:String`(FILES/TERMINAL/REMOTE/APP/DOCKER/GPU), `targetId:String`, `label:String`, `path:String`(파일 외 빈 문자열 가능), `occurredAt:long`(epoch milliseconds).
 검색은 후보 종류 전체를 반환하며 실제 최근 작업은 FILES/TERMINAL/REMOTE/APP을 기록한다.
 
 ## 설정·탭
@@ -141,7 +141,7 @@ ActivityView 필드: `id:String`, `kind:String`(FILES/TERMINAL/REMOTE/APP/DOCKER
 
 ### PUT /api/v1/tabs
 - body `{tabs:TabRequest[]}` 필수 non-null, 최대 20개. 중복 id는 400.
-- TabRequest/TabView 필드: `id:String` nonblank 최대80, `kind:String` enum FILES/TERMINAL/REMOTE/APP/DOCKER/GPU/DESKTOP, `targetId:String` nonblank 최대80, `path:String` non-null 최대1024, `title:String` nonblank 최대120, `pinned:boolean` default false.
+- TabRequest/TabView 필드: `id:String` nonblank 최대80, `kind:String` enum FILES/TERMINAL/REMOTE/APP/DOCKER/GPU, `targetId:String` nonblank 최대80, `path:String` non-null 최대1024, `title:String` nonblank 최대120, `pinned:boolean` default false.
 - 204 empty. 배열 순서를 저장한다. 실행 연결은 저장하지 않는다.
 
 ## 파일
@@ -166,8 +166,7 @@ FileEntry: `{name:String,path:String,directory:boolean,size:long,modifiedAt:long
 
 ### POST /api/v1/sessions
 - body SessionRequest `{kind:String,targetId:String,width:int,height:int}`.
-- kind 필수 non-null enum TERMINAL/REMOTE/APP/DESKTOP, targetId 필수 nonblank String, width 320~3840, height 240~2160.
-- DESKTOP은 targetId=kakaotalk만 허용하며 다른 값은 400 INVALID_INPUT. 서버 설정 WINE_HOST/WINE_VNC_PORT의 고정 VNC에 RemoteAdapter로 연결한다. 브라우저 모드와 무관하며 URL이나 임의 명령을 입력받지 않는다. label은 카카오톡, url은 빈 값이다. 연결 실패는 기존 원격 터널 오류 처리와 동일하다. 세션 종료는 화면 연결만 닫고 Wine 앱/계정은 유지한다.
+- kind 필수 non-null enum TERMINAL/REMOTE/APP, targetId 필수 nonblank String, width 320~3840, height 240~2160.
 - 201 SessionView `{id:String,kind:String,label:String,url:String}`. 일반 실행 url은 빈 문자열이다.
 - CLIENT 브라우저 모드에서 APP 요청은 kind=CLIENT, id="", url=등록 URL을 반환하며 실제 서버 연결은 만들지 않는다.
 - 최대 12개 실행 핸들. 400 프로토콜 설정 누락, 404 대상 없음, 409 제한, 502 Chromium 연결 실패.

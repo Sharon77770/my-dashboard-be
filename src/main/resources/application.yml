@@ -39,8 +39,6 @@ workspace:
   browser-host: ${BROWSER_HOST:localhost}
   browser-port: ${BROWSER_DEBUG_PORT:9223}
   browser-vnc-port: ${BROWSER_VNC_PORT:5901}
-  wine-host: ${WINE_HOST:localhost}
-  wine-vnc-port: ${WINE_VNC_PORT:5902}
 logging:
   level:
     org.springframework.web: INFO

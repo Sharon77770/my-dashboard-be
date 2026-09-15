@@ -50,16 +50,10 @@ Wake는 저장한 MAC과 주소로 UDP 전송한다. 성공은 전송 완료이�
 ## Tailscale 시작/인증
 
 외부 인증은 [CLI 우선 정책](../authentication.md)을 따른다. Tailscale 인증 키 주입을 우선 사용하고 대화형 URL 로그인은 키 사용이 불가한 경우에 제공한다.
-Docker Compose가 Tailscale 커널 네트워크 컨테이너를 먼저 시작한다. 앱/guacd/browser/wine은 service_started 이후 동일 네트워크에서 시작하고 tailnet 인증 완료는 기다리지 않는다. 저장된 인증을 재사용하거나, 최초 인증 키 또는 `docker compose exec tailscale tailscale login`으로 로그인한다. 로그인 전 로컬 앱 기능은 유지하지만 tailnet 대상은 연결 실패한다. healthcheck는 tailscale status --peers=false 결과(30초 간격, 5초 timeout, 3회 실패, 30초 시작 유예)이며 실제 대상 SSH 준비 여부를 보장하지 않는다.
+Docker Compose가 Tailscale 커널 네트워크 컨테이너를 먼저 시작한다. 앱/guacd/browser은 service_started 이후 동일 네트워크에서 시작하고 tailnet 인증 완료는 기다리지 않는다. 저장된 인증을 재사용하거나, 최초 인증 키 또는 `docker compose exec tailscale tailscale login`으로 로그인한다. 로그인 전 로컬 앱 기능은 유지하지만 tailnet 대상은 연결 실패한다. healthcheck는 tailscale status --peers=false 결과(30초 간격, 5초 timeout, 3회 실패, 30초 시작 유예)이며 실제 대상 SSH 준비 여부를 보장하지 않는다.
 인증 성공 -> tailnet 라우트/MagicDNS 적용 -> 기존 SSH/SFTP/원격/브라우저 어댑터가 일반 TCP 연결 수행. 인증 키/URL/상태 JSON 전체는 앱 응답과 로그로 전달하지 않는다. Tailscale 연결 실패는 기존 어댑터의 timeout/502 처리에 따른다. 대상 실제 tailnet 검증은 사용자 계정 로그인과 대상 주소가 필요하다.
 
 Tailscale 시작 스크립트는 tailscaled를 주 프로세스로 유지하면서 `tailscale up --timeout=30s`를 백그라운드에서 수행한다. 인증 전/인증 실패가 컨테이너 재시작과 다른 서비스의 DNS 단절로 이어지지 않는다. 인증 키는 권한 600의 임시 파일로 CLI에 전달하고 시도 후 삭제한다. CLI 인증 출력은 로그로 보내지 않는다. `NeedsLogin`인 경우에만 새 키를 사용하며 기존 인증은 재사용한다.
-
-## 서버 카카오톡
-
-Compose wine 시작 → Xvfb/x11vnc/창 관리자/한글 입력기 시작 → 최초 Wine 프로필 생성 → 공식 설치 프로그램 자동 설치 → 설치 Wine 세션 종료 → GDI+ 준비 → 카카오톡 실행. 이미 설치되어 있으면 기존 프로필에서 재실행한다. 설치 실패 시 오류 안내와 바탕화면 메뉴의 수동 설치를 제공한다.
-
-카카오톡 열기 → 인증된 POST /api/v1/sessions (DESKTOP/kakaotalk) → RuntimeService 대상 검증 및 이력 저장 → 로그인 소유권이 있는 원격 WebSocket → RemoteAdapter가 guacd를 거쳐 서버 VNC 화면 제공. 초기 설치 중이면 원격 데스크톱이 먼저 보일 수 있다. 연결 오류는 기존 재연결 UI로 복구한다. 탭/로그인 세션 종료 시 터널만 닫고 앱은 계속 실행된다. 카카오톡 계정 로그아웃은 앱 자체에서 수행한다.
 
 ## SSH 에디터
 

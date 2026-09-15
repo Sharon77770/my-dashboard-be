@@ -16,14 +16,13 @@
 - remoteProtocol: NONE(미사용), RDP, VNC.
 - browser mode: CLIENT(현재 브라우저), SERVER(Compose Chromium), REMOTE(등록 VNC+Chromium).
 - theme: dark/light. compact: boolean.
-- kind: FILES, TERMINAL, REMOTE, APP, DOCKER, GPU, DESKTOP. DESKTOP/kakaotalk은 고정 서버 앱이다. 최근 이력은 실제 여는 FILES/TERMINAL/REMOTE/APP/DESKTOP을 기록한다.
+- kind: FILES, TERMINAL, REMOTE, APP, DOCKER, GPU. 최근 이력은 실제 여는 FILES/TERMINAL/REMOTE/APP을 기록한다.
 - 장비 상태: ONLINE(실제 로컬/SSH 계측), REACHABLE(포트만 확인), UNAVAILABLE(접속/계측 실패). 미계측 수치는 null.
 
 실행 세션: 생성(준비) -> 최초 WS attach -> 실행 -> 종료. 준비 상태로 60초 이상 미접속 시 정리한다. 같은 세션 핸들을 두 WS에서 붙일 수 없다.
 탭을 복원해도 실행 핸들은 복원하지 않는다. 다시 활성화하면 새 연결을 생성한다. 로그아웃한 계정의 핸들은 다른 로그인에서 사용할 수 없다.
 브라우저 프로필과 웹사이트 로그인은 browser-profile 볼륨에 남는다. 대시보드 로그아웃은 스트림을 끊으며 외부 웹사이트 로그아웃은 브라우저에서 별도로 수행한다.
 
-카카오톡 프로필과 설치 파일은 wine-profile 볼륨에 남는다. Wine 프로세스는 대시보드 실행 핸들과 수명이 다르며 앱 내 로그아웃 또는 컨테이너 중지로 관리한다. Tailscale 인증 상태는 tailscale-state 볼륨이 소유하고, 임시 인증 키 파일은 인증 시도 후 삭제한다. NeedsLogin/인증 실패는 데몬 종료나 공유 네트워크 재생성을 유발하지 않는다.
 
 Planner 서버 상태: calendar_events, timetable_terms, timetable_courses, timetable_meetings. 일반 일정은 allDay boolean, 수업 요일은 1~7이다. 별도 진행 상태 enum은 없다. 프런트 상태: 선택 월/날짜/학기 및 API 조회 데이터. 캘린더와 시간표의 늦은 응답은 조회 버전으로 무시한다. 저장은 성공 후 재조회하며 오류 시 폼을 유지한다.
 
@@ -52,3 +51,5 @@ Tailscale 설정은 tailscale.js의 dialog 상태(열림/닫힘, 요청 중)와 
 클라우드 파일은 ACTIVE(files) → TRASHED(trash) → ACTIVE(복원) 또는 영구 제거로 이동한다. TrashRecord(path 가상 경로, deletedAt epoch ms)는 휴지통 UUID 디렉토리의 record.json에 보관하며 실제 payload와 함께 소유한다. 드라이브 UI는 현재 폴더/휴지통 모드, 선택 경로 집합, 내부 클립보드, 업로드 진행/취소 상태를 메모리에 보유한다. 파일 데이터·선택 목록은 localStorage에 저장하지 않는다.
 
 원격 구성 상태는 IDLE/RUNNING/READY/BLOCKED이며 서버 메모리에 저장한다. 관리된 VNC 연결 정보는 서버 데이터 디렉터리에 암호화된 JSON으로 보존하고, 대상 계정의 화면 프로세스 상태는 별도 사용자 디렉터리에 둔다. [상태·재시작 정책](../remote-desktop.md).
+
+Tailscale 인증 상태는 tailscale-state 볼륨이 소유한다. NeedsLogin 또는 인증 실패가 공유 네트워크를 재생성하지 않는다.

@@ -70,7 +70,7 @@ TEXT ID는 서버 생성 UUID이며 devices의 기본 프로필만 `local`이다
 | 컬럼 | 타입 | 필수 | Default | Index/Unique | 의미 |
 | --- | --- | --- | --- | --- | --- |
 | id | TEXT | 예 | 없음 | PK/unique | 이력 ID |
-| kind | TEXT | 예 | 없음 | 없음 | 실제 이력 FILES/TERMINAL/REMOTE/APP/DESKTOP |
+| kind | TEXT | 예 | 없음 | 없음 | 실제 이력 FILES/TERMINAL/REMOTE/APP |
 | target_id | TEXT | 예 | 없음 | 없음 | 대상 장비/앱 ID |
 | label | TEXT | 예 | 없음 | 없음 | 표시 이름 |
 | path | TEXT | 예 | 없음 | 없음 | 파일 경로 또는 빈 문자열 |
@@ -110,7 +110,7 @@ REMOTE 장비 삭제 후 새 앱 실행은 404로 실패하며 설정에서 다�
 | 컬럼 | 타입 | 필수 | Default | Index/Unique | 의미/enum |
 | --- | --- | --- | --- | --- | --- |
 | id | TEXT | 예 | 없음 | PK/unique | 클라이언트 생성 탭 ID |
-| kind | TEXT | 예 | 없음 | 없음 | FILES/TERMINAL/REMOTE/APP/DOCKER/GPU/DESKTOP |
+| kind | TEXT | 예 | 없음 | 없음 | FILES/TERMINAL/REMOTE/APP/DOCKER/GPU |
 | target_id | TEXT | 예 | 없음 | 없음 | 장비/앱 ID |
 | path | TEXT | 예 | 없음 | 없음 | 파일 경로 또는 빈 문자열 |
 | title | TEXT | 예 | 없음 | 없음 | 탭 제목 |
@@ -160,3 +160,5 @@ owner는 planner, soft delete 없음. 아래 모든 열은 NOT NULL/default 없�
 ## 클라우드 드라이브 (파일시스템 저장)
 
 SQLite 테이블/마이그레이션 추가 없음. cloud 모듈 소유 CLOUD_ROOT/files는 활성 파일, trash/{UUID}/payload는 삭제된 원본, record.json의 path(String 필수 가상 원래 경로)와 deletedAt(long 필수 epoch ms)는 내부 TrashRecord이다. staging은 임시 업로드/복사/ZIP 용도다. 서버 단일 계정과 파일시스템 권한으로 보호한다. 휴지통으로 소프트 삭제하고 명시적인 영구 삭제만 재귀 제거한다. 기존 장비/사용자/세션 테이블 관계는 변경하지 않는다.
+
+카카오톡 제거 후 기존 DESKTOP 행은 물리 삭제하지 않고 activity 및 workspace_tabs 조회에서 제외한다. 새 요청에는 DESKTOP을 허용하지 않는다. 테이블 구조 변경은 없다.

@@ -22,8 +22,8 @@
   const statuses = new Map();
   const $ = (selector, root = document) => root.querySelector(selector);
   const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
-  const icons = {TERMINAL:'›_', FILES:'▤', REMOTE:'▰', APP:'◇', DOCKER:'DK', GPU:'GPU', DESKTOP:'톡'};
-  const labels = {TERMINAL:'터미널', FILES:'파일', REMOTE:'원격', APP:'앱', DOCKER:'Docker', GPU:'GPU', DESKTOP:'앱'};
+  const icons = {TERMINAL:'›_', FILES:'▤', REMOTE:'▰', APP:'◇', DOCKER:'DK', GPU:'GPU'};
+  const labels = {TERMINAL:'터미널', FILES:'파일', REMOTE:'원격', APP:'앱', DOCKER:'Docker', GPU:'GPU'};
   const modes = {CLIENT:'현재 브라우저', SERVER:'서버 Chromium', REMOTE:'원격 브라우저 서버'};
   const empty = message => `<p class="empty-state">${escape(message)}</p>`;
   const openAttrs = (kind, target, path = '/') => `data-open="${kind}" data-target="${escape(target)}" data-path="${escape(path)}"`;
@@ -98,7 +98,7 @@
     const icon=name=>window.WorkspaceUI.icon(name);
     const home='<article class="os-task '+(!activeTab&&activeView==='home'?'active':'')+'"><button class="os-task-open" data-view="home"><span class="os-task-icon">'+icon('home')+'</span><b>홈</b><small>앱과 위젯</small></button></article>';
     const pages=pageTabs.map(id=>{const app=appRegistry.get(id);if(!app)return '';return '<article class="os-task '+(!activeTab&&activeView===id?'active':'')+'"><button class="os-task-open" data-view="'+escape(id)+'" aria-current="'+(!activeTab&&activeView===id)+'"><span class="os-task-icon">'+icon(app.icon)+'</span><b>'+escape(app.name)+'</b><small>'+(!activeTab&&activeView===id?'현재 화면':'다시 열기')+'</small></button><button class="os-task-close" data-action="page-close" data-id="'+escape(id)+'" aria-label="'+escape(app.name)+' 닫기">×</button></article>';}).join('');
-    const sessions=tabs.map(tab=>'<article class="os-task '+(activeTab===tab.id?'active':'')+'"><button class="os-task-open" data-tab="'+escape(tab.id)+'" aria-current="'+(activeTab===tab.id)+'"><span class="os-task-icon">'+icon({TERMINAL:'terminal',FILES:'files',REMOTE:'remote',APP:'browser',DESKTOP:'apps'}[tab.kind]||'apps')+'</span><b>'+escape(tab.title)+'</b><small>'+ (runtimes.get(tab.id)?.connected?'연결됨':'저장된 세션')+'</small></button><button class="os-task-pin" data-action="tab-pin" data-id="'+escape(tab.id)+'" aria-label="세션 고정" aria-pressed="'+Boolean(tab.pinned)+'">'+(tab.pinned?'◆':'◇')+'</button><button class="os-task-close" data-action="tab-close" data-id="'+escape(tab.id)+'" aria-label="'+escape(tab.title)+' 닫기">×</button></article>').join('');
+    const sessions=tabs.map(tab=>'<article class="os-task '+(activeTab===tab.id?'active':'')+'"><button class="os-task-open" data-tab="'+escape(tab.id)+'" aria-current="'+(activeTab===tab.id)+'"><span class="os-task-icon">'+icon({TERMINAL:'terminal',FILES:'files',REMOTE:'remote',APP:'browser'}[tab.kind]||'apps')+'</span><b>'+escape(tab.title)+'</b><small>'+ (runtimes.get(tab.id)?.connected?'연결됨':'저장된 세션')+'</small></button><button class="os-task-pin" data-action="tab-pin" data-id="'+escape(tab.id)+'" aria-label="세션 고정" aria-pressed="'+Boolean(tab.pinned)+'">'+(tab.pinned?'◆':'◇')+'</button><button class="os-task-close" data-action="tab-close" data-id="'+escape(tab.id)+'" aria-label="'+escape(tab.title)+' 닫기">×</button></article>').join('');
     $('#switcher-apps').innerHTML=home+pages+sessions;
     $('#mobile-current-app').textContent=activeTab?tabs.find(tab=>tab.id===activeTab)?.title||'작업':appRegistry.get(activeView)?.name||'홈';
     const count=pageTabs.length+tabs.length;$('#os-app-count').textContent=count;$('#os-app-count').hidden=count===0;
@@ -119,7 +119,7 @@
     let tab = !forceNew && tabs.find(item => item.kind === kind && item.targetId === targetId && (kind !== 'FILES' || item.path === path));
     if (!tab) {
       if(tabs.length >= 20) throw new Error('탭은 최대 20개입니다. 사용하지 않는 탭을 닫아 주세요.');
-      const target = kind === 'DESKTOP' && targetId === 'kakaotalk' ? {name:'카카오톡'} : kind === 'APP' ? state.applications.find(item=>item.id===targetId) : device(targetId);
+      const target = kind === 'APP' ? state.applications.find(item=>item.id===targetId) : device(targetId);
       if (!target) throw new Error('삭제되었거나 존재하지 않는 대상입니다.');
       tab = {id:window.WorkspaceUI.uuid(),kind,targetId,path:path || '/',title:`${labels[kind]}: ${target.name}`,pinned:false}; tabs.push(tab); saveTabs();
     }

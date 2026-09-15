@@ -36,22 +36,14 @@ class RuntimeServiceTest {
                 "",
                 "",
                 true));
-    return new RuntimeService(
-        catalog, mock(BrowserAdapter.class), "localhost", 9223, 5901, "localhost", 5902);
+    return new RuntimeService(catalog, mock(BrowserAdapter.class), "localhost", 9223, 5901);
   }
 
   @Test
-  void desktopTargetsAreFixedAndUseTheAuthenticatedRemoteTunnel() {
+  void removedDesktopKindIsRejected() {
     RuntimeService service = service();
-    var view = service.create(new SessionRequest("DESKTOP", "kakaotalk", 1280, 900), "owner");
-    var session = service.attach(view.id(), "owner");
-    assertThat(session.device.host()).isEqualTo("localhost");
-    assertThat(session.device.remotePort()).isEqualTo(5902);
-    assertThat(session.device.remoteProtocol()).isEqualTo("VNC");
     assertThatThrownBy(
-            () ->
-                service.create(
-                    new SessionRequest("DESKTOP", "arbitrary-command", 800, 600), "owner"))
+            () -> service.create(new SessionRequest("DESKTOP", "kakaotalk", 800, 600), "owner"))
         .isInstanceOf(WorkspaceException.class);
     service.shutdown();
   }

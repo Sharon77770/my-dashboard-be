@@ -36,6 +36,43 @@ class WorkspaceIntegrationTest {
   @Autowired JdbcTemplate jdbc;
 
   @Test
+  @org.springframework.transaction.annotation.Transactional
+  void removedDesktopCannotReappearFromSavedStateOrStartThroughApi() throws Exception {
+    jdbc.update(
+        "INSERT INTO activity VALUES (?,?,?,?,?,?)",
+        "removed-app",
+        "DESKTOP",
+        "kakaotalk",
+        "old app",
+        "",
+        1L);
+    jdbc.update(
+        "INSERT INTO workspace_tabs VALUES (?,?,?,?,?,?,?)",
+        "removed-tab",
+        "DESKTOP",
+        "kakaotalk",
+        "",
+        "old app",
+        false,
+        99);
+    String state =
+        mvc.perform(get("/api/v1/workspace").with(user("owner").roles("OWNER")))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(state).doesNotContain("kakaotalk", "DESKTOP");
+    mvc.perform(
+            post("/api/v1/sessions")
+                .with(user("owner").roles("OWNER"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"kind\":\"DESKTOP\",\"targetId\":\"kakaotalk\",\"width\":1280,\"height\":800}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void desktopSetupRequiresOwnerAndCsrfAndRejectsLocalInstallation() throws Exception {
     mvc.perform(get("/api/v1/devices/local/remote-setup")).andExpect(status().isUnauthorized());
     mvc.perform(post("/api/v1/devices/local/remote-setup").with(user("owner").roles("OWNER")))

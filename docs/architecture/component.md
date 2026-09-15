@@ -13,7 +13,6 @@ Docker 제어는 제한된 start/stop/restart와 검증한 container 식별자�
 
 Planner는 별도 기능 모듈로 요청/응답 DTO와 저장 record를 분리한다. 공유 UI의 API/모달만 사용하며 캘린더와 시간표의 화면 상태는 planner.js 안에 둔다. 달력의 날짜 격자와 시간표 블록 위치는 표시 계산이며 저장/시간 충돌 판단은 PlannerService가 소유한다.
 
-Wine 데스크톱은 기존 runtime 모듈을 재사용한다. DESKTOP/kakaotalk만 허용하고 고정 서버 VNC 설정을 내부 연결 정보로 만든다. 로그인 소유권/세션 제한/종료는 기존 runtime 규칙을 따른다. catalog는 검색과 최근 이력, 탭 위치만 저장하며 카카오톡 계정이나 대화 데이터는 관리하지 않는다.
 
 - StudioController: 검증된 job 요청과 상태/취소 HTTP 계약.
 - StudioService: OWNER 검사, 세션 소유권, 동시 실행/수명 제한.

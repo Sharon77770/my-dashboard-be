@@ -1,4 +1,4 @@
-﻿const {JSDOM}=require('jsdom');
+const {JSDOM}=require('jsdom');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'../..');
 const dom=new JSDOM(fs.readFileSync(path.join(root,'src/main/resources/templates/home.html'),'utf8'),{runScripts:'outside-only',url:'http://localhost',pretendToBeVisual:true});
@@ -17,8 +17,11 @@ const load=()=>JSON.parse(w.localStorage.getItem(w.HomePersistence.key()));
 (async()=>{
 for(const file of ['ui.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js','workspace.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
 await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,11);
-assert.equal(w.WorkspaceApps.all().length,18);assert.equal(d.querySelectorAll('#home-grid img').length,0);
+assert.equal(w.WorkspaceApps.all().length,17);assert.equal(d.querySelectorAll('#home-grid img').length,0);
 // Grid projects one model without collisions or changing canonical coordinates.
+assert.equal(w.WorkspaceApps.get('kakaotalk'),undefined);
+const retiredLayout=w.HomeGrid.sanitize({version:1,pages:1,dock:['kakaotalk','files'],items:[{id:'removed',type:'app',appId:'kakaotalk',page:0,x:0,y:0},{id:'old-folder',type:'folder',apps:['kakaotalk'],name:'old',page:0,x:1,y:0}]},w.WorkspaceApps,w.WorkspaceWidgets);
+assert.deepEqual(Array.from(retiredLayout.dock),['files']);assert.equal(retiredLayout.items.length,0);
 const grid=w.HomeGrid;const items=[{id:'a',page:0,x:0,y:0,w:4,h:2},{id:'b',page:0,x:4,y:0,w:4,h:2},{id:'c',page:1,x:0,y:0,w:1,h:1}];
 const projected=grid.project(items,4);assert.equal(projected[1].y,2);assert.equal(items[1].x,4);assert.ok(!grid.overlap(projected[0],projected[1]));
 const moved=grid.move(projected,'b',{x:0,y:0},4);assert.ok(!grid.overlap(moved[0],moved[1]));assert.throws(()=>grid.move(items,'a',{x:7,y:0},8),/격자/);assert.throws(()=>grid.move(items,'a',{page:NaN},8),/격자/);assert.throws(()=>grid.move(items,'a',{x:1.5},8),/격자/);

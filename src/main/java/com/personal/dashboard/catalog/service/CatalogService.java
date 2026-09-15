@@ -292,7 +292,6 @@ public class CatalogService {
     String needle = query.strip().toLowerCase(java.util.Locale.ROOT);
     if (needle.length() > 200) throw new WorkspaceException(400, "검색어는 200자 이하로 입력해 주세요.");
     List<ActivityView> results = new ArrayList<>();
-    results.add(new ActivityView("kakaotalk", "DESKTOP", "kakaotalk", "카카오톡", "", 0));
     for (DeviceView device : devices()) {
       for (String kind : List.of("TERMINAL", "FILES", "REMOTE", "DOCKER", "GPU")) {
         if (kind.equals("REMOTE") && device.remoteProtocol().equals("NONE")) continue;

@@ -11,7 +11,6 @@ window.WorkspaceApps = (() => {
     {id:'apps',name:'앱 관리',icon:'apps',route:'apps'},
     {id:'calendar',name:'캘린더',icon:'calendar',route:'calendar',widgets:['today']},
     {id:'timetable',name:'시간표',icon:'timetable',route:'timetable'},
-    {id:'kakaotalk',name:'카카오톡',icon:'kakaotalk',kind:'DESKTOP',targetId:'kakaotalk'},
     {id:'studio',name:'코드 에디터',icon:'studio',route:'studio',widgets:['project','codex']},
     {id:'recent',name:'최근 작업',icon:'recent',route:'recent'},
     {id:'clipboard',name:'클립보드',icon:'clip',route:'clipboard'},

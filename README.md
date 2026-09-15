@@ -78,7 +78,6 @@ Wake는 설정한 MAC/브로드캐스트 주소로 UDP 패킷을 보냅니다. D
 | UPLOAD_MAX_SIZE | 1GB | 파일 및 요청 업로드 제한 |
 | GUACD_HOST / GUACD_PORT | localhost / 4822 | 원격 게이트웨이, Compose host는 127.0.0.1 |
 | BROWSER_HOST / BROWSER_DEBUG_PORT / BROWSER_VNC_PORT | localhost / 9223 / 5901 | 기본 서버 Chromium 연결, Compose host는 127.0.0.1 |
-| WINE_HOST / WINE_VNC_PORT | localhost / 5902 | 서버 카카오톡 화면, Compose host는 127.0.0.1 |
 
 JVM은 `.env`를 직접 읽지 않습니다. IDE/셸에서 환경변수를 주입해야 합니다. Docker Compose만 `.env`를 읽습니다.
 
@@ -139,7 +138,7 @@ docker compose exec tailscale tailscale ip -4
 
 이 구성은 일반 SSH를 Tailscale 네트워크로 운반한다. 대시보드의 장비 등록은 기존 비밀번호 인증을 사용하며, Tailscale SSH 전용 접근 정책/재인증이나 학교·회사 SSO를 자동 구성하지 않는다. 대시보드 터미널에서 직접 입력하는 SSH 명령은 대상 서버 인증 방식을 따른다. Wake 브로드캐스트는 Tailscale을 통해 자동 전달되지 않는다.
 
-Tailscale CLI는 `tailscale` 컨테이너에서 실행한다. guacd(4822), VNC(5901/5902), Chromium 제어(9222/9223)는 공유 네트워크의 loopback에만 바인딩한다. 대시보드에는 기존 계정 인증이 유지된다. HTTPS와 SESSION_COOKIE_SECURE 설정은 기존 배포 정책을 따른다.
+Tailscale CLI는 `tailscale` 컨테이너에서 실행한다. guacd(4822), VNC(5901), Chromium 제어(9222/9223)는 공유 네트워크의 loopback에만 바인딩한다. 대시보드에는 기존 계정 인증이 유지된다. HTTPS와 SESSION_COOKIE_SECURE 설정은 기존 배포 정책을 따른다.
 
 기존 3개 컨테이너 배포에서 최초 전환할 때는 8080 포트 소유자가 달라지므로 한 번 다음 순서로 실행한다. 데이터 볼륨은 유지된다.
 
@@ -148,7 +147,7 @@ docker compose stop dashboard guacd browser
 docker compose up -d --build
 ```
 
-Tailscale 컨테이너를 새로 만들면 공유 네트워크를 사용하는 dashboard/guacd/browser/wine도 함께 재생성한다. `docker compose up -d --force-recreate`를 전체 스택에 사용한다. `down -v`는 인증 상태와 대시보드 데이터를 삭제하므로 일반 재배포에는 사용하지 않는다.
+Tailscale 컨테이너를 새로 만들면 공유 네트워크를 사용하는 dashboard/guacd/browser도 함께 재생성한다. `docker compose up -d --force-recreate`를 전체 스택에 사용한다. `down -v`는 인증 상태와 대시보드 데이터를 삭제하므로 일반 재배포에는 사용하지 않는다.
 
 | 환경변수 | 기본값 | 역할 |
 | --- | --- | --- |
@@ -159,28 +158,6 @@ Tailscale 컨테이너를 새로 만들면 공유 네트워크를 사용하는 d
 
 공식 참고: [Docker Compose 연결](https://tailscale.com/docs/features/containers/docker/how-to/connect-docker-container), [Docker 환경변수](https://tailscale.com/docs/features/containers/docker/docker-params), [SSH over Tailscale](https://tailscale.com/docs/reference/ssh-over-tailscale).
 
-## 서버 카카오톡 (Wine)
-
-`docker compose up -d --build` 후 사이드바의 **카카오톡** 또는 앱 목록의 **카카오톡 → 열기**를 선택한다. Wine, 한글 글꼴/입력기, 공식 PC 설치 파일이 이미지에 포함되고 최초 실행 시 자동 설치한다. 첫 화면 준비에는 수 분이 걸릴 수 있다. 카카오톡은 항상 서버에서 실행되며 브라우저 위치 설정의 영향을 받지 않는다.
-
-카카오톡 로그인은 앱 화면에서 직접 한다. 설치/실행은 CLI로 처리하지만 공식 CLI 로그인 수단은 확인되지 않았다. 한/영 전환은 `Ctrl+Space` 또는 한/영 키를 사용한다. 창을 닫았다면 바탕화면 오른쪽 클릭 → **카카오톡 실행**, 또는 다음 명령으로 다시 연다.
-
-```bash
-docker compose exec -d wine launch-kakao
-```
-
-자동 설치가 실패하면 바탕화면 메뉴의 **카카오톡 수동 설치**를 사용한다. 설치 진단은 Wine 컨테이너의 `/home/wine/install.log`, 초기화 진단은 `/home/wine/provision.log`에 있다. 계정/채팅이 저장될 수 있는 `wine-profile` 볼륨은 개인 데이터로 취급한다. 탭을 닫거나 대시보드에서 로그아웃해도 카카오톡 프로세스와 프로필은 유지되므로 카카오톡 계정 로그아웃은 앱에서 직접 한다.
-
-Wine 데스크톱 VNC 5902는 공유 컨테이너 네트워크의 loopback에만 열고 대시보드 OWNER 인증을 통과한 Guacamole 터널로 접근한다. Linux amd64 실행 환경을 사용하며 ARM Docker에서는 amd64 에뮬레이션이 필요하다. Wine 호환성은 카카오톡 버전에 따라 달라질 수 있으며 통화/영상 기능은 검증하지 않는다.
-
-카카오톡 팝업 호환성을 위해 서버 화면 합성과 32비트 Microsoft GDI+를 사용한다. 전용 Wine 프로필의 SysWOW64와 앱 디렉토리에 DLL을 설치하고 카카오톡 실행 시 native override를 적용한다. [Winetricks 공식 설치 절차](https://github.com/Winetricks/winetricks/blob/20250102/src/winetricks)의 원본/해시를 기준으로 Microsoft HTTPS 배포 파일을 검증하고 빌드 단계에서 해당 DLL만 추출한다. 최초 빌드에는 약 538MB의 추가 다운로드가 필요하며 원본 패키지 전체를 실행 이미지에 포함하지 않는다.
-
-설치 파일은 [카카오 공식 배포](https://app-pc.kakaocdn.net/talk/win32/KakaoTalk_Setup.exe)에서 받고 Dockerfile의 SHA256으로 검증한다(현재 26.7.1.5263). upstream 파일이 교체되면 빌드를 중단하므로 공식 파일의 게시자 서명과 새 해시를 확인한 뒤 `KAKAO_INSTALLER_SHA256` build arg를 갱신한다. 기존 설치 프로필은 이미지 재빌드로 초기화하지 않는다.
-
-외부 인증의 CLI 우선 원칙과 로그인 실패 검증 범위는 [인증 문서](docs/authentication.md)를 따른다. Git·Codex는 후속 연동 대상이다.
-
-현재 Wine에서는 일부 팝업 뒤 배경 요소의 재그리기 누락이 남아 있다. 로그인 화면과 임의 계정 거부는 확인했지만 전체 채팅 UI의 호환성은 미검증이다. 필요한 경우 `docker compose restart wine`으로 카카오톡 화면을 다시 시작한다.
-
 ## SSH 코드 에디터
 
 왼쪽 **코드 에디터**에서 **서버 자체** 또는 SSH 장비와 폴더를 선택하면 필요한 CLI를 준비하고 파일 편집·Git·Codex를 사용할 수 있습니다. [사용법과 설치 조건](docs/studio.md), [API 계약](docs/api/studio.md)을 참고하세요.
@@ -188,3 +165,5 @@ Wine 데스크톱 VNC 5902는 공유 컨테이너 네트워크의 loopback에만
 ## Launcher 사용과 확장
 
 [Launcher 문서](docs/launcher.md)에서 홈 편집, 폴더, 위젯, Desktop/Mobile 동작과 앱 등록 방법을 확인하세요. 공통 디자인 시스템과 저장 모델, UI 검증 방법도 함께 설명합니다.
+
+운영 환경변수와 업데이트 명령은 [배포 안내](docs/deployment.md)를 참고하세요.

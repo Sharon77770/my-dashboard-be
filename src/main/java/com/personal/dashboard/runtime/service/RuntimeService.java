@@ -43,55 +43,29 @@ public class RuntimeService {
   private final BrowserAdapter browser;
   private final String browserHost;
   private final int browserPort, browserVncPort;
-  private final String wineHost;
-  private final int wineVncPort;
 
   public RuntimeService(
       CatalogService catalog,
       BrowserAdapter browser,
       @Value("${workspace.browser-host:localhost}") String browserHost,
       @Value("${workspace.browser-port:9223}") int browserPort,
-      @Value("${workspace.browser-vnc-port:5901}") int browserVncPort,
-      @Value("${workspace.wine-host:localhost}") String wineHost,
-      @Value("${workspace.wine-vnc-port:5902}") int wineVncPort) {
+      @Value("${workspace.browser-vnc-port:5901}") int browserVncPort) {
     this.catalog = catalog;
     this.browser = browser;
     this.browserHost = browserHost;
     this.browserPort = browserPort;
     this.browserVncPort = browserVncPort;
-    this.wineHost = wineHost;
-    this.wineVncPort = wineVncPort;
   }
 
   @PreAuthorize("hasRole('OWNER')")
   public synchronized SessionView create(SessionRequest request, String ownerId) {
+    if (!Set.of("TERMINAL", "REMOTE", "APP").contains(request.kind()))
+      throw new WorkspaceException(400, "지원하지 않는 실행 유형입니다.");
     if (sessions.size() >= 12)
       throw new WorkspaceException(409, "열린 실행 탭을 닫은 후 다시 시도해 주세요. 최대 12개 세션을 지원합니다.");
     DeviceRecord device;
     String label;
-    if (request.kind().equals("DESKTOP")) {
-      if (!request.targetId().equals("kakaotalk"))
-        throw new WorkspaceException(400, "지원하지 않는 데스크톱 앱입니다.");
-      device =
-          new DeviceRecord(
-              "kakaotalk",
-              "카카오톡",
-              wineHost,
-              22,
-              "",
-              "",
-              "",
-              "/",
-              "VNC",
-              wineVncPort,
-              "",
-              "",
-              "",
-              "",
-              false);
-      label = "카카오톡";
-      catalog.record("DESKTOP", "kakaotalk", label, "");
-    } else if (request.kind().equals("APP")) {
+    if (request.kind().equals("APP")) {
       var app = catalog.requireApplication(request.targetId());
       var settings = catalog.browserSettings();
       catalog.record("APP", app.id(), app.name(), "");

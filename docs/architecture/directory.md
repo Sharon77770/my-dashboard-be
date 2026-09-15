@@ -2,7 +2,6 @@
 
 `docker/tailscale/start.sh`는 공식 이미지의 tailscaled를 유지하고 인증을 별도 시도한다. 로그인 대기/거부는 공유 네트워크를 종료하지 않는다.
 
-`docker/wine/`은 서버 카카오톡 전용 이미지다. `Dockerfile`은 Wine/공식 설치 파일/GDI+/한글 입력 환경을 구성하고 `start.sh`는 데스크톱 초기화, `launch-kakao.sh`는 설치 직렬화와 실행을 담당한다. `config/`는 바탕화면 메뉴와 한글 입력기 기본 설정이다. `docs/authentication.md`는 외부 서비스의 CLI 인증 및 실패 검증 기준이다.
 
 Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 

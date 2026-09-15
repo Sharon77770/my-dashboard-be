@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<openbox_menu xmlns="http://openbox.org/3.4/menu">
-  <menu id="root-menu" label="카카오톡">
-    <item label="카카오톡 실행"><action name="Execute"><command>/usr/local/bin/launch-kakao</command></action></item>
-    <item label="카카오톡 수동 설치"><action name="Execute"><command>wine /opt/kakaotalk/setup.exe</command></action></item>
-    <separator />
-    <item label="Wine 설정"><action name="Execute"><command>winecfg</command></action></item>
-  </menu>
-</openbox_menu>

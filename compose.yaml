@@ -45,8 +45,6 @@ services:
       CREDENTIAL_KEY_PATH: /app/data/credential.key
       GUACD_HOST: 127.0.0.1
       BROWSER_HOST: 127.0.0.1
-      WINE_HOST: 127.0.0.1
-      WINE_VNC_PORT: 5902
       UPLOAD_MAX_SIZE: ${UPLOAD_MAX_SIZE:-1GB}
     volumes:
       - dashboard-data:/app/data
@@ -62,8 +60,6 @@ services:
       guacd:
         condition: service_started
       browser:
-        condition: service_started
-      wine:
         condition: service_started
   guacd:
     image: guacamole/guacd:1.6.0
@@ -89,25 +85,8 @@ services:
       tailscale:
         condition: service_started
         restart: true
-  wine:
-    platform: linux/amd64
-    build: ./docker/wine
-    restart: unless-stopped
-    network_mode: service:tailscale
-    shm_size: 512mb
-    volumes:
-      - wine-profile:/home/wine
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    depends_on:
-      tailscale:
-        condition: service_started
-        restart: true
 volumes:
   dashboard-data:
   browser-profile:
   tailscale-state:
   tailscale-control:
-  wine-profile:

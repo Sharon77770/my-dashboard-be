@@ -132,7 +132,7 @@ public class CatalogRepository {
 
   public List<ActivityView> activity() {
     return jdbc.query(
-        "SELECT * FROM activity ORDER BY occurred_at DESC LIMIT 100",
+        "SELECT * FROM activity WHERE kind <> 'DESKTOP' ORDER BY occurred_at DESC LIMIT 100",
         (row, index) ->
             new ActivityView(
                 row.getString("id"),
@@ -195,7 +195,7 @@ public class CatalogRepository {
 
   public List<TabView> tabs() {
     return jdbc.query(
-        "SELECT * FROM workspace_tabs ORDER BY position",
+        "SELECT * FROM workspace_tabs WHERE kind <> 'DESKTOP' ORDER BY position",
         (row, index) ->
             new TabView(
                 row.getString("id"),
