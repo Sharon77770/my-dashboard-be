@@ -147,7 +147,7 @@ docker compose stop dashboard guacd browser
 docker compose up -d --build
 ```
 
-Tailscale 컨테이너를 새로 만들면 공유 네트워크를 사용하는 dashboard/guacd/browser도 함께 재생성한다. `docker compose up -d --force-recreate`를 전체 스택에 사용한다. `down -v`는 인증 상태와 대시보드 데이터를 삭제하므로 일반 재배포에는 사용하지 않는다.
+dashboard 컨테이너를 새로 만들면 네트워크를 공유하는 guacd/browser/tailscale도 함께 재생성한다. Tailscale만 중지·재생성하는 것은 대시보드의 시작 조건이 아니다. `docker compose up -d --force-recreate`를 전체 스택에 사용한다. `down -v`는 인증 상태와 대시보드 데이터를 삭제하므로 일반 재배포에는 사용하지 않는다.
 
 | 환경변수 | 기본값 | 역할 |
 | --- | --- | --- |

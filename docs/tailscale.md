@@ -32,3 +32,5 @@ SQLite v3 마이그레이션은 기존 장비에 `network_mode=DIRECT`를 추가
 Compose는 고정 Tailscale 이미지에 Python 관리 브리지를 추가해 빌드한다. 브리지는 공유 네트워크의 loopback 41113에만 바인딩하고 상태 조회/로그인/로그아웃만 허용한다. 임의 CLI 인자·셸·Docker 소켓·데몬 LocalAPI는 웹에 노출하지 않는다. 시작 시 생성하는 내부 토큰은 별도 tailscale-control 볼륨의 root:10001 0640 파일이고 dashboard에는 읽기 전용 마운트한다. Tailscale 상태 볼륨·데몬 소켓은 dashboard에 마운트하지 않는다. 원본 CLI 출력은 컨테이너 로그에 출력하지 않고 공식 login.tailscale.com/a/ 경로만 소유자에게 반환한다. 인증 링크 응답은 no-store다. 상태는 창을 연 동안 3초마다 조회하며 브리지 미준비 시 준비 안내를 표시한다.
 
 배포: `docker compose up -d --build`로 tailscale과 dashboard를 함께 갱신한다. 공유 네트워크 네임스페이스가 바뀌므로 종속 서비스도 재생성된다. 첫 시작의 환경변수 로그인 준비는 최대 약 60초가 걸릴 수 있다. [공식 CLI 계약](https://tailscale.com/docs/reference/tailscale-cli)을 사용한다.
+
+대시보드가 네트워크와 공개 포트를 소유한다. Tailscale 미기동·미로그인·중지는 일반 서비스 기동을 막지 않는다. 최초 구조 변경은 [운영 배포 안내](deployment.md)의 중지 후 재생성 절차를 따른다.

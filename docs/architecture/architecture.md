@@ -25,7 +25,7 @@ Spring Boot --> Chromium DevTools (URL launch)
 Spring Boot --> guacd --> Chromium VNC desktop
 ```
 
-Compose는 tailscale, dashboard, guacd, browser 4개 서비스를 사용한다. 앱/guacd/browser은 tailscale의 네트워크 네임스페이스를 공유한다. guacd와 Chromium/VNC/DevTools는 loopback에만 바인딩한다.
+Compose는 tailscale, dashboard, guacd, browser 4개 서비스를 사용한다. dashboard가 독립 네트워크와 호스트 포트를 소유하며 guacd/browser/tailscale이 dashboard의 네트워크 네임스페이스에 참가한다. dashboard는 이 서비스들의 시작 또는 인증 상태에 의존하지 않는다. guacd와 Chromium/VNC/DevTools는 loopback에만 바인딩한다.
 Chromium은 비루트 컨테이너에서 실행하고 프로필을 별도 볼륨에 보관한다. 서버 브라우저는 공유 데스크톱 하나이며 각 앱 URL은 Chromium 탭으로 열린다.
 REMOTE 브라우저 모드는 등록 VNC 장비와 해당 Chromium 디버깅 포트를 사용한다. CLIENT 모드는 사용자가 명시적으로 선택한 예외로 현재 브라우저에 링크를 제공한다.
 
@@ -54,7 +54,7 @@ SSH 호스트 지문과 RDP 인증서는 검증하며 자동 신뢰를 하지 �
 ## Tailscale 네트워크
 
 공식 tailscale 이미지 1.102.3을 digest로 고정한다. tailscaled --tun=tailscale0의 커널 TUN 네트워크로 기존 SSHJ, guacd, Chromium의 일반 TCP 연결이 tailnet 경로를 사용한다. 별도 SOCKS proxy는 사용하지 않는다. 장비별 networkMode 옵션과 DeviceNetworkAdapter가 선택한 Tailscale 주소를 검사한다. sidecar만 /dev/net/tun 및 NET_ADMIN/NET_RAW를 가진다. TS_AUTHKEY는 sidecar에만 전달하고 /var/lib/tailscale을 별도 tailscale-state 볼륨에 저장한다. Java/브라우저에는 상태 볼륨과 LocalAPI 소켓을 마운트하지 않는다.
-모든 서비스가 같은 네트워크와 resolver 파일을 공유하므로 GUACD_HOST/BROWSER_HOST는 127.0.0.1이다. VNC/CDP/guacd는 loopback에만 바인딩하여 tailnet에서 직접 제어할 수 없다. X11 TCP는 비활성화한다. Tailscale은 localhost 호스트 포트 8080을 소유하고 tailnet 정책 허용 시 tailnet의 8080에도 앱이 응답한다. 공용 Funnel/Serve/서브넷 광고/exit node/내장 SSH 서버는 활성화하지 않는다.
+모든 서비스가 같은 네트워크와 resolver 파일을 공유하므로 GUACD_HOST/BROWSER_HOST는 127.0.0.1이다. VNC/CDP/guacd는 loopback에만 바인딩하여 tailnet에서 직접 제어할 수 없다. X11 TCP는 비활성화한다. dashboard가 호스트 포트 8080을 소유하고 tailnet 정책 허용 시 tailnet의 8080에도 앱이 응답한다. 공용 Funnel/Serve/서브넷 광고/exit node/내장 SSH 서버는 활성화하지 않는다.
 
 ## 원격 개발 작업 공간
 

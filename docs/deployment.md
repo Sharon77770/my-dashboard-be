@@ -22,7 +22,7 @@ NAS_PUBLIC_URL=https://dashboard.example.com/dav/
 
 아이디와 비밀번호는 필수다. 비밀번호는 UTF-8 72바이트 이하이며 `$`, `#` 등의 문자는 작은따옴표로 감싼다. 예시 도메인과 계정 값을 실제 값으로 바꾼다. `NAS_PUBLIC_URL`은 실제 연결 주소 안내·검증에 쓰며 DNS나 HTTPS를 자동 설정하지 않는다. NAS를 사용하지 않으면 `NAS_ENABLED=false`로 설정한다.
 
-Compose의 호스트 포트는 `127.0.0.1:${DASHBOARD_PORT}:8080`이다. 같은 서버에서 실행하는 HTTPS 역방향 프록시가 `127.0.0.1:8080`으로 전달하도록 구성한다. 프록시에는 WebSocket Upgrade 지원(터미널·원격 화면), 파일 업로드 크기/시간 제한, WebDAV 메서드·Authorization·Destination·If·Lock-Token 전달이 필요하다. 다른 컨테이너에서 프록시를 실행하는 경우 그 컨테이너의 localhost는 이 서버가 아니므로 네트워크 연결을 별도로 구성한다. 도메인·인증서·프록시 설정은 이 Compose가 제공하지 않는다.
+Compose의 호스트 포트는 `${DASHBOARD_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT}:8080`이며 dashboard가 소유한다. 서버 IP로 직접 접속하려면 DASHBOARD_BIND_ADDRESS=0.0.0.0을 설정한다. 같은 서버에서 실행하는 HTTPS 역방향 프록시가 `127.0.0.1:8080`으로 전달하도록 구성한다. 프록시에는 WebSocket Upgrade 지원(터미널·원격 화면), 파일 업로드 크기/시간 제한, WebDAV 메서드·Authorization·Destination·If·Lock-Token 전달이 필요하다. 다른 컨테이너에서 프록시를 실행하는 경우 그 컨테이너의 localhost는 이 서버가 아니므로 네트워크 연결을 별도로 구성한다. 도메인·인증서·프록시 설정은 이 Compose가 제공하지 않는다.
 
 HTTP로 직접 접속할 때만 `SESSION_COOKIE_SECURE=false`를 사용한다. HTTP에서 true이면 로그인 쿠키가 전송되지 않아 로그인 유지가 안 된다. Tailscale HTTP 접속도 브라우저 기준으로 HTTP이므로 동일하다. 인터넷 공개 운영에는 HTTPS와 true를 사용한다. Tailscale 사용 시 웹의 Tailscale 설정에서 로그인할 수 있으므로 AUTHKEY는 비워도 된다. 무인 초기 로그인이 필요할 때만 본인 tailnet 인증 키를 로컬 `.env`에 설정한다.
 
@@ -40,3 +40,27 @@ docker compose --env-file .env up -d --build --remove-orphans
 ```
 
 `--remove-orphans`는 현재 Compose에서 제거된 기존 Wine 컨테이너를 정리한다. 기존 wine-profile 볼륨은 자동 삭제하지 않는다. `down -v`는 사용하지 않는다. 저장된 카카오톡 실행 탭과 이력은 조회에서 제외되며 새 DESKTOP 세션 요청은 거부된다.
+
+## Tailscale 없이 실행
+
+대시보드는 Tailscale에 로그인하지 않아도 실행되며 Tailscale 컨테이너가 없어도 웹 로그인·드라이브·일반 SSH를 사용할 수 있다. 서버 브라우저와 원격 화면은 각각 browser와 guacd가 필요하다. Tailscale 장비 연결만 로그인과 TUN이 필요하다.
+
+```sh
+# 기본 기능만 기동: Tailscale 이미지 빌드·TUN 접근도 필요 없음
+docker compose --env-file .env up -d --build dashboard guacd browser
+# 필요할 때 Tailscale 관리 서비스를 추가하고 웹 설정에서 로그인
+docker compose --env-file .env up -d --build tailscale
+```
+
+기존 버전에서 처음 업데이트할 때는 포트 소유자가 tailscale에서 dashboard로 바뀐다. 이전 컨테이너의 포트 점유와 네트워크를 정리하려고 다음처럼 한 번 중지 후 시작한다. **데이터 볼륨을 지우는 -v는 붙이지 않는다.**
+
+```sh
+docker compose --env-file .env down --remove-orphans
+docker compose --env-file .env up -d --build dashboard guacd browser tailscale
+```
+
+서버 IP의 HTTP 주소로 바로 접속하려면 `.env`에 `DASHBOARD_BIND_ADDRESS=0.0.0.0`, `SESSION_COOKIE_SECURE=false`를 사용하고 호스트 방화벽에서 대시보드 포트를 허용한다. HTTPS 프록시 운영은 기존 `127.0.0.1`, `SESSION_COOKIE_SECURE=true`를 유지한다. 포트 바인딩과 쿠키 정책은 Tailscale 로그인과 별개다.
+
+Tailscale의 NeedsLogin/unhealthy는 해당 장비 연결만 사용할 수 없다는 뜻이다. 기존 Tailscale 상태·대시보드 데이터 볼륨은 유지한다. dashboard가 재생성되면 공유 네트워크의 보조 서비스도 전체 up으로 재생성해야 한다. [Compose 의존성 기준](https://docs.docker.com/compose/how-tos/startup-order/).
+
+회귀 검증: tools/deployment/test-network.ps1은 별도 QA 프로젝트와 임시 계정으로 Tailscale 미기동, NeedsLogin, 중지 후 웹 로그인·드라이브·실제 DIRECT SSH 연결을 확인한다. QA 전용 볼륨만 정리하며 운영 데이터는 사용하지 않는다.

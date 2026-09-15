@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 mkdir -p /home/browser/profile
-# Shared Tailscale networking must not expose the unauthenticated desktop/CDP ports.
+# Shared dashboard networking must not expose the unauthenticated desktop/CDP ports.
 browser_bind=0.0.0.0
 vnc_local_only=no
 if [ "${BROWSER_LOCAL_ONLY:-false}" = "true" ]; then
