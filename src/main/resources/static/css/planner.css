@@ -1,0 +1,79 @@
+.planner-subtitle{margin:8px 0 0;color:var(--text-muted);font-size:13px}
+.planner-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 20px}
+.planner-toolbar .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.planner-toolbar h2{font-size:21px;margin:0 6px}
+.planner-toolbar input,.planner-toolbar select{padding:9px 12px;border:1px solid var(--border-subtle);background:var(--bg-surface);color:inherit;border-radius:6px;color-scheme:inherit}
+.calendar-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:16px;align-items:start}
+.month-board{border:1px solid var(--border-subtle);border-radius:6px;overflow:hidden}
+.week-labels,.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.week-labels{background:var(--bg-surface);border-bottom:1px solid var(--border-subtle);text-align:center;font-size:12px;color:var(--text-muted)}
+.week-labels span{padding:13px}
+.week-labels span:last-child{color:var(--danger)}
+.month-grid{background:var(--bg-surface)}
+.calendar-day{min-height:126px;padding:7px;border-right:1px solid var(--border-subtle);border-bottom:1px solid var(--border-subtle);min-width:0}
+.calendar-day:nth-child(7n){border-right:0}
+.calendar-day:nth-last-child(-n+7){border-bottom:0}
+.calendar-day.outside{background:var(--bg-surface-hover)}
+.calendar-day.outside .day-number{color:var(--text-muted)}
+.calendar-day.selected{box-shadow:inset 0 0 0 2px var(--accent)}
+.day-number{border:0;background:transparent;width:29px;height:29px;padding:0;border-radius:50%;font-size:12px}
+.day-number.is-today{background:var(--accent-solid);color:var(--text-inverse);font-weight:700}
+.event-chip{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--event-color);border-radius:3px;background:var(--bg-surface-hover);color:inherit;font-size:11px;padding:4px 5px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.event-chip span{opacity:.7}
+.more-events{font-size:11px;background:none;border:0;padding:3px}
+.day-agenda{border:1px solid var(--border-subtle);border-radius:6px;background:var(--bg-surface);padding:16px}
+.agenda-event{display:flex;flex-direction:column;gap:7px;text-align:left;width:100%;margin:12px 0;padding:12px;border:0;border-left:3px solid var(--event-color);border-radius:4px;background:var(--bg-surface-hover);overflow-wrap:anywhere}
+.agenda-event small,.agenda-event span{color:var(--text-muted);font-size:12px}
+.semester-summary{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px}
+.semester-summary b{color:var(--accent)}
+.semester-summary small{color:var(--text-muted)}
+.planner-welcome{padding:70px 24px;text-align:center;border:1px dashed var(--border-subtle);border-radius:6px}
+.planner-welcome>span{font-size:32px;color:var(--accent)}
+.planner-welcome p{color:var(--text-muted);margin:14px 0 24px}
+.timetable-scroll{overflow:auto;border:1px solid var(--border-subtle);border-radius:6px;background:var(--bg-surface)}
+.weekly-table{min-width:780px}
+.timetable-heading,.timetable-body{display:grid;grid-template-columns:58px repeat(7,minmax(0,1fr))}
+.timetable-heading{text-align:center;border-bottom:1px solid var(--border-subtle);height:45px;align-items:center;font-size:12px}
+.timetable-heading>span{color:var(--text-muted)}
+.timetable-heading b:last-child{color:var(--danger)}
+.timetable-body{position:relative}
+.hour-axis,.weekday-column{position:relative;border-right:1px solid var(--border-subtle)}
+.weekday-column:last-child{border:0}
+.hour-axis span{position:absolute;left:7px;font-size:10px;color:var(--text-muted);padding-top:6px}
+.empty-slot{position:absolute;width:100%;height:64px;border:0;border-top:1px solid var(--border-subtle);border-radius:0;background:transparent;padding:0}
+.empty-slot:hover{background:var(--bg-surface-hover)}
+.course-block{position:absolute;left:2px;right:2px;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;border:0;border-radius:5px;background:var(--bg-surface-hover);color:var(--text-primary);border-left:3px solid var(--course-color);padding:7px;overflow:auto;min-height:4px;font-size:12px;overflow-wrap:anywhere;z-index:1}
+.course-block strong{font-size:12px}
+.course-block span,.course-block small{font-size:10px}
+.course-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:18px 0}
+.course-summary{display:flex;flex-direction:column;gap:8px;text-align:left;padding:15px;border-left:4px solid var(--event-color);overflow-wrap:anywhere}
+.course-summary span,.course-summary small{font-size:12px;color:var(--text-muted)}
+.meeting-row{display:grid;grid-template-columns:75px 1fr 1fr 32px;gap:9px;align-items:end;margin:12px 0}
+.meeting-row input{min-width:0}
+.meeting-row button{height:38px}
+#add-meeting{margin-bottom:14px}
+#delete-planner-item{margin-top:14px}
+#editor-fields input[type=color]{padding:3px;height:39px;width:100%}
+#editor-fields textarea{width:100%;box-sizing:border-box}
+#calendar[aria-busy=true]{opacity:.65;pointer-events:none}
+
+@media(max-width:1150px){.calendar-layout{grid-template-columns:1fr}
+.day-agenda{display:block}
+.calendar-day{min-height:112px}
+}
+@media(max-width:600px){.planner-toolbar h2{font-size:17px}
+.calendar-day{padding:3px;min-height:88px}
+.event-chip{font-size:10px;padding:3px}
+.event-chip span{display:none}
+.week-labels span{padding:10px 0}
+.planner-toolbar{gap:10px}
+.meeting-row{grid-template-columns:55px 1fr 1fr 28px;gap:5px}
+.semester-summary small{width:100%}
+.planner-subtitle{max-width:230px}
+.planner-welcome{padding:35px 12px}
+}
+ 
+.course-summary{background:var(--bg-surface);border:1px solid var(--border-subtle);border-left:4px solid var(--event-color);color:var(--text-primary);border-radius:6px}
+#add-meeting,.remove-meeting,#delete-planner-item{background:var(--bg-surface-hover);border:1px solid var(--border-subtle);color:var(--text-primary);border-radius:6px;padding:7px 10px;cursor:pointer}
+.calendar-day button,.course-block,.course-summary{cursor:pointer}
+

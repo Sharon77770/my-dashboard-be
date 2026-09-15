@@ -1,0 +1,8 @@
+const {JSDOM}=require('jsdom'),fs=require('fs'),assert=require('node:assert/strict');
+const dom=new JSDOM('<body></body>',{runScripts:'outside-only'}),w=dom.window,d=w.document;
+w.HTMLDialogElement.prototype.showModal=function(){this.open=true};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'))};
+w.eval(fs.readFileSync('src/main/resources/static/js/tailscale.js','utf8'));
+let state={state:'NeedsLogin',hostname:'<img src=x>',ips:[],loginUrl:'javascript:alert(1)',pending:false,error:''},calls=[];
+w.WorkspaceTailscale.init({api:async(p,m)=>{calls.push(m||'GET');if(m==='POST')state={...state,loginUrl:'https://login.tailscale.com/a/fixture',pending:true};if(m==='DELETE')state={...state,pending:false,loginUrl:''};return state},confirmAction:(a,b,fn)=>fn()});
+const tick=()=>new Promise(r=>setTimeout(r,20));
+(async()=>{w.WorkspaceTailscale.open();await tick();assert.equal(d.querySelector('[data-ts-link]').hidden,true);assert.equal(d.querySelectorAll('img').length,0);d.querySelector('[data-ts-login]').click();await tick();assert.equal(d.querySelector('[data-ts-link]').href,'https://login.tailscale.com/a/fixture');assert.equal(d.querySelector('[data-ts-login]').disabled,true);d.querySelector('[data-ts-logout]').click();await tick();assert.ok(calls.includes('DELETE'));assert.equal(d.querySelector('[data-ts-link]').hidden,true);d.querySelector('[data-ts-close]').click();assert.equal(d.querySelector('dialog').open,false);console.log('PASS Tailscale UI: untrusted URL blocked, escaped status, login link, duplicate prevention, logout, close');dom.window.close()})().catch(e=>{console.error(e);dom.window.close();process.exitCode=1});

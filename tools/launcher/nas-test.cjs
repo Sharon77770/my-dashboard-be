@@ -1,0 +1,6 @@
+const {JSDOM}=require('jsdom'),fs=require('fs'),assert=require('node:assert/strict');
+const dom=new JSDOM('<div id="editor"></div>',{runScripts:'outside-only',url:'https://drive.example'}),w=dom.window,d=w.document;
+w.eval(fs.readFileSync('src/main/resources/static/js/nas.js','utf8'));
+const escape=value=>String(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
+let address='';w.WorkspaceNas.init({api:async()=>({enabled:true,publicUrl:address,path:'/dav/',username:'<img src=x>'}),escape,editor:(title,html)=>d.querySelector('#editor').innerHTML=html});
+(async()=>{await w.WorkspaceNas.open();assert.equal(d.querySelector('[data-nas-url]').value,'https://drive.example/dav/');assert.equal(d.querySelectorAll('img').length,0);const select=d.querySelector('[data-nas-device]');select.value='mobile';select.dispatchEvent(new w.Event('change'));assert.match(d.querySelector('[data-nas-guide]').textContent,/WebDAV/);address='javascript:alert(1)';await assert.rejects(w.WorkspaceNas.open());console.log('PASS NAS UI: canonical URL, escaped account, device guides, unsafe URL rejected');dom.window.close()})().catch(error=>{console.error(error);dom.window.close();process.exitCode=1});

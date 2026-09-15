@@ -1,0 +1,15 @@
+const {JSDOM}=require('jsdom'),fs=require('fs'),assert=require('node:assert/strict');
+const dom=new JSDOM('<pre></pre>',{runScripts:'outside-only'}),w=dom.window,output=w.document.querySelector('pre');
+w.eval(fs.readFileSync('src/main/resources/static/js/log-presentation.js','utf8'));
+const view=w.LogPresentation;
+const record='{"id":9007199254740993123,"message":"<img src=x onerror=alert(1)>","ok":true,"items":[]}';
+const pretty=view.format(record,'json');assert.ok(pretty.includes('\n  "id": 9007199254740993123'));assert.ok(pretty.includes('"items": []'));
+const partial='{"a":';assert.equal(view.format(partial,'json'),partial);
+const stamp='2026-09-15T01:02:03.123456789Z ';const jsonl=stamp+record+'\n'+stamp+'{"next":2}';assert.ok(view.format(jsonl,'json').startsWith(stamp+'{\n'));assert.ok(view.format(jsonl,'json').includes('"next": 2'));
+const original=JSON.stringify({nested:{escaped:'a\\"b',array:[null,false,1e-7]}});assert.deepEqual(JSON.parse(view.format(original,'json')),JSON.parse(original));
+view.render(output,record,{format:'json',color:'syntax',wrap:true,frame:true});assert.equal(output.querySelector('img'),null);assert.ok(output.querySelector('.log-token-key'));assert.ok(output.querySelector('.log-token-literal'));assert.equal(output.textContent,pretty);
+view.render(output,'INFO ready\nWARN slow\nERROR failed',{format:'raw',color:'levels',wrap:false,frame:false});assert.equal(output.querySelector('.log-token-error').textContent,'ERROR');assert.equal(output.dataset.wrap,'false');assert.equal(output.dataset.frame,'false');
+view.render(output,record,{format:'raw',color:'none',wrap:true,frame:true});assert.equal(output.textContent,record);assert.equal(output.children.length,0);
+const huge=Array(20000).fill('1 ').join('');view.render(output,huge,{format:'raw',color:'syntax',wrap:true,frame:true});assert.ok(output.children.length<=6000);assert.equal(output.textContent,huge);
+const deep='['.repeat(100)+'0'+']'.repeat(100);assert.equal(view.format(deep,'json'),deep);
+console.log('PASS log display: JSON/JSONL, timestamp prefix, partial JSON, exact large IDs, escapes, XSS, colors, raw restoration and bounded DOM/depth');dom.window.close();

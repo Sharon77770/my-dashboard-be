@@ -1,0 +1,10 @@
+.git
+.codex
+.tools
+.m2
+.env
+.env.*
+data
+target
+**/*.db*
+**/*.log

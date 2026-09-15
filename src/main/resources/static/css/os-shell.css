@@ -1,0 +1,46 @@
+/* Emulator frame: an app surface surrounded by system controls, not browser tabs. */
+.main{grid-template-columns:minmax(0,1fr) 42px;grid-template-rows:34px minmax(0,1fr) 34px;background:var(--bg-sidebar)}
+.os-statusbar{grid-column:1/-1;grid-row:1;align-items:center;padding:0 8px;gap:16px;border-bottom:1px solid var(--border-subtle);background:var(--bg-sidebar)}
+.os-statusbar .home-button{display:flex;align-items:center;gap:8px;width:auto;min-height:28px;padding:0 6px;color:var(--text-secondary);font-size:10px;letter-spacing:.06em;border:0;background:transparent}
+.os-mark{font-size:22px;color:var(--accent)}
+.os-statusbar #mobile-current-app{display:block;min-width:0;flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:500;padding:2px 10px;min-height:26px;border:0;border-left:1px solid var(--border-subtle);border-radius:0;color:var(--text-primary);background:transparent}
+.os-statusbar .top-actions{margin-left:auto;align-items:center;gap:8px;flex-shrink:0}
+#os-clock{font:11px var(--font-mono);color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.os-statusbar .ui-menu>summary{min-height:26px}
+.main>.content{grid-column:1;grid-row:2;background:var(--bg-app)}
+.os-tools{grid-column:2;grid-row:2;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 3px;background:var(--bg-sidebar);border-left:1px solid var(--border-subtle)}
+.os-tools button{width:32px;min-height:32px;padding:3px;background:transparent;border:0;color:var(--text-secondary);font-size:20px;border-radius:8px}
+.os-tools button:hover{color:var(--text-primary);background:var(--bg-surface-hover)}
+.os-tools-spacer{flex:1}
+.os-navigation{grid-column:1/-1;grid-row:3;display:flex;align-items:center;justify-content:center;gap:44px;background:var(--bg-sidebar);border-top:1px solid var(--border-subtle);padding:0 8px}
+.os-navigation button{position:relative;width:52px;min-height:28px;border:0;border-radius:8px;padding:0;background:transparent;color:var(--text-primary);font-size:23px;line-height:1}
+.os-navigation button:hover{background:var(--bg-surface-hover)}
+.os-navigation .os-mobile-drawer{display:none}
+.os-app-count{position:absolute;right:3px;top:1px;font-size:9px;background:var(--accent-subtle);color:var(--text-primary);border-radius:6px;padding:2px 4px}
+.launcher-home{min-height:100%;background:radial-gradient(ellipse at 80% 0%,var(--accent-subtle),transparent 65%),var(--bg-app);padding-bottom:130px}
+.launcher-head .eyebrow{letter-spacing:.18em;font-size:9px}.launcher-head h1{font-size:20px;font-weight:500}
+.launcher-shortcut .launcher-icon{border-radius:16px;border:1px solid var(--border-subtle);background:var(--bg-elevated);box-shadow:var(--shadow)}
+.launcher-dock{bottom:46px;border-radius:22px;background:var(--bg-elevated);padding:8px 12px;box-shadow:var(--shadow)}
+.launcher-dock .launcher-icon{box-shadow:none}
+#app-switcher{width:min(860px,calc(100vw - 48px));max-height:80dvh;border-radius:18px;background:var(--bg-app)}
+#app-switcher .dialog-head{background:transparent;border-bottom:0;padding:20px}
+#app-switcher h2{font-size:16px;font-weight:500}
+#switcher-apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;padding:4px 20px 24px}
+.os-task{position:relative;min-width:0;overflow:hidden;border-radius:16px;border:1px solid var(--border-default);background:var(--bg-surface)}
+.os-task.active{border-color:var(--accent);background:var(--accent-subtle)}
+.os-task-open{width:100%;min-height:190px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;border:0;background:transparent;padding:30px 12px 20px;color:var(--text-primary);text-align:center}
+.os-task-open:hover{background:var(--bg-surface-hover)}
+.os-task-icon{display:grid;place-items:center;width:58px;height:58px;border-radius:18px;background:var(--bg-elevated);color:var(--accent)}
+.os-task-icon .ui-icon{width:30px;height:30px}
+.os-task-open b{font-size:12px;font-weight:500;max-width:100%;overflow-wrap:anywhere}.os-task-open small{font-size:11px;color:var(--text-secondary)}
+.os-task-close,.os-task-pin{position:absolute;top:6px;right:6px;min-height:28px;width:28px;padding:2px;border:0;background:transparent;color:var(--text-secondary);font-size:17px;border-radius:50%}
+.os-task-pin{right:36px;font-size:14px}.os-task-close:hover,.os-task-pin:hover{background:var(--bg-surface-hover);color:var(--text-primary)}
+@media(max-width:700px){
+ .main{grid-template-columns:minmax(0,1fr);grid-template-rows:30px minmax(0,1fr) calc(40px + env(safe-area-inset-bottom))}
+ .os-statusbar{gap:6px;padding:0 6px}.os-statusbar .home-button>span:last-child{display:none}.os-statusbar #mobile-current-app{font-size:11px;padding:2px 8px}.os-statusbar .top-actions{gap:2px}
+ .os-tools{display:none}.os-navigation{gap:20px;padding-bottom:env(safe-area-inset-bottom)}.os-navigation .os-mobile-drawer{display:block}.os-navigation button{min-height:36px;width:44px}
+ .launcher-dock{bottom:calc(48px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:450px;border:1px solid var(--border-subtle);border-radius:20px;padding:8px 6px}
+ .launcher-home{padding-bottom:150px}.launcher-head{margin-bottom:20px}
+ #app-switcher{inset:auto 8px calc(48px + env(safe-area-inset-bottom));width:calc(100% - 16px);max-width:none;max-height:78dvh;border-radius:20px;margin:0}
+ #switcher-apps{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:4px 12px 16px}.os-task-open{min-height:170px}.os-task-icon{width:48px;height:48px}
+}

@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: my-dashboard-be
+  datasource:
+    url: jdbc:sqlite:${DASHBOARD_DB_PATH:./data/dashboard.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+      connection-init-sql: PRAGMA foreign_keys=ON
+      data-source-properties:
+        busy_timeout: 5000
+  sql:
+    init:
+      mode: never
+  servlet:
+    multipart:
+      max-file-size: ${UPLOAD_MAX_SIZE:1GB}
+      max-request-size: ${UPLOAD_MAX_SIZE:1GB}
+      file-size-threshold: 0
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      timeout: ${SESSION_TIMEOUT:30m}
+      tracking-modes: cookie
+      cookie:
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:true}
+        same-site: lax
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+workspace:
+  root: ${WORKSPACE_ROOT:./data/files}
+  key-path: ${CREDENTIAL_KEY_PATH:./data/credential.key}
+  guacd-host: ${GUACD_HOST:localhost}
+  guacd-port: ${GUACD_PORT:4822}
+  browser-host: ${BROWSER_HOST:localhost}
+  browser-port: ${BROWSER_DEBUG_PORT:9223}
+  browser-vnc-port: ${BROWSER_VNC_PORT:5901}
+  wine-host: ${WINE_HOST:localhost}
+  wine-vnc-port: ${WINE_VNC_PORT:5902}
+logging:
+  level:
+    org.springframework.web: INFO
+    net.schmizz.sshj: INFO
+    org.apache.guacamole: INFO
+
+cloud:
+  root: ${CLOUD_ROOT:./data/cloud}
+
+nas:
+  enabled: ${NAS_ENABLED:true}
+  public-url: ${NAS_PUBLIC_URL:}

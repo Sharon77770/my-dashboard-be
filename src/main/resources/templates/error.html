@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>요청 오류 · Personal Workspace</title>
+  <link rel="stylesheet" th:href="@{/css/design-system.css}"><link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <p class="eyebrow" th:text="${status}">오류</p>
+    <h1>요청을 완료하지 못했습니다.</h1>
+    <p class="muted">페이지를 다시 열어 주세요. 로그인이 만료되었다면 다시 로그인해 주세요.</p>
+    <a th:href="@{/}">대시보드로 이동</a>
+  </main>
+</body>
+</html>

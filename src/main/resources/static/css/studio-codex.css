@@ -1,0 +1,35 @@
+#studio-codex{position:relative;min-width:0}.cx-session-heading{padding:8px 12px;border-bottom:1px solid var(--border-subtle);display:flex;gap:8px;align-items:center}.cx-session-heading span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.cx-session-heading small,#cx-status{color:var(--text-muted);font-size:11px}#cx-status{margin:0;padding:4px 12px;overflow-wrap:anywhere}#cx-history{position:absolute;inset:42px 0 0;background:var(--bg-surface);z-index:5;padding:12px;overflow:auto}#cx-search{display:flex;gap:4px;margin-bottom:8px}#cx-search input{width:100%}.cx-session{display:block;width:100%;text-align:left;white-space:normal;overflow-wrap:anywhere;margin:8px 0}.cx-settings{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0}.cx-settings label{display:flex;flex:1;min-width:75px;flex-direction:column;gap:4px}.cx-settings select{font-size:11px;width:100%}.cx-context-actions{display:flex;gap:4px;flex-wrap:wrap}.cx-context-actions button,#cx-contexts button{font-size:10px;min-height:26px;padding:3px 6px}#cx-contexts{display:flex;flex-wrap:wrap;gap:4px}#cx-contexts button{max-width:100%;overflow-wrap:anywhere;background:var(--accent-subtle)}.cx-message{padding:14px 0;border-bottom:1px solid var(--border-subtle);overflow-wrap:anywhere}.cx-message>small{display:block;color:var(--text-muted);margin-bottom:8px}.cx-message-text{white-space:pre-wrap;font-size:12px;line-height:1.75}.cx-message[data-kind=userMessage]{padding:12px;background:var(--bg-surface-hover);border-radius:var(--radius-md);margin:12px 0}.cx-message pre,.cx-approval pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-height:260px;overflow:auto}.cx-message details{margin-top:8px;font-size:11px}.cx-approval{padding:12px;border:1px solid var(--accent);background:var(--bg-elevated);margin:8px;max-height:300px;overflow:auto}.cx-approval button{font-size:11px;margin:4px}.cx-approval label{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}#studio-prompt-form footer{flex-wrap:wrap;gap:8px}#cx-usage{flex:1;min-width:120px;color:var(--text-muted)}
+
+.cx-code{padding:8px;background:var(--bg-surface-hover);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);margin:8px 0}.cx-code>small{color:var(--text-muted)}.cx-code>button{float:right;min-height:24px;font-size:10px;padding:2px 6px}.cx-code pre{clear:both;padding-top:8px}
+/* Compact extension-style header and bottom composer. */
+#studio-codex>.studio-toolbar{min-height:36px;padding:3px 10px;border-bottom:0}
+.cx-panel-title{display:flex;align-items:center;gap:10px;flex:1;min-width:0}.cx-panel-title strong{font-size:12px;font-weight:600}.cx-panel-title #cx-title{color:var(--text-muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#studio-codex>.studio-toolbar>button{min-height:26px;width:26px;padding:2px;border:0;background:transparent;color:var(--text-secondary)}
+#studio-auth-cta{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 12px}#studio-auth-cta p{margin:0;font-size:10px}
+#studio-conversation{padding:8px 16px}.cx-message{border:0;padding:12px 0}.cx-message[data-kind=userMessage]{margin:12px 0 12px 20px;background:var(--bg-surface-hover);border-radius:14px 14px 3px 14px}.cx-message[data-kind=userMessage]>small{display:none}.cx-message[data-kind=agentMessage]>small{font-size:10px;font-weight:600}.cx-message-text{font-size:12px;line-height:1.8}
+#studio-codex .assistant-welcome>span{font-size:24px;opacity:.65}#studio-codex .assistant-welcome h3{font-size:17px;font-weight:500}#studio-codex .assistant-welcome p{max-width:240px;line-height:1.7}#studio-codex .assistant-welcome small{display:none}
+#studio-prompt-form{margin:4px 10px 10px;padding:10px;border-radius:12px;background:var(--bg-elevated)}
+#studio-prompt{min-height:60px;max-height:160px;font-size:12px;padding:8px 2px;resize:vertical}
+.composer-context{font-size:9px}.composer-context #studio-mode-label{display:none}
+#studio-prompt-form .cx-composer-toolbar{display:flex;align-items:center;gap:4px;flex-wrap:nowrap}
+.cx-composer-toolbar .cx-settings{display:flex;align-items:center;flex:1;min-width:0;flex-wrap:nowrap;gap:0;padding:0}
+.cx-composer-toolbar .cx-settings label{min-width:0;flex:1;display:block}
+.cx-composer-toolbar .cx-settings label:first-child{flex:2}
+.cx-composer-toolbar .cx-settings select{font-size:10px;border:0;background:transparent;padding:3px 1px;min-height:26px;width:100%;text-overflow:ellipsis}
+.cx-attachments>summary{font-size:19px;padding:0 4px;min-height:26px}
+.studio-inspector .cx-attachments .ui-menu-content{top:auto;bottom:calc(100% + 8px);left:0;right:auto;width:220px}
+#cx-send,[data-cx=stop]{border-radius:50%;width:28px;min-height:28px;padding:2px;font-size:16px;flex-shrink:0}
+.cx-composer-meta{display:flex;align-items:center;gap:6px;border-top:1px solid var(--border-subtle);margin-top:8px;padding-top:6px}.cx-composer-meta label{min-width:0;flex-shrink:0}.cx-composer-meta select{font-size:9px;border:0;background:transparent;min-height:22px;padding:2px 0;max-width:115px}.cx-composer-meta #cx-usage{min-width:0;text-align:right;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#cx-status{padding:2px 12px;font-size:10px}#cx-status:empty{display:none}#cx-history{inset:36px 0 0}
+@media(max-width:700px){#studio-prompt{font-size:16px}.cx-message-text{font-size:13px}#studio-prompt-form{margin-bottom:max(10px,env(safe-area-inset-bottom))}}
+
+/* Do not use transparent, tiny controls for model and permission selection. */
+.cx-composer-toolbar .cx-settings{gap:4px}
+.cx-composer-toolbar .cx-settings select,.cx-composer-meta select{background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border-default);border-radius:var(--radius-sm);font-size:12px;min-height:28px;padding:3px 4px}
+.cx-composer-toolbar .cx-settings select:disabled,.cx-composer-meta select:disabled{color:var(--text-secondary);opacity:1}
+.cx-composer-meta select{max-width:145px;font-size:11px}
+.cx-composer-meta #cx-usage{font-size:11px;color:var(--text-secondary)}
+.composer-context{font-size:11px;color:var(--text-secondary)}
+#cx-status{font-size:11px;color:var(--text-secondary)}
+.cx-panel-title #cx-title{color:var(--text-secondary);font-size:12px}
+.cx-attachments>summary{color:var(--text-primary)}

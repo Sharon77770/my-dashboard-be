@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d10" />
+  <title>Personal Workspace</title>
+  <style>
+
+:root{
+  --bg:#0b0d10;--sidebar:#0f1216;--panel:#14181e;--panel2:#171c23;--border:#272e38;
+  --text:#eef2f6;--muted:#8c96a3;--muted2:#647080;--green:#46d58b;--amber:#e8b94e;
+  --r:8px;
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:Inter,Pretendard,"Noto Sans KR",system-ui,sans-serif}
+button,input,select{font:inherit} button{color:inherit}.app{height:100vh;display:grid;grid-template-columns:220px minmax(0,1fr);overflow:hidden}
+.sidebar{background:var(--sidebar);border-right:1px solid var(--border);padding:12px 10px;display:flex;flex-direction:column;min-width:0}
+.brand{display:flex;align-items:center;gap:10px;height:54px;padding:0 8px 10px}.brand-mark{width:32px;height:32px;border:1px solid #44505f;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:800}
+.brand>div:last-child{display:flex;flex-direction:column}.brand strong{font-size:13px}.brand span{font-size:10px;color:var(--muted);margin-top:2px}
+.nav{display:grid;gap:3px}.nav-item,.settings-btn{border:0;background:transparent;display:flex;align-items:center;gap:10px;width:100%;height:36px;border-radius:6px;padding:0 10px;color:#aeb6c2;cursor:pointer}
+.nav-item:hover,.nav-item.active,.settings-btn:hover{background:#1a1f26;color:#fff}.nav-item span{width:20px;text-align:center;font-size:12px}.nav-item b,.settings-btn b{font-size:12px;font-weight:600}
+.sidebar-label{font-size:9px;letter-spacing:.1em;color:var(--muted2);font-weight:800;padding:24px 10px 8px;text-transform:uppercase}
+.quick-list{display:grid;gap:2px}.quick-list button{border:0;background:transparent;padding:7px 10px;border-radius:6px;display:flex;gap:9px;align-items:center;text-align:left;cursor:pointer}.quick-list button:hover{background:#171c22}
+.quick-list span{display:flex;flex-direction:column;min-width:0}.quick-list b{font-size:11px}.quick-list small{font-size:10px;color:var(--muted);margin-top:2px}.sidebar-spacer{flex:1}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}.green{background:var(--green)}.amber{background:var(--amber)}
+.main{min-width:0;display:grid;grid-template-rows:42px minmax(0,1fr) 44px;background:var(--bg)}
+.topbar{border-bottom:1px solid var(--border);display:flex;align-items:stretch;min-width:0;background:#0d1014}.tabs{display:flex;overflow:auto;min-width:0;flex:1;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tab{height:42px;min-width:100px;max-width:180px;border:0;border-right:1px solid var(--border);background:#10141a;color:#8994a1;padding:0 14px;text-align:left;cursor:pointer}.tab.active{background:var(--bg);color:#fff;border-top:2px solid #b9c2cf}
+.top-actions{display:flex;border-left:1px solid var(--border)}.icon-btn,.mobile-menu{width:42px;border:0;background:transparent;color:#9aa5b3;cursor:pointer}.icon-btn:hover,.mobile-menu:hover{background:#171c22;color:#fff}.mobile-menu{display:none}
+.content{min-height:0;overflow:auto;position:relative}.view{display:none;padding:26px}.view.active{display:block}.page-head{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:20px}.eyebrow{display:block;font-size:9px;letter-spacing:.16em;color:#697586;font-weight:800;margin-bottom:7px}.page-head h1{font-size:22px;margin:0;letter-spacing:-.03em}
+.primary{border:1px solid #4a5563;background:#e9edf2;color:#11151a;height:32px;padding:0 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer}
+.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.8fr);gap:12px}.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:15px;min-width:0}.panel.wide{min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.panel-head>div{display:flex;flex-direction:column}.panel-head span{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.09em}.panel-head h2{font-size:14px;margin:3px 0 0}.panel-head button{border:0;background:transparent;color:var(--muted);font-size:10px;cursor:pointer}.ok{font-size:10px!important;color:var(--green)!important}
+.recent-list,.device-mini,.clip-list{display:grid}.recent-list button,.device-mini button,.clip-list button{border:0;border-top:1px solid #202630;background:transparent;min-height:52px;display:flex;align-items:center;gap:10px;text-align:left;cursor:pointer;padding:8px 4px}.recent-list button:first-child,.device-mini button:first-child,.clip-list button:first-child{border-top:0}.recent-list button:hover,.device-mini button:hover,.clip-list button:hover{background:#181d24}
+.type{width:34px;height:34px;border:1px solid #303946;border-radius:6px;display:grid;place-items:center;font-size:10px;font-weight:800}.main-copy,.device-mini span,.clip-list button{min-width:0}.main-copy,.device-mini span{display:flex;flex-direction:column;flex:1}.main-copy b,.device-mini b,.clip-list b{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.main-copy small,.device-mini small,.clip-list small{font-size:10px;color:var(--muted);margin-top:3px}.recent-list time{font-size:9px;color:var(--muted2)}
+.device-mini em{font-style:normal;font-size:9px;color:var(--green)}.device-mini .muted{color:var(--muted)}
+.app-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.app-grid button{background:#11151a;border:1px solid #232a33;border-radius:7px;min-height:76px;padding:10px;display:flex;flex-direction:column;align-items:flex-start;cursor:pointer}.app-grid button:hover{background:#181d24;border-color:#343e4b}
+.app-icon{height:27px;min-width:27px;border:1px solid #3a4451;border-radius:6px;display:grid;place-items:center;padding:0 6px;font-size:9px;font-weight:800;margin-bottom:8px}.app-grid b{font-size:11px}.app-grid small{font-size:9px;color:var(--muted);margin-top:2px}
+.device-grid{display:grid;grid-template-columns:repeat(3,minmax(240px,1fr));gap:12px}.device-card{border:1px solid var(--border);background:var(--panel);border-radius:var(--r);padding:14px}.device-card header{display:flex;justify-content:space-between;gap:10px;align-items:center}.device-card header>div{display:flex;align-items:center;gap:8px}.device-card header b{font-size:12px}.device-card header small{font-size:9px;color:var(--muted)}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:15px 0}.metrics div{background:#10141a;border:1px solid #222933;padding:9px;border-radius:6px;display:flex;flex-direction:column}.metrics small{font-size:8px;color:var(--muted)}.metrics b{font-size:13px;margin-top:3px}.device-card footer{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.device-card footer button{height:30px;background:#191f27;border:1px solid #2b3440;border-radius:5px;font-size:10px;cursor:pointer}
+.tool-view,.terminal,.remote-wrap{height:calc(100vh - 112px);border:1px solid var(--border);background:var(--panel);border-radius:8px;overflow:hidden}.tool-bar{height:44px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;padding:0 10px}.tool-bar select,.tool-bar button{height:28px;background:#171c23;border:1px solid #303844;color:var(--text);border-radius:5px;font-size:10px;padding:0 9px}.path{height:28px;border:1px solid #303844;background:#0f1318;border-radius:5px;display:flex;align-items:center;padding:0 10px;font:10px ui-monospace,monospace;flex:1;color:#c9d1dc}
+.file-layout{display:grid;grid-template-columns:180px 1fr;height:calc(100% - 44px)}.file-layout aside{border-right:1px solid var(--border);padding:12px;display:flex;flex-direction:column;gap:4px}.file-layout aside b{font-size:9px;color:var(--muted);margin:8px 5px 3px}.file-layout aside button{border:0;background:transparent;text-align:left;padding:6px;border-radius:4px;color:#b7c0cc;font:10px ui-monospace,monospace}.file-layout aside button:hover{background:#1a2028}
+.file-table{padding:8px}.file-row{display:grid;grid-template-columns:minmax(220px,1fr) 120px 90px;min-height:35px;align-items:center;border-bottom:1px solid #202630;font-size:10px;padding:0 8px}.file-row.head{color:var(--muted);font-size:9px}
+.terminal-head{height:42px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;padding:0 12px}.terminal-head span{display:flex;align-items:center;gap:8px}.terminal-head b{font-size:11px}.terminal-head small{font-size:9px;color:var(--muted)}.terminal-head button{height:28px;border:1px solid #303844;background:#171c23;border-radius:5px;font-size:10px}
+.terminal pre{margin:0;padding:16px;color:#d8dee7;font:11px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace}.dim{color:#697586}.green-text{color:#6ad89b}.blue-text{color:#73a7f5}.cursor{animation:blink 1s step-end infinite}@keyframes blink{50%{opacity:0}}
+.remote-wrap{display:grid;place-items:center;padding:20px;background:#090b0e}.remote-monitor{width:min(100%,1100px);aspect-ratio:16/9;border:1px solid #343d49;background:#0d1116;border-radius:6px;overflow:hidden}.remote-head{height:34px;border-bottom:1px solid #2b333d;display:flex;align-items:center;justify-content:space-between;padding:0 10px;font-size:10px}.remote-head small{color:var(--muted)}.remote-body{height:calc(100% - 34px);padding:8%;background:radial-gradient(circle at 30% 20%,#1c2735,#101419 50%,#0a0c0f)}
+.fake-window{width:70%;height:70%;border:1px solid #3a4654;background:#151b22;border-radius:5px;overflow:hidden}.fake-title{height:28px;background:#202833;border-bottom:1px solid #313c49;padding:7px 10px;font-size:9px}.fake-body{display:grid;place-items:center;height:calc(100% - 28px);color:#6d7887;font-size:11px}
+.apps-list{display:grid;gap:8px;max-width:760px}.apps-list button{height:58px;border:1px solid var(--border);background:var(--panel);border-radius:7px;display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;text-align:left;padding:0 12px}.apps-list button>span:nth-child(2){display:flex;flex-direction:column}.apps-list b{font-size:11px}.apps-list small{font-size:9px;color:var(--muted);margin-top:2px}.apps-list em{font-style:normal;font-size:9px;color:var(--muted)}
+.command-dock{border-top:1px solid var(--border);background:#0d1014;padding:7px 10px}.command-dock button{height:30px;width:min(100%,760px);margin:auto;display:flex;align-items:center;gap:9px;background:#151a20;border:1px solid #2a323d;border-radius:6px;color:#7f8996;padding:0 10px;font-size:10px;text-align:left}.command-dock button span:nth-child(2){flex:1}.command-dot{width:7px;height:7px;border:1px solid #768190;border-radius:50%}.command-dock kbd,.palette kbd{font:8px ui-monospace,monospace;border:1px solid #384250;border-bottom-width:2px;border-radius:4px;padding:2px 5px;color:#8994a1}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.58);display:none;align-items:flex-start;justify-content:center;padding-top:10vh;z-index:30}.overlay.show{display:flex}.palette{width:min(620px,calc(100vw - 28px));background:#12161c;border:1px solid #343d49;border-radius:9px;box-shadow:0 30px 90px rgba(0,0,0,.5);overflow:hidden}
+.palette-search{height:48px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 12px}.palette-search input{flex:1;border:0;outline:0;background:transparent;color:#fff;font-size:12px}.palette-title{font-size:9px;color:var(--muted);padding:10px 12px 6px;text-transform:uppercase}.palette>button{width:100%;height:42px;border:0;background:transparent;display:grid;grid-template-columns:36px 1fr auto;align-items:center;text-align:left;padding:0 12px}.palette>button:hover{background:#1a2028}.palette>button span{font-size:9px;font-weight:800}.palette>button b{font-size:10px}.palette>button small{font-size:9px;color:var(--muted)}
+.runtime{display:none}.runtime.active{display:block;height:100%;padding:0}.runtime-card{height:calc(100vh - 86px);display:grid;place-items:center;background:#0e1115}.runtime-card>div{width:min(720px,90%);border:1px solid var(--border);background:var(--panel);border-radius:9px;padding:28px}.runtime-card h2{margin:0 0 8px;font-size:18px}.runtime-card p{color:var(--muted);font-size:11px;line-height:1.7}.runtime-actions{display:flex;gap:8px;margin-top:18px}.runtime-actions button{height:30px;border:1px solid #303844;background:#171c23;border-radius:5px;font-size:10px;padding:0 10px}
+@media(max-width:980px){.app{grid-template-columns:188px minmax(0,1fr)}.grid{grid-template-columns:1fr}.device-grid{grid-template-columns:1fr 1fr}.app-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:720px){
+  .app{display:block}.sidebar{position:fixed;left:0;top:0;bottom:0;width:230px;z-index:25;transform:translateX(-100%);transition:.18s ease;box-shadow:20px 0 70px rgba(0,0,0,.35)}.sidebar.open{transform:translateX(0)}
+  .main{height:100vh;grid-template-rows:44px minmax(0,1fr) 48px}.mobile-menu{display:block;flex:0 0 42px}.topbar{position:sticky;top:0;z-index:10}.tab{min-width:84px;max-width:140px}
+  .view{padding:16px 12px}.page-head{align-items:center;margin-bottom:14px}.page-head h1{font-size:18px}.primary{height:30px;font-size:10px}
+  .grid{display:block}.panel{margin-bottom:10px;padding:12px}.app-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.app-grid button{min-height:68px}
+  .device-grid{grid-template-columns:1fr}.device-card{padding:12px}.metrics{margin:12px 0}
+  .tool-view,.terminal,.remote-wrap{height:calc(100vh - 124px);border-radius:6px}.tool-bar{overflow:auto}.tool-bar .path{min-width:240px}.file-layout{grid-template-columns:1fr}.file-layout aside{display:none}.file-row{grid-template-columns:minmax(150px,1fr) 84px}.file-row span:last-child{display:none}
+  .terminal pre{font-size:10px;overflow:auto;white-space:pre;min-width:620px}.terminal{overflow:auto}.remote-wrap{padding:8px}.remote-monitor{width:100%}
+  .apps-list button{grid-template-columns:36px 1fr auto}.command-dock{padding:8px}.command-dock button{width:100%}
+}
+
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">PW</div>
+        <div>
+          <strong>Personal Workspace</strong>
+          <span>private control hub</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="home"><span>⌂</span><b>홈</b></button>
+        <button class="nav-item" data-view="devices"><span>▣</span><b>장비</b></button>
+        <button class="nav-item" data-view="files"><span>▤</span><b>파일</b></button>
+        <button class="nav-item" data-view="terminal"><span>›_</span><b>터미널</b></button>
+        <button class="nav-item" data-view="remote"><span>▰</span><b>원격</b></button>
+        <button class="nav-item" data-view="apps"><span>◇</span><b>앱</b></button>
+      </nav>
+
+      <div class="sidebar-label">빠른 연결</div>
+      <div class="quick-list">
+        <button data-open="ssh-home"><i class="dot green"></i><span><b>Home Server</b><small>SSH</small></span></button>
+        <button data-open="ssh-dgx"><i class="dot green"></i><span><b>DGX Spark</b><small>SSH</small></span></button>
+        <button data-open="remote-pc"><i class="dot amber"></i><span><b>Desktop</b><small>Remote</small></span></button>
+      </div>
+
+      <div class="sidebar-spacer"></div>
+      <button class="settings-btn"><span>⚙</span><b>설정</b></button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobileMenu" aria-label="메뉴">☰</button>
+        <div class="tabs" id="tabs">
+          <button class="tab active" data-tab="home-tab"><span>홈</span></button>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" id="searchBtn" title="검색">⌕</button>
+          <button class="icon-btn" title="새 탭">＋</button>
+        </div>
+      </header>
+
+      <section class="content" id="content">
+        <div class="view active" id="home">
+          <div class="page-head">
+            <div>
+              <span class="eyebrow">WORKSPACE</span>
+              <h1>이어 하던 작업부터.</h1>
+            </div>
+            <button class="primary" id="quickRun">빠른 실행</button>
+          </div>
+
+          <div class="grid">
+            <section class="panel wide">
+              <div class="panel-head">
+                <div><span>최근 작업</span><h2>바로 이어서</h2></div>
+                <button>전체</button>
+              </div>
+              <div class="recent-list">
+                <button data-open="ssh-home">
+                  <span class="type">›_</span>
+                  <span class="main-copy"><b>Home Server · SSH</b><small>/home/service</small></span>
+                  <time>12분 전</time>
+                </button>
+                <button data-open="files-dgx">
+                  <span class="type">▤</span>
+                  <span class="main-copy"><b>DGX Spark · Files</b><small>/home/service/pfm-vllm</small></span>
+                  <time>34분 전</time>
+                </button>
+                <button data-open="github">
+                  <span class="type">GH</span>
+                  <span class="main-copy"><b>GitHub</b><small>Sharon77770 / repositories</small></span>
+                  <time>1시간 전</time>
+                </button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div><span>장비</span><h2>상태</h2></div>
+                <small class="ok">3 정상</small>
+              </div>
+              <div class="device-mini">
+                <button data-open="ssh-home"><i class="dot green"></i><span><b>Home Server</b><small>CPU 11% · RAM 38%</small></span><em>정상</em></button>
+                <button data-open="ssh-dgx"><i class="dot green"></i><span><b>DGX Spark</b><small>GPU 4% · RAM 51%</small></span><em>정상</em></button>
+                <button data-open="remote-pc"><i class="dot amber"></i><span><b>Desktop</b><small>Remote idle</small></span><em class="muted">대기</em></button>
+              </div>
+            </section>
+
+            <section class="panel wide">
+              <div class="panel-head">
+                <div><span>빠른 접근</span><h2>자주 쓰는 것</h2></div>
+              </div>
+              <div class="app-grid">
+                <button data-open="gpt"><span class="app-icon">GPT</span><b>ChatGPT</b><small>외부 앱</small></button>
+                <button data-open="github"><span class="app-icon">GH</span><b>GitHub</b><small>외부 앱</small></button>
+                <button data-open="grafana"><span class="app-icon">G</span><b>Grafana</b><small>모니터링</small></button>
+                <button data-open="files-home"><span class="app-icon">FS</span><b>파일</b><small>Home Server</small></button>
+                <button data-open="ssh-dgx"><span class="app-icon">SSH</span><b>DGX</b><small>터미널</small></button>
+                <button data-open="remote-pc"><span class="app-icon">RDP</span><b>Desktop</b><small>원격</small></button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <div><span>클립보드</span><h2>임시 전송</h2></div>
+                <button>＋</button>
+              </div>
+              <div class="clip-list">
+                <button><b>https://github.com/...</b><small>23분 후 만료</small></button>
+                <button><b>ssh service@192.168...</b><small>48분 후 만료</small></button>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="view" id="devices">
+          <div class="page-head">
+            <div><span class="eyebrow">INFRASTRUCTURE</span><h1>장비</h1></div>
+            <button class="primary">장비 추가</button>
+          </div>
+          <div class="device-grid">
+            <article class="device-card">
+              <header><div><i class="dot green"></i><b>Home Server</b></div><small>192.168.0.12</small></header>
+              <div class="metrics"><div><small>CPU</small><b>11%</b></div><div><small>RAM</small><b>38%</b></div><div><small>DISK</small><b>67%</b></div></div>
+              <footer><button data-open="ssh-home">SSH</button><button data-open="files-home">파일</button><button>Docker</button></footer>
+            </article>
+            <article class="device-card">
+              <header><div><i class="dot green"></i><b>DGX Spark</b></div><small>192.168.100.10</small></header>
+              <div class="metrics"><div><small>GPU</small><b>4%</b></div><div><small>RAM</small><b>51%</b></div><div><small>VRAM</small><b>43%</b></div></div>
+              <footer><button data-open="ssh-dgx">SSH</button><button data-open="files-dgx">파일</button><button>GPU</button></footer>
+            </article>
+            <article class="device-card">
+              <header><div><i class="dot amber"></i><b>Desktop</b></div><small>Windows 11</small></header>
+              <div class="metrics"><div><small>STATUS</small><b>Idle</b></div><div><small>SESSION</small><b>0</b></div><div><small>LATENCY</small><b>8ms</b></div></div>
+              <footer><button data-open="remote-pc">원격</button><button>파일</button><button>Wake</button></footer>
+            </article>
+          </div>
+        </div>
+
+        <div class="view" id="files">
+          <div class="tool-view">
+            <div class="tool-bar">
+              <select><option>Home Server</option><option>DGX Spark</option><option>Desktop</option></select>
+              <div class="path">/home/service</div>
+              <button>업로드</button><button>새 폴더</button>
+            </div>
+            <div class="file-layout">
+              <aside>
+                <b>즐겨찾기</b>
+                <button>/home/service</button>
+                <button>/home/docker</button>
+                <button>/mnt/storage</button>
+                <b>최근</b>
+                <button>pfm-vllm</button>
+                <button>jarvis</button>
+              </aside>
+              <div class="file-table">
+                <div class="file-row head"><span>이름</span><span>수정</span><span>크기</span></div>
+                <div class="file-row"><span>📁 backend</span><span>방금</span><span>—</span></div>
+                <div class="file-row"><span>📁 frontend</span><span>8분 전</span><span>—</span></div>
+                <div class="file-row"><span>📁 logs</span><span>오늘</span><span>—</span></div>
+                <div class="file-row"><span>📄 docker-compose.yml</span><span>오늘</span><span>4.2 KB</span></div>
+                <div class="file-row"><span>📄 README.md</span><span>어제</span><span>12.8 KB</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view" id="terminal">
+          <div class="terminal">
+            <div class="terminal-head"><span><i class="dot green"></i><b>Home Server</b><small>service@home-server</small></span><button>새 세션</button></div>
+            <pre><span class="dim">Last login: Mon Sep 7 22:21:02 2026</span>
+
+<span class="green-text">service@home-server</span>:<span class="blue-text">~</span>$ cd /home/service
+<span class="green-text">service@home-server</span>:<span class="blue-text">~/service</span>$ docker compose ps
+NAME               STATUS
+personal-api       Up 3 days
+personal-web       Up 3 days
+
+<span class="green-text">service@home-server</span>:<span class="blue-text">~/service</span>$ <span class="cursor">█</span></pre>
+          </div>
+        </div>
+
+        <div class="view" id="remote">
+          <div class="remote-wrap">
+            <div class="remote-monitor">
+              <div class="remote-head"><span>Desktop · Windows 11</span><small>1920×1080 · 8ms</small></div>
+              <div class="remote-body">
+                <div class="fake-window">
+                  <div class="fake-title">Visual Studio Code</div>
+                  <div class="fake-body">원격 데스크톱 스트림 영역</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="view" id="apps">
+          <div class="page-head">
+            <div><span class="eyebrow">EXTERNAL TOOLS</span><h1>앱</h1></div>
+            <button class="primary">앱 추가</button>
+          </div>
+          <div class="apps-list">
+            <button data-open="gpt"><span class="app-icon">GPT</span><span><b>ChatGPT</b><small>chatgpt.com</small></span><em>외부 열기</em></button>
+            <button data-open="github"><span class="app-icon">GH</span><span><b>GitHub</b><small>github.com</small></span><em>외부 열기</em></button>
+            <button data-open="grafana"><span class="app-icon">G</span><span><b>Grafana</b><small>monitoring.local</small></span><em>내부 열기</em></button>
+          </div>
+        </div>
+
+        <div class="runtime" id="runtime"></div>
+      </section>
+
+      <footer class="command-dock">
+        <button id="commandBtn"><span class="command-dot"></span><span>검색 또는 실행...</span><kbd>Ctrl K</kbd></button>
+      </footer>
+    </main>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="palette">
+      <div class="palette-search"><span>⌕</span><input id="paletteInput" placeholder="장비, 파일, 앱, 명령..." /><kbd>ESC</kbd></div>
+      <div class="palette-title">빠른 실행</div>
+      <button data-open="ssh-home"><span>›_</span><b>Home Server SSH</b><small>최근 사용</small></button>
+      <button data-open="gpt"><span>GPT</span><b>ChatGPT 열기</b><small>앱</small></button>
+      <button data-open="files-dgx"><span>▤</span><b>DGX 파일 열기</b><small>장비</small></button>
+      <button data-open="remote-pc"><span>▰</span><b>Desktop 원격</b><small>장비</small></button>
+    </div>
+  </div>
+
+  <script>
+
+const navItems = [...document.querySelectorAll('.nav-item')];
+const views = [...document.querySelectorAll('.view')];
+const overlay = document.getElementById('overlay');
+const paletteInput = document.getElementById('paletteInput');
+const tabs = document.getElementById('tabs');
+const runtime = document.getElementById('runtime');
+const sidebar = document.getElementById('sidebar');
+
+const tabDefs = {
+  'ssh-home': {label:'SSH: Home', kind:'tool', title:'Home Server SSH', desc:'실제 구현에서는 WebSocket ↔ 백엔드 ↔ SSH 세션으로 연결.'},
+  'ssh-dgx': {label:'SSH: DGX', kind:'tool', title:'DGX Spark SSH', desc:'장비별 SSH 프로필과 세션 복구를 지원하는 자리.'},
+  'files-home': {label:'Files: Home', kind:'tool', title:'Home Server Files', desc:'SFTP 또는 서버 파일 API를 통한 파일 탐색기.'},
+  'files-dgx': {label:'Files: DGX', kind:'tool', title:'DGX Spark Files', desc:'대용량 파일은 스트리밍/청킹 전송을 전제로 설계.'},
+  'remote-pc': {label:'Remote: Desktop', kind:'tool', title:'Desktop Remote', desc:'RDP/VNC 게이트웨이를 붙이는 자리.'},
+  'github': {label:'GitHub', kind:'external', title:'GitHub', desc:'iframe이 막히면 새 탭/외부 열기. 임베딩 가능 서비스만 내부에 표시.'},
+  'gpt': {label:'ChatGPT', kind:'external', title:'ChatGPT', desc:'외부 서비스는 보안 정책에 따라 내부 임베딩 또는 새 창으로 처리.'},
+  'grafana': {label:'Grafana', kind:'external', title:'Grafana', desc:'내부 대시보드 URL은 iframe 허용 시 바로 탭 안에 임베딩 가능.'}
+};
+
+function setView(id){
+  runtime.classList.remove('active');
+  views.forEach(v => v.classList.toggle('active', v.id === id));
+  navItems.forEach(n => n.classList.toggle('active', n.dataset.view === id));
+  const homeTab = document.querySelector('[data-tab="home-tab"]');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(id === 'home' && homeTab) homeTab.classList.add('active');
+  if(window.innerWidth <= 720) sidebar.classList.remove('open');
+}
+
+navItems.forEach(n => n.addEventListener('click', () => setView(n.dataset.view)));
+
+function openRuntimeTab(key){
+  const def = tabDefs[key];
+  if(!def) return;
+  let tab = document.querySelector(`[data-runtime-tab="${key}"]`);
+  if(!tab){
+    tab = document.createElement('button');
+    tab.className = 'tab';
+    tab.dataset.runtimeTab = key;
+    tab.innerHTML = `<span>${def.label}</span>`;
+    tab.addEventListener('click', ()=>activateRuntime(key));
+    tabs.appendChild(tab);
+  }
+  activateRuntime(key);
+  overlay.classList.remove('show');
+  if(window.innerWidth <= 720) sidebar.classList.remove('open');
+}
+
+function activateRuntime(key){
+  const def = tabDefs[key];
+  views.forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  const tab = document.querySelector(`[data-runtime-tab="${key}"]`);
+  if(tab) tab.classList.add('active');
+  runtime.classList.add('active');
+  runtime.innerHTML = `
+    <div class="runtime-card">
+      <div>
+        <span class="eyebrow">${def.kind === 'external' ? 'EXTERNAL APP' : 'WORKSPACE TOOL'}</span>
+        <h2>${def.title}</h2>
+        <p>${def.desc}</p>
+        <div class="runtime-actions">
+          <button>새 탭으로 열기</button>
+          <button>고정</button>
+          <button>설정</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+document.querySelector('[data-tab="home-tab"]').addEventListener('click', ()=>setView('home'));
+document.querySelectorAll('[data-open]').forEach(el=>el.addEventListener('click',()=>openRuntimeTab(el.dataset.open)));
+
+function openPalette(){
+  overlay.classList.add('show');
+  setTimeout(()=>paletteInput.focus(),20);
+}
+document.getElementById('commandBtn').addEventListener('click', openPalette);
+document.getElementById('searchBtn').addEventListener('click', openPalette);
+document.getElementById('quickRun').addEventListener('click', openPalette);
+document.getElementById('mobileMenu').addEventListener('click', ()=>sidebar.classList.toggle('open'));
+
+overlay.addEventListener('click', e=>{ if(e.target === overlay) overlay.classList.remove('show'); });
+document.addEventListener('keydown', e=>{
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); openPalette(); }
+  if(e.key==='Escape'){ overlay.classList.remove('show'); sidebar.classList.remove('open'); }
+});
+
+</script>
+</body>
+</html>
