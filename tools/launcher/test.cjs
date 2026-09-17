@@ -17,7 +17,7 @@ const load=()=>JSON.parse(w.localStorage.getItem(w.HomePersistence.key()));
 (async()=>{
 for(const file of ['ui.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js','workspace.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
 await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,11);
-assert.equal(w.WorkspaceApps.all().length,17);assert.equal(d.querySelectorAll('#home-grid img').length,0);
+assert.equal(w.WorkspaceApps.all().length,18);assert.equal(d.querySelectorAll('#home-grid img').length,0);
 // Grid projects one model without collisions or changing canonical coordinates.
 assert.equal(w.WorkspaceApps.get('kakaotalk'),undefined);
 const retiredLayout=w.HomeGrid.sanitize({version:1,pages:1,dock:['kakaotalk','files'],items:[{id:'removed',type:'app',appId:'kakaotalk',page:0,x:0,y:0},{id:'old-folder',type:'folder',apps:['kakaotalk'],name:'old',page:0,x:1,y:0}]},w.WorkspaceApps,w.WorkspaceWidgets);

@@ -53,3 +53,7 @@ Tailscale 설정은 tailscale.js의 dialog 상태(열림/닫힘, 요청 중)와 
 원격 구성 상태는 IDLE/RUNNING/READY/BLOCKED이며 서버 메모리에 저장한다. 관리된 VNC 연결 정보는 서버 데이터 디렉터리에 암호화된 JSON으로 보존하고, 대상 계정의 화면 프로세스 상태는 별도 사용자 디렉터리에 둔다. [상태·재시작 정책](../remote-desktop.md).
 
 Tailscale 인증 상태는 tailscale-state 볼륨이 소유한다. NeedsLogin 또는 인증 실패가 공유 네트워크를 재생성하지 않는다.
+
+클라우드 에디터는 원본 텍스트, 편집 버퍼, revision, 저장 중 상태와 이미지 object URL을 메모리로 보유한다. 앱 전환 시 유지하고 목록 복귀 시 폐기하며 이미지 URL을 해제한다. 목록 단축키는 에디터에서 비활성화한다.
+
+메모장 서버 상태: NoteKind=FOLDER/DOCUMENT, revision은 0부터 시작하고 메타데이터/본문 저장 성공마다 증가한다. 이미지 FK는 문서 삭제 시 cascade한다. UI는 현재 폴더/문서, 펼친 폴더, 검색, 변경 횟수/저장 완료 횟수와 단일 진행 중 저장 Promise를 메모리에 가진다. 저장 중 추가 편집은 미저장 상태를 유지하고 다음 revision으로 저장한다. 충돌/실패 시 자동 덮어쓰기 대신 수동 재시도·Markdown 보관·최신 문서 열기를 제공한다. 앱 전환은 편집기를 폐기하지 않는다.

@@ -5,7 +5,7 @@
 - **기본 네트워크**: 기존 주소와 운영체제 라우팅을 사용한다.
 - **Tailscale**: 장비의 Tailscale IP 또는 MagicDNS 이름을 사용한다. 예: `ssh user@workstation` 또는 `ssh user@100.64.1.2`. 직접 설정 화면에서는 같은 주소를 호스트/IP에 입력한다.
 
-기존 Docker Compose의 Tailscale 서비스를 그대로 사용한다. `.env`의 `TAILSCALE_AUTHKEY`로 이미 로그인했다면 추가 로그인 없이 사용할 수 있다. 미로그인 상태는 `docker compose exec tailscale tailscale login`으로 로그인한다. 키·토큰을 장비 설정에 복사하지 않는다.
+기존 Docker Compose의 Tailscale 서비스를 사용한다. 저장된 인증은 데몬이 재사용한다. 미로그인 상태에서는 웹 Tailscale 설정에서 로그인 시작을 누르고 표시된 URL을 사용자 본인의 브라우저에서 열어 승인한다. 키·토큰을 장비 설정에 복사하지 않는다.
 
 선택한 모드는 SSH, SFTP, 터미널, IDE와 Codex, 계측 및 Docker/GPU 명령, RDP/VNC, 등록 장비의 원격 브라우저 서버 연결에 적용된다. 이미 열린 세션은 종료 후 다시 연결하면 새 설정을 사용한다. 사용자 브라우저에서 직접 여는 웹앱의 네트워크는 변경하지 않는다.
 
@@ -25,12 +25,12 @@ SQLite v3 마이그레이션은 기존 장비에 `network_mode=DIRECT`를 추가
 
 ## 웹에서 로그인 관리
 
-시스템 메뉴(⋮) → **Tailscale 설정**, 앱 목록 → **Tailscale 설정**, 또는 앱 관리 화면의 같은 버튼으로 연다. **로그인 시작 / 연결**을 누르면 서버의 `tailscale login`이 공식 인증 링크를 발급한다. **Tailscale 로그인 화면 열기**에서 계정을 승인하면 창의 상태·호스트 이름·IP가 자동으로 갱신된다. 계정 비밀번호는 대시보드에 입력하거나 저장하지 않는다. 이미 연결되어 있으면 재로그인을 시작하지 않는다. 로그인 대기는 최대 5분이며 실패 후 재시도할 수 있다. 사용자 브라우저의 외부 계정 승인 과정은 CLI만으로 대체하지 않는다.
+시스템 메뉴(⋮) → **Tailscale 설정**, 앱 목록 → **Tailscale 설정**, 또는 앱 관리 화면의 같은 버튼으로 연다. **로그인 시작 / 연결**을 누르면 서버의 `tailscale login`이 공식 인증 링크를 발급한다. 화면에 표시된 **인증 URL**을 본인의 PC/휴대폰 브라우저에서 열어 계정을 승인하면 창의 상태·호스트 이름·IP가 자동으로 갱신된다. 계정 비밀번호는 대시보드에 입력하거나 저장하지 않는다. 이미 연결되어 있으면 재로그인을 시작하지 않는다. 로그인 대기는 최대 5분이며 실패 후 재시도할 수 있다. 사용자 브라우저의 외부 계정 승인 과정은 CLI만으로 대체하지 않는다.
 
-**로그아웃**은 확인 후 서버의 `tailscale logout`을 실행한다. Tailscale을 경유하는 연결이 끊길 수 있으며 대시보드 사용자 로그아웃과는 별개다. 명시한 TAILSCALE_AUTHKEY가 남아 있으면 서비스 재시작 시 기존 자동 로그인이 다시 적용될 수 있다.
+**로그아웃**은 확인 후 서버의 `tailscale logout`을 실행한다. Tailscale을 경유하는 연결이 끊길 수 있으며 대시보드 사용자 로그아웃과는 별개다. 서비스 시작 시 키를 이용한 자동 인증은 수행하지 않는다. 기존 `.env`의 TAILSCALE_AUTHKEY는 더 이상 사용하지 않는다.
 
 Compose는 고정 Tailscale 이미지에 Python 관리 브리지를 추가해 빌드한다. 브리지는 공유 네트워크의 loopback 41113에만 바인딩하고 상태 조회/로그인/로그아웃만 허용한다. 임의 CLI 인자·셸·Docker 소켓·데몬 LocalAPI는 웹에 노출하지 않는다. 시작 시 생성하는 내부 토큰은 별도 tailscale-control 볼륨의 root:10001 0640 파일이고 dashboard에는 읽기 전용 마운트한다. Tailscale 상태 볼륨·데몬 소켓은 dashboard에 마운트하지 않는다. 원본 CLI 출력은 컨테이너 로그에 출력하지 않고 공식 login.tailscale.com/a/ 경로만 소유자에게 반환한다. 인증 링크 응답은 no-store다. 상태는 창을 연 동안 3초마다 조회하며 브리지 미준비 시 준비 안내를 표시한다.
 
-배포: `docker compose up -d --build`로 tailscale과 dashboard를 함께 갱신한다. 공유 네트워크 네임스페이스가 바뀌므로 종속 서비스도 재생성된다. 첫 시작의 환경변수 로그인 준비는 최대 약 60초가 걸릴 수 있다. [공식 CLI 계약](https://tailscale.com/docs/reference/tailscale-cli)을 사용한다.
+배포: `docker compose up -d --build`로 tailscale과 dashboard를 함께 갱신한다. 공유 네트워크 네임스페이스가 바뀌므로 종속 서비스도 재생성된다. 시작 시 데몬과 관리 브리지만 실행하며 로그인 버튼을 누르기 전 새 인증을 시도하지 않는다. [공식 CLI 계약](https://tailscale.com/docs/reference/tailscale-cli)을 사용한다.
 
 대시보드가 네트워크와 공개 포트를 소유한다. Tailscale 미기동·미로그인·중지는 일반 서비스 기동을 막지 않는다. 최초 구조 변경은 [운영 배포 안내](deployment.md)의 중지 후 재생성 절차를 따른다.

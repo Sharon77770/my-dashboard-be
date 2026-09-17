@@ -267,7 +267,7 @@ DeviceRequest, SshDeviceRequest에 networkMode enum DIRECT/TAILSCALE을 추가�
 
 GET `/api/v1/tailscale`, POST `/api/v1/tailscale/login`, DELETE `/api/v1/tailscale/login`은 OWNER 전용이며 변경 요청은 CSRF가 필요하다. path/query/body 매개변수는 없다. 각각 상태 조회/로그인 시작/로그아웃이며 성공은 200, Cache-Control: no-store, TailscaleView JSON을 반환한다. 로그인은 비동기이고 POST는 대기를 완료하지 않은 상태를 반환할 수 있다. 로그인 진행 중 재요청은 기존 프로세스를 유지하고 Running이면 새 인증을 시작하지 않는다.
 
-응답 필드는 모두 필수 non-null: state String(상위 BackendState, 주요 값 Running/NeedsLogin/NeedsMachineAuth/Stopped/Starting/NoState/InUseOtherUser/Unknown; 알 수 없는 상태도 그대로 표시), hostname String(없으면 빈 문자열), ips String[](없으면 빈 배열), loginUrl String(로그인 링크가 준비되지 않았거나 연결됨이면 빈 문자열; 공식 https://login.tailscale.com/a/ 주소만 허용), pending boolean(현재 로그인 CLI 실행 여부), error String(실패 안내 또는 빈 문자열). 사용자/peer 목록과 키는 반환하지 않는다.
+응답 필드는 모두 필수 non-null: state String(상위 BackendState, 주요 값 Running/NeedsLogin/NeedsMachineAuth/Stopped/Starting/NoState/InUseOtherUser/Unknown; 알 수 없는 상태도 그대로 표시), hostname String(없으면 빈 문자열), ips String[](없으면 빈 배열), loginUrl String(로그인 링크가 준비되지 않았거나 연결됨이면 빈 문자열; 공식 https://login.tailscale.com/a/ 주소만 허용), pending boolean(Running이 아니면서 로그인 CLI가 실행 중인지 여부), error String(실패 안내 또는 빈 문자열; Running이면 빈 문자열). 사용자/peer 목록과 키는 반환하지 않는다.
 
 실패는 기존 WorkspaceException 응답을 따른다: 미인증 401, 권한/CSRF 403, 브리지 데몬 오류·25초 응답 제한·중단 502, 토큰 파일 미준비 또는 내부 연결 불가 503. 내부 CLI status/logout 제한은 8초, login은 최대 5분이며 이후 실패 안내와 빈 링크를 반환한다. 데이터베이스 변경은 없으며 Tailscale 인증 상태는 기존 sidecar 상태 볼륨에 보존한다. [상세 동작](../tailscale.md).
 
@@ -310,3 +310,52 @@ POST /api/v1/devices/{id}/remote-setup: id는 필수 String 장비 ID. 본문 �
 응답 DesktopSetupView: state(String, 필수/null 불가, IDLE/RUNNING/READY/BLOCKED), message(String, 필수/null 불가, 사용자 안내). IDLE은 아직 작업 없음, RUNNING은 검사·설치·검증 중, READY는 연결 검증 성공, BLOCKED는 조치 후 재시도 필요. 작업 상세 실패는 BLOCKED의 message로 제공하고 명령 출력이나 자격증명은 반환하지 않는다.
 
 공통 오류: 400 기본 local 장비 설치 요청, 401 미인증, 403 권한/CSRF 실패, 404 장비 없음, 429 동시 작업 4개 초과. 오류 본문은 기존 message 형식이다. 설치·저장 위치·지원 OS·포트·수명은 [원격 자동 구성](../remote-desktop.md)을 따른다. SQLite schema 변경 없음.
+
+## 메모장 API
+
+모든 경로는 OWNER 세션이 필수이고 POST/PUT/DELETE는 기존 CSRF 헤더가 필요하다. ID는 서버 생성 UUID다. 목록 API는 문서 본문과 이미지 바이너리를 제외한 메타데이터를 반환한다. 성공 JSON은 아래 계약을 따르며 실패는 공통 `{message: string}`이다. 코드 필드는 없으며 HTTP status로 구분한다. 인증 실패 401, OWNER/CSRF 실패 403은 공통 정책이다.
+
+### 모델
+
+- Entry: `id` string 필수 non-null(UUID), `parentId` string|null 필수(최상위는 null, 값이 있으면 FOLDER ID), `kind` string 필수 non-null(FOLDER/DOCUMENT), `title` string 필수 non-null(공백 아닌 1~200자), `icon` string 필수 non-null(0~16 UTF-16 code units, 이모지 또는 빈 문자열), `revision` integer 필수 non-null(0부터 증가), `createdAt`/`updatedAt` integer 필수 non-null(epoch milliseconds).
+- Document: `entry` Entry 필수 non-null, `blocks` Block[] 필수 non-null. 폴더의 blocks는 빈 배열이다.
+- Create: `kind` FOLDER/DOCUMENT 필수, `parentId` string|null 선택(생략/null은 최상위, 최대 36자), `title` string 필수 1~200자 non-blank, `icon` string 필수 0~16자, `blocks` Block[] 필수. parentId 외 null은 허용하지 않는다.
+- Metadata: `parentId`, `title`, `icon`은 Create와 동일. `revision` integer 필수 non-null, 0 이상이며 마지막 읽기/저장에서 받은 값이다. 종류는 변경할 수 없다.
+- Content: `blocks` Block[] 필수 non-null, `revision` integer 필수 non-null 0 이상.
+- ImageView: `id` string 필수 non-null(UUID), `url` string 필수 non-null(`/api/v1/notes/images/{id}` 상대 주소). 원래 파일명이나 물리 경로는 포함하지 않는다.
+
+Block 배열은 BlockNote 0.54.2의 JSON 문서다. 전체 UTF-8 직렬화 2 MiB 이하, 최대 2,000블록, children 중첩 16단계다. `type` string 필수는 paragraph/heading/bulletListItem/numberedListItem/checkListItem/toggleListItem/quote/codeBlock/divider/image/table 중 하나다. `id` string 선택(에디터가 생성), `props` object 선택(생략 시 블록 기본값), `children` Block[] 선택(생략 시 자식 없음), `content`는 본문 종류에 따라 선택한다.
+
+인라인 본문은 string 또는 text/link 객체 배열이다. text는 `{type:'text',text:string,styles:object}`, link는 `{type:'link',href:string,content:인라인 배열}`이다. styles는 bold/italic/underline/strike/code boolean, textColor/backgroundColor string을 사용한다. heading.props.level은 1~6, checkListItem.props.checked는 boolean, image.props는 url/name/caption string과 showPreview boolean, previewWidth number를 사용한다. 표 본문은 `{type:'tableContent',rows:[{cells:[인라인 배열 또는 tableCell 객체]}]}`이고 tableCell은 `{type:'tableCell',content:인라인 배열,props:object}`다. 셀 속성은 색상·정렬·행/열 병합 값이며 기본값은 에디터가 관리한다. 코드의 props.language는 언어 이름 문자열이다. 번호 목록의 start는 양의 정수이며 기본값은 1이다. 색상·정렬·접기 등 부가 속성은 고정된 에디터 schema로 해석한다. HTML 원문은 실행하지 않고 블록 텍스트로 처리한다.
+
+`url`은 빈 문자열(미첨부 이미지), HTTPS 이미지 URL 또는 해당 문서가 소유한 첨부 상대 URL만 허용한다. `href` 링크는 HTTP(S)/mailto 또는 해당 문서 첨부 URL을 허용한다. 외부 이미지는 브라우저에서 직접 읽으며 서버가 가져오지 않는다. data/javascript/file/프로토콜 상대 URL은 거부한다. 서버는 자격증명이 포함된 HTTP(S) 주소를 거부한다.
+
+### 엔드포인트
+
+| Method / URL | Path / Query | Request body | 성공 응답 |
+| --- | --- | --- | --- |
+| GET /api/v1/notes | 없음 | 없음 | 200 Entry[], 비어 있으면 [] |
+| POST /api/v1/notes | 없음 | Create JSON | 201 Document, revision=0 |
+| GET /api/v1/notes/{id} | id: 항목 UUID 필수 | 없음 | 200 Document |
+| PUT /api/v1/notes/{id} | id: 항목 UUID 필수 | Metadata JSON | 200 Entry, revision+1 |
+| PUT /api/v1/notes/{id}/content | id: DOCUMENT UUID 필수 | Content JSON | 200 Entry, revision+1 |
+| DELETE /api/v1/notes/{id} | id 필수, query revision: integer 필수 | 없음 | 204 body 없음 |
+| POST /api/v1/notes/{id}/images | id: DOCUMENT UUID 필수 | multipart `file`: binary 필수 non-empty | 201 ImageView |
+| GET /api/v1/notes/images/{id} | id: 이미지 UUID 필수 | 없음 | 200 PNG/JPEG/GIF/WebP binary, Cache-Control:no-store, X-Content-Type-Options:nosniff |
+
+다른 query/body 필드는 요구하지 않는다. 문서·폴더는 총 5,000개까지 생성할 수 있다. 상위 폴더 chain을 검사해 자기 자신·자손·DOCUMENT를 상위 폴더로 지정할 수 없고 최대 32단계까지 허용한다. 이미지 업로드는 파일별 10 MiB까지이며 Content-Type 주장 대신 바이트 서명으로 형식을 판별한다. 업로드만으로 문서 revision은 증가하지 않는다. 첨부 URL을 포함하는 본문 저장은 별도 요청이다.
+
+삭제 시 DOCUMENT의 이미지 FK는 cascade하지만 폴더의 자식은 RESTRICT한다. 비어 있지 않은 폴더 삭제는 409이며 먼저 항목을 이동/삭제해야 한다. 첨부 블록 제거만으로 이미지를 지우지 않는다. 이미지는 문서 삭제 때 함께 제거된다.
+
+### 오류
+
+| Status | 조건 | message 예시 |
+| --- | --- | --- |
+| 400 | 필수값/타입/범위 오류, 폴더 본문, 잘못된 블록·URL·순환 이동 | 입력 형식과 필수 항목을 확인해 주세요. / 지원하지 않는 블록 형식입니다. / 자기 자신이나 하위 폴더로 이동할 수 없습니다. |
+| 404 | 항목/상위 폴더/이미지가 없음 | 문서 또는 폴더를 찾을 수 없습니다. / 이미지를 찾을 수 없습니다. |
+| 409 | revision 불일치, 비어 있지 않은 폴더 삭제, 총 개수 초과 | 다른 창에서 변경되었습니다. 내용을 보관한 뒤 최신 문서를 다시 여세요. / 폴더 안의 문서와 하위 폴더를 먼저 이동하거나 삭제하세요. |
+| 413 | 본문 2 MiB 또는 이미지 10 MiB 초과, 빈 이미지 | 문서는 2 MiB 이하여야 합니다. / 이미지는 0바이트 초과, 10 MiB 이하여야 합니다. |
+| 415 | 허용하지 않는 이미지 형식 | PNG, JPEG, GIF, WebP 이미지만 첨부할 수 있습니다. |
+| 500 | DB/저장 실패 등 예기치 않은 오류 | 요청 처리에 실패했습니다. 설정과 연결 상태를 확인해 주세요. |
+
+명시적 revision 비교와 조건부 UPDATE/DELETE로 오래된 쓰기를 거부한다. 자동 덮어쓰기·서버 측 재시도는 없다. API에 사용자별 ownerId를 받지 않으며 기존 단일 OWNER 계정의 비공개 저장소다.

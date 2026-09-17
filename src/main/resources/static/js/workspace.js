@@ -83,6 +83,7 @@
     rememberScreen(id,null);
     if(id!=='home' && !pageTabs.includes(id)){pageTabs.push(id);savePageTabs();}
     activeView=id;
+    window.WorkspaceNotes?.open(id).catch(error=>toast(error.message));
     window.WorkspaceCloud?.open(id).catch(error=>toast(error.message));
     window.WorkspaceLogs?.open(id).catch(error=>toast(error.message));
     $('#palette-dialog').close();$('#app-switcher').close();
@@ -338,6 +339,7 @@
   window.addEventListener('beforeunload',()=>{for(const runtime of runtimes.values()){runtime.socket?.close();runtime.guacamole?.disconnect();}});
   window.WorkspacePlanner?.init({api,editor,fields,escape,toast,confirmAction});
   window.WorkspaceLogs?.init({api,escape,toast});
+  window.WorkspaceNotes?.init({api,escape,toast,editor,confirmAction});
   window.WorkspaceCloud?.init({api,escape,toast,editor,confirmAction});
   window.WorkspaceNas?.init({api,escape,editor});
   window.WorkspaceTailscale?.init({api,confirmAction});

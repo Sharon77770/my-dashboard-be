@@ -10,7 +10,6 @@ services:
         restart: true
     entrypoint: ["/bin/sh", "/opt/dashboard-tailscale/start.sh"]
     environment:
-      TS_AUTHKEY: ${TAILSCALE_AUTHKEY:-}
       TS_HOSTNAME: ${TAILSCALE_HOSTNAME:-personal-dashboard}
       TS_STATE_DIR: /var/lib/tailscale
       TS_ACCEPT_DNS: ${TAILSCALE_ACCEPT_DNS:-true}

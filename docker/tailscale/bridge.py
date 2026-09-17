@@ -26,8 +26,8 @@ def status():
     with lock:
         return dict(state=state, hostname=own.get('HostName', ''), ips=own.get('TailscaleIPs') or [],
                     loginUrl='' if state == 'Running' else login_url,
-                    pending=login is not None and login.poll() is None,
-                    error=login_error)
+                    pending=state != 'Running' and login is not None and login.poll() is None,
+                    error='' if state == 'Running' else login_error)
 
 def begin_login():
     global login, login_url, login_error
@@ -35,6 +35,8 @@ def begin_login():
     with lock:
         if login is not None and login.poll() is None: return
         login_url, login_error = '', ''
+        # Linux CLI only emits the authentication URL and waits for the user's approval.
+        # Never invoke a browser, URL opener, or credential-based authentication here.
         login = subprocess.Popen(['tailscale', 'login', '--timeout=5m',
                                   '--hostname='+os.environ.get('TS_HOSTNAME', 'personal-dashboard'),
                                   '--accept-dns='+os.environ.get('TS_ACCEPT_DNS', 'true'),

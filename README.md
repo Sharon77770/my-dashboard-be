@@ -116,14 +116,7 @@ OpenSSH가 최초 접속 시 호스트 확인을 요청하면 터미널에서 �
 ## Docker 내 Tailscale
 별도 설치 없이 `docker compose up -d --build`로 Tailscale도 함께 실행한다. Linux Docker 엔진의 `/dev/net/tun`과 NET_ADMIN/NET_RAW가 필요하며 이 권한은 Tailscale 컨테이너에만 부여한다. Docker Desktop은 Linux 컨테이너 모드를 사용한다.
 
-최초 한 번, 다음 중 하나로 본인 tailnet에 로그인한다.
-
-1. 권장: 로컬 `.env`의 `TAILSCALE_AUTHKEY`에 본인 tailnet 인증 키를 넣고 `docker compose up -d` 실행. 브라우저 로그인 없이 키로 인증하며, 인증 키는 저장소에 커밋하지 않는다.
-2. 인증 키를 사용할 수 없는 경우 아래 명령이 안내하는 URL에서 로그인한다.
-
-```bash
-docker compose exec tailscale tailscale login
-```
+최초 로그인은 웹의 **Tailscale 설정 → 로그인 시작 / 연결**에서 진행한다. 표시된 URL을 본인의 PC 또는 휴대폰 브라우저에서 직접 열어 승인하면 연결 상태가 자동 갱신된다. 서버는 인증 URL 발급과 상태 확인만 수행하며 서버 브라우저 실행·계정 로그인 자동화·인증 키 자동 로그인을 수행하지 않는다. 기존 인증 상태는 재시작 후 재사용한다.
 
 접속 상태와 IP는 다음으로 확인한다.
 
@@ -151,7 +144,6 @@ dashboard 컨테이너를 새로 만들면 네트워크를 공유하는 guacd/br
 
 | 환경변수 | 기본값 | 역할 |
 | --- | --- | --- |
-| TAILSCALE_AUTHKEY | 빈 값 | 최초 자동 로그인 인증 키, 비우면 대화형 로그인 |
 | TAILSCALE_HOSTNAME | personal-dashboard | tailnet 장비 이름 |
 | TAILSCALE_ACCEPT_DNS | true | tailnet DNS 설정 수락 |
 | TAILSCALE_ACCEPT_ROUTES | false | 승인된 서브넷 경로 수락 |
@@ -167,3 +159,6 @@ dashboard 컨테이너를 새로 만들면 네트워크를 공유하는 guacd/br
 [Launcher 문서](docs/launcher.md)에서 홈 편집, 폴더, 위젯, Desktop/Mobile 동작과 앱 등록 방법을 확인하세요. 공통 디자인 시스템과 저장 모델, UI 검증 방법도 함께 설명합니다.
 
 운영 환경변수와 업데이트 명령은 [배포 안내](docs/deployment.md)를 참고하세요.
+
+## 메모장
+앱 목록 → 메모장에서 조직/프로젝트 폴더를 만들고 Notion 방식 블록 편집기로 문서를 작성합니다. 이미지, 체크리스트, 표, Markdown과 자동 저장을 지원하며 빈 문서·할 일·업무 기록·가계부 등 8개 템플릿을 제공합니다. [사용법과 저장/백업 제한](docs/notes.md).

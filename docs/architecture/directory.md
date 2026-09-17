@@ -56,7 +56,7 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 
 - `compose.yaml`: Tailscale sidecar와 3개 실행 서비스의 공유 네트워크, loopback 제어 포트, TUN 권한, 인증 상태 볼륨.
 - `docker/browser/start.sh`: BROWSER_LOCAL_ONLY=true일 때 VNC/CDP loopback 제한. X11 TCP는 비활성화.
-- `.env.example`: TAILSCALE_AUTHKEY/HOSTNAME/ACCEPT_DNS/ACCEPT_ROUTES 입력 계약.
+- `.env.example`: TAILSCALE_HOSTNAME/ACCEPT_DNS/ACCEPT_ROUTES 입력 계약.
 
 - src/main/java/com/personal/dashboard/studio/: controller, service, adapter, dto, 세션 종료 설정.
 - src/main/resources/studio/: SSH에서 실행하는 bootstrap.sh / remote.py.
@@ -100,3 +100,13 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 - runtime/dto/DesktopSetupView.java: 안전한 상태 응답.
 - src/main/resources/remote-desktop/setup.py: Linux 도구 설치·별도 화면 시작·포트 탐색.
 - src/main/resources/static/js/remote-setup.js: 구성 안내·상태 조회·성공 후 원격 탭 열기.
+
+## 메모장
+- `notes/controller/NoteController.java`: 문서/폴더/이미지 HTTP 리소스.
+- `notes/service/NoteService.java`, `NoteContentValidator.java`: OWNER, 계층/버전/콘텐츠/첨부 검증.
+- `notes/repository/NoteRepository.java`, `notes/entity/NoteRecord.java`: SQLite 저장과 내부 record.
+- `notes/domain/NoteKind.java`, `notes/dto/NoteDto.java`: 종류 enum과 HTTP 계약.
+- `db/migrations/V4__notes.sql`: 비파괴 테이블/인덱스 추가.
+- `static/js/notes.js`, `notes-templates.js`, `static/css/notes.css`: 화면과 템플릿.
+- `tools/notes-editor/`: 고정 npm 의존성, 빌드 소스, 실제 편집기 DOM 테스트.
+- `static/vendor/notes-editor.js`, `.css`, `.LICENSE.txt`: 배포 번들과 라이선스 고지.

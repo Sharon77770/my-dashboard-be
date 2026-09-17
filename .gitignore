@@ -2,6 +2,7 @@
 /.tools/
 /.m2/
 /tools/studio-editor/node_modules/
+/tools/notes-editor/node_modules/
 /.env
 /.env.*
 !/.env.example

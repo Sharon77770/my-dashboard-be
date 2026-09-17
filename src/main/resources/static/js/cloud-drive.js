@@ -93,21 +93,56 @@ window.WorkspaceCloud=(()=>{
   }
   picker.addEventListener('click',event=>{const button=event.target.closest('[data-picker]');if(button)browse(button.dataset.picker);});browse('/');
  }
+ let fileEditor=null;
+ const editorDirty=()=>fileEditor?.input&&fileEditor.input.value!==fileEditor.saved;
+ /** Full drive editor keeps its buffer across app switches and owns preview URLs. */
  async function preview(value){
   const entry=entries.find(item=>item.path===value);if(!entry)return;
   if(entry.directory){await navigate(value);return;}
+  if(fileEditor)return;
+  const session={saved:'',saving:false};fileEditor=session;root.classList.add('cloud-editing');
+  const screen=document.createElement('section');screen.className='cloud-editor';
+  screen.innerHTML=`<header class="cloud-editor-header"><button data-file-back>← 드라이브로 돌아가기</button><div><h1>${esc(name(value))}</h1><p>${esc(value)}</p></div><button class="primary" data-file-save hidden disabled>저장</button><a class="button" href="/api/v1/cloud/content?path=${encodeURIComponent(value)}" download>다운로드</a></header><p data-file-status role="status">불러오는 중…</p><div class="cloud-editor-content"></div>`;
+  root.append(screen);
+  const content=screen.querySelector('.cloud-editor-content'),status=screen.querySelector('[data-file-status]'),save=screen.querySelector('[data-file-save]');
+  screen.querySelector('[data-file-back]').onclick=async()=>{
+   if(session.saving)return;
+   if(editorDirty()&&!window.confirm('저장하지 않은 변경을 버리고 드라이브로 돌아갈까요?'))return;
+   if(session.url)URL.revokeObjectURL(session.url);
+   fileEditor=null;screen.remove();root.classList.remove('cloud-editing');await refresh();
+  };
+  screen.querySelector('[data-file-back]').focus();
+  try{
   if(/\.(png|jpe?g|gif|webp)$/i.test(value)&&entry.size<=20*1024*1024){
    const response=await fetch('/api/v1/cloud/content?path='+encodeURIComponent(value));if(!response.ok)throw new Error('이미지를 불러오지 못했습니다.');
-   const url=URL.createObjectURL(await response.blob());
-   ui.editor(name(value),`<img class="cloud-preview-image" src="${esc(url)}" alt="${esc(name(value))}">`,async()=>{},'닫기');
-   document.getElementById('editor-dialog').addEventListener('close',()=>URL.revokeObjectURL(url),{once:true});return;
+   const blob=await response.blob();if(fileEditor!==session)return;
+   session.url=URL.createObjectURL(blob);
+   const image=document.createElement('img');image.className='cloud-preview-image';image.src=session.url;image.alt=name(value);content.append(image);
+   image.onerror=()=>{status.textContent='이미지를 표시하지 못했습니다. 다운로드로 확인하세요.';};
+   status.textContent='이미지 열람';return;
   }
-  try{
    const text=await ui.api('/cloud/preview?path='+encodeURIComponent(value));
-   ui.editor(name(value),`<label>UTF-8 텍스트<textarea class="cloud-text-editor" name="content" spellcheck="false">${esc(text.content)}</textarea></label><p class="section-hint">저장은 서버 파일을 수정합니다. 다른 작업의 변경이 있으면 덮어쓰지 않습니다.</p>`,async form=>{
-    await ui.api('/cloud/text','PUT',{path:value,content:form.get('content'),revision:text.revision});await refresh();
-   });
-  }catch(error){ui.editor(name(value),`<p>${esc(error.message)}</p><a href="/api/v1/cloud/content?path=${encodeURIComponent(value)}" download>파일 다운로드</a>`,async()=>{},'닫기');}
+   if(fileEditor!==session)return;
+   session.saved=text.content;session.revision=text.revision;
+   const input=document.createElement('textarea');input.className='cloud-text-editor';input.setAttribute('aria-label','UTF-8 텍스트 편집');input.spellcheck=false;input.value=text.content;session.input=input;content.append(input);
+   save.hidden=false;status.textContent='UTF-8 텍스트 · 변경 후 저장하세요.';
+   input.oninput=()=>{save.disabled=session.saving||!session.revision||!editorDirty();status.textContent=editorDirty()?'저장하지 않은 변경이 있습니다.':'변경 사항이 없습니다.';};
+   save.onclick=async()=>{
+    if(session.saving||!session.revision)return;
+    session.saving=true;save.disabled=true;input.readOnly=true;status.textContent='저장 중…';
+    const submitted=input.value;
+    try{
+     await ui.api('/cloud/text','PUT',{path:value,content:submitted,revision:session.revision});
+     session.saved=submitted;session.revision=null;
+     // Adopt the next revision only when it still belongs to the submitted content.
+     const current=await ui.api('/cloud/preview?path='+encodeURIComponent(value));
+     if(current.content!==submitted)throw new Error('저장 후 파일이 다시 변경되었습니다.');
+     session.revision=current.revision;status.textContent='저장했습니다.';
+    }catch(error){status.textContent=error.message+(session.revision?'':' 파일을 다시 열어 최신 내용을 확인하세요.');}
+    finally{session.saving=false;input.readOnly=false;save.disabled=!session.revision||!editorDirty();}
+   };
+   input.focus();
+  }catch(error){if(fileEditor===session)status.textContent=error.message+' 다운로드로 확인할 수 있습니다.';}
  }
  function uploadOne(file,target,overwrite){
   return new Promise((resolve,reject)=>{
@@ -156,7 +191,7 @@ window.WorkspaceCloud=(()=>{
  return {
   init(helpers){
    ui=helpers;root=document.getElementById('cloud');if(!root)return;
-   root.innerHTML=`<aside class="cloud-sidebar"><h2>☁ 드라이브</h2><button data-cloud-action="home">내 드라이브</button><button data-cloud-action="trash">휴지통</button><button data-cloud-action="nas">NAS 연결</button><p data-cloud-space class="section-hint"></p></aside><section class="cloud-main"><div class="cloud-header"><h1 data-cloud-location>내 드라이브</h1><form data-cloud-search><input data-cloud-filter placeholder="이 폴더와 하위 폴더 검색" aria-label="파일 검색" maxlength="200"><button>검색</button></form><button data-cloud-action="reload" aria-label="새로고침">↻</button></div><nav data-cloud-crumbs aria-label="폴더 경로"></nav><div class="cloud-toolbar" data-cloud-normal><button class="primary" data-cloud-action="upload" data-cloud-write>파일 업로드</button><button data-cloud-action="upload-folder" data-cloud-write>폴더 업로드</button><button data-cloud-action="folder" data-cloud-write>새 폴더</button><button data-cloud-action="file" data-cloud-write>새 파일</button><label><input type="checkbox" data-cloud-overwrite>같은 이름 업로드 덮어쓰기</label><input type="file" multiple data-cloud-files hidden><input type="file" webkitdirectory multiple data-cloud-folders hidden></div><div class="cloud-toolbar cloud-selection"><button data-cloud-action="all">페이지 전체 선택</button><span data-cloud-count></span><span data-cloud-normal><button data-cloud-action="download" data-cloud-needs-selection>다운로드</button><button data-cloud-action="copy" data-cloud-needs-selection>복사</button><button data-cloud-action="move" data-cloud-needs-selection>이동</button><button data-cloud-action="rename" data-cloud-needs-selection>이름 변경</button><button data-cloud-action="delete" data-cloud-needs-selection>삭제</button><details class="ui-menu"><summary aria-label="클립보드 작업">⋯</summary><div class="ui-menu-content"><button data-cloud-action="clipboard" data-cloud-needs-selection>복사 대기</button><button data-cloud-action="cut" data-cloud-needs-selection>잘라내기</button></div></details><button data-cloud-action="paste" data-cloud-paste disabled>붙여넣기</button></span><span data-cloud-trash-only hidden><button data-cloud-action="restore" data-cloud-needs-selection>복원</button><button data-cloud-action="purge" data-cloud-needs-selection class="danger">영구 삭제</button><button data-cloud-action="empty" class="danger">휴지통 비우기</button></span></div><div class="cloud-toolbar"><label>정렬<select data-cloud-sort><option value="name">이름</option><option value="modified">최근 수정</option><option value="size">크기</option></select></label><label>보기<select data-cloud-view><option value="list">목록</option><option value="grid">격자</option></select></label><span class="section-hint">파일을 열면 미리보기 · 파일을 끌어 놓아 업로드</span></div><div data-cloud-upload-state hidden><progress data-cloud-progress max="100" value="0"></progress><button data-cloud-action="cancel">업로드 취소</button></div><p data-cloud-status role="status"></p><div data-cloud-items class="cloud-items" data-layout="list"></div><div class="cloud-toolbar"><button data-cloud-action="previous">이전</button><span data-cloud-page></span><button data-cloud-action="next">다음</button></div></section>`;
+   root.innerHTML=`<aside class="cloud-sidebar"><h2>☁ 드라이브</h2><button data-cloud-action="home">내 드라이브</button><button data-cloud-action="trash">휴지통</button><button data-cloud-action="nas">NAS 연결</button><p data-cloud-space class="section-hint"></p></aside><section class="cloud-main"><div class="cloud-header"><h1 data-cloud-location>내 드라이브</h1><form data-cloud-search><input data-cloud-filter placeholder="이 폴더와 하위 폴더 검색" aria-label="파일 검색" maxlength="200"><button>검색</button></form><button data-cloud-action="reload" aria-label="새로고침">↻</button></div><nav data-cloud-crumbs aria-label="폴더 경로"></nav><div class="cloud-toolbar" data-cloud-normal><button class="primary" data-cloud-action="upload" data-cloud-write>파일 업로드</button><button data-cloud-action="upload-folder" data-cloud-write>폴더 업로드</button><button data-cloud-action="folder" data-cloud-write>새 폴더</button><button data-cloud-action="file" data-cloud-write>새 파일</button><label><input type="checkbox" data-cloud-overwrite>같은 이름 업로드 덮어쓰기</label><input type="file" multiple data-cloud-files hidden><input type="file" webkitdirectory multiple data-cloud-folders hidden></div><div class="cloud-toolbar cloud-selection"><button data-cloud-action="all">페이지 전체 선택</button><span data-cloud-count></span><span data-cloud-normal><button data-cloud-action="download" data-cloud-needs-selection>다운로드</button><button data-cloud-action="copy" data-cloud-needs-selection>복사</button><button data-cloud-action="move" data-cloud-needs-selection>이동</button><button data-cloud-action="rename" data-cloud-needs-selection>이름 변경</button><button data-cloud-action="delete" data-cloud-needs-selection>삭제</button><details class="ui-menu"><summary aria-label="클립보드 작업">⋯</summary><div class="ui-menu-content"><button data-cloud-action="clipboard" data-cloud-needs-selection>복사 대기</button><button data-cloud-action="cut" data-cloud-needs-selection>잘라내기</button></div></details><button data-cloud-action="paste" data-cloud-paste disabled>붙여넣기</button></span><span data-cloud-trash-only hidden><button data-cloud-action="restore" data-cloud-needs-selection>복원</button><button data-cloud-action="purge" data-cloud-needs-selection class="danger">영구 삭제</button><button data-cloud-action="empty" class="danger">휴지통 비우기</button></span></div><div class="cloud-toolbar"><label>정렬<select data-cloud-sort><option value="name">이름</option><option value="modified">최근 수정</option><option value="size">크기</option></select></label><label>보기<select data-cloud-view><option value="list">목록</option><option value="grid">격자</option></select></label><span class="section-hint">파일을 열면 에디터로 이동 · 파일을 끌어 놓아 업로드</span></div><div data-cloud-upload-state hidden><progress data-cloud-progress max="100" value="0"></progress><button data-cloud-action="cancel">업로드 취소</button></div><p data-cloud-status role="status"></p><div data-cloud-items class="cloud-items" data-layout="list"></div><div class="cloud-toolbar"><button data-cloud-action="previous">이전</button><span data-cloud-page></span><button data-cloud-action="next">다음</button></div></section>`;
    root.addEventListener('click',event=>Promise.resolve(click(event)).catch(error=>tell(error.message)));
    root.addEventListener('change',event=>{const id=event.target.dataset.cloudSelect;if(id!==undefined){if(event.target.checked)selected.add(id);else selected.delete(id);event.target.closest('.cloud-item').classList.toggle('selected',event.target.checked);buttons();}});
    $('[data-cloud-search]').addEventListener('submit',event=>{event.preventDefault();if(!busy)refresh();});
@@ -166,14 +201,14 @@ window.WorkspaceCloud=(()=>{
    root.addEventListener('dragleave',event=>{if(!root.contains(event.relatedTarget))root.classList.remove('cloud-drag');});
    root.addEventListener('drop',event=>{event.preventDefault();root.classList.remove('cloud-drag');const items=[...(event.dataTransfer?.items||[])];if(items.some(item=>item.webkitGetAsEntry?.()?.isDirectory)){tell('폴더는 폴더 업로드 버튼으로 선택하세요.');return;}upload([...(event.dataTransfer?.files||[])]);});
    document.addEventListener('keydown',event=>{
-    if(!root.classList.contains('active')||document.querySelector('dialog[open]')||event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+    if(fileEditor||!root.classList.contains('active')||document.querySelector('dialog[open]')||event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
     let action=null;
     if(event.ctrlKey||event.metaKey)action=({a:'all',c:'clipboard',x:'cut',v:'paste'})[event.key.toLowerCase()];
     else if(event.key==='Delete')action=trash?'purge':'delete';else if(event.key==='F2'&&!trash)action='rename';
     if(action){const button=root.querySelector('[data-cloud-action="'+action+'"]');if(button&&!button.disabled){event.preventDefault();button.click();}}
    });
-   window.addEventListener('beforeunload',event=>{if(busy){event.preventDefault();event.returnValue='';}});
+   window.addEventListener('beforeunload',event=>{if(busy||fileEditor?.saving||editorDirty()){event.preventDefault();event.returnValue='';}});
   },
-  async open(view){if(root&&view==='cloud'&&!busy)await refresh();}
+  async open(view){if(root&&view==='cloud'&&!busy&&!fileEditor)await refresh();}
  };
 })();

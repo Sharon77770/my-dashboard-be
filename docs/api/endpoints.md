@@ -91,3 +91,16 @@ POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로
 
 - POST /api/v1/devices/{id}/remote-setup — OWNER 세션·CSRF, 비동기 자동 구성 및 연결 검증 시작.
 - GET /api/v1/devices/{id}/remote-setup — OWNER 세션, 구성 상태 조회.
+
+## 메모장
+
+| Method | URL | Auth | 설명 |
+| --- | --- | --- | --- |
+| GET | /api/v1/notes | OWNER | 폴더/문서 메타데이터 전체 목록 |
+| POST | /api/v1/notes | OWNER + CSRF | 폴더 또는 문서 생성 |
+| GET | /api/v1/notes/{id} | OWNER | 단일 항목과 블록 본문 조회 |
+| PUT | /api/v1/notes/{id} | OWNER + CSRF | 이름/아이콘/상위 폴더 변경 |
+| PUT | /api/v1/notes/{id}/content | OWNER + CSRF | 버전을 검사하여 블록 본문 저장 |
+| DELETE | /api/v1/notes/{id} | OWNER + CSRF | 문서 또는 빈 폴더 영구 삭제 |
+| POST | /api/v1/notes/{id}/images | OWNER + CSRF | 문서 이미지 첨부 |
+| GET | /api/v1/notes/images/{id} | OWNER | 첨부 이미지 읽기 |

@@ -1,6 +1,6 @@
-# SQLite schema v3
+# SQLite schema v4
 
-소스: `src/main/resources/db/schema.sql`. DatabaseInitialization이 시작 시 idempotent CREATE/INSERT와 user_version=3를 적용한다.
+소스: `src/main/resources/db/schema.sql`. DatabaseInitialization이 시작 시 idempotent CREATE/INSERT와 기본 schema 적용 후 V4__notes.sql로 user_version=4를 적용한다.
 기존 초기 프로젝트에는 업무 테이블이 없었으므로 데이터 삭제 없이 추가한다. v3는 db/migrations/V3__device_network.sql로 기존 devices에 network_mode를 추가한다. PRAGMA table_info로 적용 여부를 확인하므로 재시작 시 반복 추가하지 않는다. 기존 장비는 DIRECT로 보존한다.
 기존 테이블 owner는 catalog이며 soft delete는 사용하지 않는다. 아래 표의 컬럼은 별도 명시가 없으면 NOT NULL, default 없음이다.
 TEXT ID는 서버 생성 UUID이며 devices의 기본 프로필만 `local`이다. 기존 catalog 시간은 INTEGER Unix epoch milliseconds, boolean은 INTEGER 0/1이다.
@@ -162,3 +162,33 @@ owner는 planner, soft delete 없음. 아래 모든 열은 NOT NULL/default 없�
 SQLite 테이블/마이그레이션 추가 없음. cloud 모듈 소유 CLOUD_ROOT/files는 활성 파일, trash/{UUID}/payload는 삭제된 원본, record.json의 path(String 필수 가상 원래 경로)와 deletedAt(long 필수 epoch ms)는 내부 TrashRecord이다. staging은 임시 업로드/복사/ZIP 용도다. 서버 단일 계정과 파일시스템 권한으로 보호한다. 휴지통으로 소프트 삭제하고 명시적인 영구 삭제만 재귀 제거한다. 기존 장비/사용자/세션 테이블 관계는 변경하지 않는다.
 
 카카오톡 제거 후 기존 DESKTOP 행은 물리 삭제하지 않고 activity 및 workspace_tabs 조회에서 제외한다. 새 요청에는 DESKTOP을 허용하지 않는다. 테이블 구조 변경은 없다.
+
+## note_entries (owner: notes)
+
+조직/프로젝트 폴더와 블록 문서. soft delete 없음. `V4__notes.sql`의 idempotent CREATE로 기존 v3 데이터 변경 없이 추가한다. PK id, 부모 1:N 자식 관계이며 parent_id는 FOLDER만 서비스에서 허용한다. FK ON DELETE RESTRICT: 자식이 남은 폴더는 삭제 불가. 순환 이동은 서비스에서 거부한다.
+
+| Column | Type | Required | Default | Index/Unique | 의미 |
+| --- | --- | --- | --- | --- | --- |
+| id | TEXT | 예 | 서버 UUID | PK / unique | 폴더·문서 ID |
+| parent_id | TEXT | 아니오 | NULL | note_entries_parent / non-unique, FK note_entries.id | 최상위는 null |
+| kind | TEXT | 예 | 없음 | CHECK FOLDER/DOCUMENT | 항목 종류, 생성 후 불변 |
+| title | TEXT | 예 | 없음 | 없음 | 1~200자 이름 |
+| icon | TEXT | 예 | 없음 | 없음 | 0~16자 이모지/표시 문자열 |
+| content | TEXT | 예 | '[]' | 없음 | BlockNote JSON 배열, 폴더는 빈 배열 |
+| revision | INTEGER | 예 | 0 | 없음 | 저장 버전, 성공한 메타데이터/본문 변경마다 증가 |
+| created_at | INTEGER | 예 | 없음 | 없음 | 서버 생성 epoch ms |
+| updated_at | INTEGER | 예 | 없음 | 없음 | 마지막 메타데이터/본문 저장 epoch ms |
+
+## note_images (owner: notes)
+
+문서별 첨부 이미지. soft delete 없음. 문서 1:N 이미지, document_id FK → note_entries.id ON DELETE CASCADE. DOCUMENT만 서비스에서 허용한다. 이미지 블록 제거/업로드 후 취소 시 파일은 남고 문서 삭제 시 함께 제거된다.
+
+| Column | Type | Required | Default | Index/Unique | 의미 |
+| --- | --- | --- | --- | --- | --- |
+| id | TEXT | 예 | 서버 UUID | PK / unique | 이미지 ID |
+| document_id | TEXT | 예 | 없음 | note_images_document / non-unique, FK | 소유 문서 |
+| media_type | TEXT | 예 | 없음 | 없음 | 서명 검증된 image/png, image/jpeg, image/gif, image/webp |
+| data | BLOB | 예 | 없음 | 없음 | 0바이트 초과, 최대 10 MiB 파일 |
+| created_at | INTEGER | 예 | 없음 | 없음 | 업로드 epoch ms |
+
+로그인 계정·세션·토큰 테이블은 추가하지 않는다. 기존 SQLite DB/dashboard-data 백업에 본문과 이미지가 함께 포함된다. 파일 내용이 커지면 DB 파일도 증가하며 삭제한 공간 회수는 SQLite 정책을 따른다.

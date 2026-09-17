@@ -53,7 +53,7 @@ SSH 호스트 지문과 RDP 인증서는 검증하며 자동 신뢰를 하지 �
 
 ## Tailscale 네트워크
 
-공식 tailscale 이미지 1.102.3을 digest로 고정한다. tailscaled --tun=tailscale0의 커널 TUN 네트워크로 기존 SSHJ, guacd, Chromium의 일반 TCP 연결이 tailnet 경로를 사용한다. 별도 SOCKS proxy는 사용하지 않는다. 장비별 networkMode 옵션과 DeviceNetworkAdapter가 선택한 Tailscale 주소를 검사한다. sidecar만 /dev/net/tun 및 NET_ADMIN/NET_RAW를 가진다. TS_AUTHKEY는 sidecar에만 전달하고 /var/lib/tailscale을 별도 tailscale-state 볼륨에 저장한다. Java/브라우저에는 상태 볼륨과 LocalAPI 소켓을 마운트하지 않는다.
+공식 tailscale 이미지 1.102.3을 digest로 고정한다. tailscaled --tun=tailscale0의 커널 TUN 네트워크로 기존 SSHJ, guacd, Chromium의 일반 TCP 연결이 tailnet 경로를 사용한다. 별도 SOCKS proxy는 사용하지 않는다. 장비별 networkMode 옵션과 DeviceNetworkAdapter가 선택한 Tailscale 주소를 검사한다. sidecar만 /dev/net/tun 및 NET_ADMIN/NET_RAW를 가진다. 인증 키 자동 주입 없이 /var/lib/tailscale을 별도 tailscale-state 볼륨에 저장한다. Java/브라우저에는 상태 볼륨과 LocalAPI 소켓을 마운트하지 않는다.
 모든 서비스가 같은 네트워크와 resolver 파일을 공유하므로 GUACD_HOST/BROWSER_HOST는 127.0.0.1이다. VNC/CDP/guacd는 loopback에만 바인딩하여 tailnet에서 직접 제어할 수 없다. X11 TCP는 비활성화한다. dashboard가 호스트 포트 8080을 소유하고 tailnet 정책 허용 시 tailnet의 8080에도 앱이 응답한다. 공용 Funnel/Serve/서브넷 광고/exit node/내장 SSH 서버는 활성화하지 않는다.
 
 ## 원격 개발 작업 공간
@@ -72,10 +72,13 @@ StudioController → StudioService(OWNER/HTTP 세션·수명·크기 제한) →
 
 장비 로그는 StudioService의 세션 소유 비동기 작업으로 실행하고 StudioAdapter → 고정 logs.py → 로컬/SSH CLI를 경유한다. 기존 SSH/Tailscale 경계를 재사용한다. 로그 작업은 프로젝트 잠금을 잡지 않고 최근 이벤트만 메모리에 보유한다. 상세 계약은 [장비 로그](../device-logs.md)를 따른다.
 
-TailscaleService는 OWNER 검증 후 전용 TailscaleAdapter를 통해 loopback 인증 브리지를 호출한다. 브리지는 sidecar 내부에서 고정 CLI 세 가지만 실행한다. dashboard는 브리지 토큰 파일만 읽으며 데몬 소켓·상태·Docker 권한을 얻지 않는다. 초기 환경변수 자동 로그인 완료 후 브리지를 시작하여 CLI 인증 경쟁을 방지한다. [설정과 제한](../tailscale.md).
+TailscaleService는 OWNER 검증 후 전용 TailscaleAdapter를 통해 loopback 인증 브리지를 호출한다. 브리지는 sidecar 내부에서 고정 CLI 세 가지만 실행한다. dashboard는 브리지 토큰 파일만 읽으며 데몬 소켓·상태·Docker 권한을 얻지 않는다. 데몬과 브리지를 바로 시작하며 신규 인증은 사용자 요청 시에만 시작한다. 서버 브라우저나 로그인 화면 자동화는 사용하지 않는다. [설정과 제한](../tailscale.md).
 
 클라우드 드라이브는 cloud/controller → cloud/service(OWNER 및 실패 변환) → cloud/adapter/CloudStorage(검증된 전용 디스크 작업)로 분리한다. 사용자 가상 경로는 CLOUD_ROOT/files 하위에만 매핑하며 기존 SSH 파일 탐색과 독립한다. 업로드/복사는 staging을 거쳐 게시하고 파일시스템 변경은 단일 adapter 잠금으로 직렬화한다. 다운로드는 열린 InputStream으로 전달하고 ZIP은 스트림 종료 시 임시 파일을 정리한다. TrashRecord는 내부 저장 모델, CloudDto는 HTTP 모델이다. [저장·한도](../cloud-drive.md).
 
 NAS는 nas/controller/DavServlet → nas/service/DavService → cloud/adapter/CloudStorage를 경유한다. DavXml은 제한된 XML 파싱·생성을 담당한다. DavLocks의 일시적 잠금 상태를 CloudStorage도 검사하여 웹과 WebDAV 쓰기 충돌을 방지한다. 별도 Basic 보안 체인과 서블릿을 사용하며 기존 세션 API와 분리한다. DB 스키마 변경 없이 기존 영구 드라이브를 공유한다. [상세](../nas.md).
 
 원격 자동 구성은 DesktopSetupController → DesktopSetupService → DesktopSetupAdapter → 검증된 SSH의 고정 setup.py 순서로 실행한다. RemoteAdapter는 관리된 VNC만 SSH loopback 터널로 guacd에 연결하며, 기존 직접 연결은 유지한다. [지원 환경과 수명](../remote-desktop.md).
+
+## 메모장
+notes/controller → notes/service → notes/repository → SQLite. 기존 계정·CSRF·DB를 재사용하며 문서/이미지는 대시보드 안에 저장한다. notes.js가 탐색과 API 흐름을 담당하고 React/BlockNote 번들은 에디터 영역에만 마운트한다. 런타임 외부 에디터 서비스·CDN 연동은 없다. [사용법](../notes.md).

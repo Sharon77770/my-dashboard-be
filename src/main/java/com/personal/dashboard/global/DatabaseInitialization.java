@@ -22,5 +22,7 @@ public class DatabaseInitialization implements InitializingBean {
         .noneMatch(column -> "network_mode".equals(column.get("name"))))
       new ResourceDatabasePopulator(new ClassPathResource("db/migrations/V3__device_network.sql"))
           .execute(dataSource);
+    new ResourceDatabasePopulator(new ClassPathResource("db/migrations/V4__notes.sql"))
+        .execute(dataSource);
   }
 }

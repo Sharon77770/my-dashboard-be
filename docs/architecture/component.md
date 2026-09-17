@@ -37,3 +37,5 @@ Tailscale UI는 상태 표시와 링크 열기만 담당하고 Controller → Ta
 CloudStorage는 파일 경로·특수 파일 방어와 IO를 전담한다. CloudService는 권한과 유스케이스 진입 및 안전한 오류 변환을 담당한다. CloudController는 multipart/JSON/stream HTTP 계약만 다룬다. cloud-drive.js는 표시와 서버 요청 조합만 수행하며 서버 파일 내용을 직접 실행하지 않는다.
 
 DesktopSetupService는 기존 CatalogService 프로필과 RemoteAdapter 연결 검증을 조합한다. DesktopSetupAdapter의 내부 Managed 모델은 암호화된 비밀번호와 장비 식별 해시를 보존하며 HTTP DTO와 분리한다. [경계](../remote-desktop.md).
+
+메모장은 NoteController → NoteService → NoteRepository 경계를 따른다. NoteRecord는 저장용이며 HTTP에는 NoteDto.Entry/Document만 반환한다. NoteContentValidator는 블록/링크/크기 검증을 맡는다. notes.js는 폴더 탐색·폼·저장 버전·오류를 관리하고 BlockNote 브리지는 편집·Markdown 변환·이미지 업로드 콜백만 맡는다. 템플릿은 notes-templates.js의 독립 블록 복사본이다.
