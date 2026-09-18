@@ -16,3 +16,5 @@
 /.vscode/
 *.iml
 .DS_Store
+
+/tools/ui/node_modules/

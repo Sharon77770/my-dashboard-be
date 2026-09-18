@@ -1,0 +1,1 @@
+{"private":true,"scripts":{"build":"tailwindcss -i ./workspace.css -o ../../src/main/resources/static/vendor/workspace-ui.css --minify"},"devDependencies":{"tailwindcss":"4.3.3","@tailwindcss/cli":"4.3.3","postcss":"8.5.6"}}

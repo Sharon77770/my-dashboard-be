@@ -1,13 +1,13 @@
 /* Theme values live here. Feature styles consume semantic roles only. */
 :root {
   color-scheme: dark;
-  --bg-app:#18191c; --bg-sidebar:#141518; --bg-surface:#202125; --bg-surface-hover:#2b2d33; --bg-elevated:#26282e;
+  --bg-app:#191919; --bg-sidebar:#161616; --bg-surface:#202020; --bg-surface-hover:#2c2c2c; --bg-elevated:#262626;
   --text-primary:#ededf0; --text-secondary:#b6bac5; --text-muted:#a0a6b3; --text-inverse:#ffffff;
-  --border-default:#757e8e; --border-subtle:#30333b; --border-strong:#757e8e;
+  --border-default:#757e8e; --border-subtle:#343434; --border-strong:#757e8e;
   --accent:#a7b8ff; --accent-hover:#c6d1ff; --accent-subtle:#30384f; --accent-solid:#465bc1; --accent-solid-hover:#3c4fa8;
   --danger:#ffadb5; --warning:#ebc281; --success:#9ed8b1;
   --danger-subtle:#42292e; --warning-subtle:#3d3325; --success-subtle:#253a2d;
-  --overlay:#0009; --shadow:0 12px 40px #0004;
+  --overlay:#0009; --drawer-overlay:#0004; --shadow:0 12px 40px #0004;
   --studio-keyword:#d2a8ff; --studio-string:#a5d6a7; --studio-number:#efbd8a; --studio-comment:#a0a6b3; --studio-function:#a5ceff;
   --calendar-1:#7597eb; --calendar-2:#72b99a; --calendar-3:#d899ad; --calendar-4:#d4b56e; --calendar-5:#a591ce; --calendar-6:#75b7c9;
   --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-6:24px; --space-8:32px;
@@ -16,13 +16,13 @@
 }
 :root[data-theme=light] {
   color-scheme:light;
-  --bg-app:#f7f8fa; --bg-sidebar:#f0f1f4; --bg-surface:#ffffff; --bg-surface-hover:#e9ecf2; --bg-elevated:#ffffff;
+  --bg-app:#fafaf9; --bg-sidebar:#f3f3f1; --bg-surface:#ffffff; --bg-surface-hover:#eeeeec; --bg-elevated:#ffffff;
   --text-primary:#20232b; --text-secondary:#505969; --text-muted:#606a7a; --text-inverse:#ffffff;
-  --border-default:#7b8596; --border-subtle:#dfe3ea; --border-strong:#7b8596;
+  --border-default:#7b8596; --border-subtle:#e3e3e0; --border-strong:#7b8596;
   --accent:#394fa5; --accent-hover:#263b88; --accent-subtle:#e5eafb; --accent-solid:#465bc1; --accent-solid-hover:#3c4fa8;
   --danger:#a12c3d; --warning:#805600; --success:#28623b;
   --danger-subtle:#fae9ec; --warning-subtle:#fff3d8; --success-subtle:#e5f3e9;
-  --overlay:#1d243666; --shadow:0 12px 40px #1d243620;
+  --overlay:#1d243666; --drawer-overlay:#20202026; --shadow:0 12px 40px #1d243620;
   --studio-keyword:#7937a2; --studio-string:#367429; --studio-number:#995511; --studio-comment:#606a7a; --studio-function:#126299;
 }
 *{box-sizing:border-box}html,body{margin:0;height:100%;font:13px/1.5 var(--font-ui);background:var(--bg-app);color:var(--text-primary)}

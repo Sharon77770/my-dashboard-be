@@ -1,0 +1,69 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "../../src/main/resources/static/css/design-system.css" layer(base);
+@import "../../src/main/resources/static/css/app.css" layer(base);
+@import "../../src/main/resources/static/css/workspace.css" layer(base);
+@import "../../src/main/resources/static/css/launcher.css" layer(base);
+@import "../../src/main/resources/static/css/device-logs.css" layer(base);
+@import "../../src/main/resources/static/css/cloud-drive.css" layer(base);
+@import "../../src/main/resources/static/css/notes.css" layer(base);
+@import "../../src/main/resources/static/css/planner.css" layer(base);
+@import "../../src/main/resources/static/css/studio.css" layer(base);
+@import "../../src/main/resources/static/css/studio-codex.css" layer(base);
+@import "../../src/main/resources/static/css/os-shell.css" layer(base);
+@source "../../src/main/resources/templates";
+@source "../../src/main/resources/static/js";
+
+@theme inline {
+ --color-app: var(--bg-app);
+ --color-sidebar: var(--bg-sidebar);
+ --color-surface: var(--bg-surface);
+ --color-surface-hover: var(--bg-surface-hover);
+ --color-subtle: var(--border-subtle);
+ --color-ink: var(--text-primary);
+ --color-selection: var(--accent-subtle);
+ --shadow-panel: var(--shadow);
+}
+
+/* Shared product components are compiled by Tailwind. Feature layouts remain in base. */
+@layer components {
+/* Shared product presentation: quiet surfaces, consistent controls and overlay navigation. */
+button,.button,input,select,textarea{@apply rounded-md;}
+button,.button{@apply [transition:background-color_.14s_ease,border-color_.14s_ease,color_.14s_ease];}
+.panel,.device-card,.home-item.widget,.cloud-items,.studio-workbench{@apply rounded-lg;}
+.page-head h1,.studio-head h1,.launcher-head h1{@apply text-xl [letter-spacing:-.025em] font-semibold;}
+.dialog,.editor-dialog{@apply rounded-xl border-subtle shadow-panel;}
+dialog::backdrop{@apply [background:var(--drawer-overlay)] [backdrop-filter:blur(4px)] [-webkit-backdrop-filter:blur(4px)];}
+.launcher-home{@apply bg-app;}
+.launcher-shortcut .launcher-icon{@apply shadow-none [border-radius:10px] bg-surface border-subtle;}
+.launcher-dock{@apply rounded-xl shadow-panel [border:1px_solid_var(--border-subtle)];}
+.os-statusbar,.os-tools,.os-navigation{@apply bg-sidebar;}
+.cloud-selection{@apply bg-transparent [border-bottom:1px_solid_var(--border-subtle)] rounded-none [padding:4px_0_12px];}
+.cloud-sidebar button{@apply justify-start border-0 bg-transparent;}.cloud-sidebar button:hover{@apply bg-surface-hover;}
+.notes-tree-row.active,.studio-file-row.selected{@apply bg-selection;}
+.ui-drawer-trigger{@apply hidden;}
+.ui-side-drawer{@apply fixed [inset:0_auto_0_0] m-0 p-0 [width:min(360px,calc(100vw_-_48px))] h-dvh max-w-none max-h-none border-0 [border-right:1px_solid_var(--border-subtle)] rounded-none bg-sidebar text-ink shadow-panel overflow-hidden;}
+.ui-side-drawer[open]{@apply flex flex-col [animation:drawer-enter-left_.22s_cubic-bezier(.2,.8,.2,1)];}
+.ui-side-drawer[data-side=right]{@apply [inset:0_0_0_auto] [border-right:0] [border-left:1px_solid_var(--border-subtle)] [width:min(440px,calc(100vw_-_40px))] [animation-name:drawer-enter-right];}
+.ui-drawer-head{@apply flex items-center justify-between gap-3 [padding:calc(12px_+_env(safe-area-inset-top))_16px_12px] [border-bottom:1px_solid_var(--border-subtle)] shrink-0;}
+.ui-drawer-head button{@apply bg-transparent border-0 min-w-9 min-h-9 [font-size:22px];}.ui-drawer-head strong{@apply [font-size:13px] font-semibold;}
+.ui-side-drawer>.notes-sidebar,.ui-side-drawer>.cloud-sidebar,.ui-side-drawer>.studio-explorer,.ui-side-drawer>.studio-inspector,.file-layout .ui-side-drawer>aside{@apply flex! flex-col flex-1 min-h-0 max-h-none w-full border-0 overflow-auto [padding-bottom:env(safe-area-inset-bottom)];}
+.ui-side-drawer>.cloud-sidebar{@apply items-stretch gap-2.5 p-4;}.ui-side-drawer>.cloud-sidebar p{@apply mt-auto w-auto;}.ui-side-drawer .notes-tree-menu{@apply opacity-100;}
+@keyframes drawer-enter-left{from{transform:translateX(-100%);opacity:.6}to{transform:translateX(0);opacity:1}}
+@keyframes drawer-enter-right{from{transform:translateX(100%);opacity:.6}to{transform:translateX(0);opacity:1}}
+@media(max-width:800px){
+ .ui-drawer-trigger,.notes-sidebar-toggle{@apply inline-flex min-w-9 min-h-9 justify-center bg-transparent border-0;}
+ #notes.active,#notes.notes-sidebar-open{@apply [grid-template-columns:minmax(0,1fr)] [grid-template-rows:minmax(0,1fr)];}
+ #notes>.notes-sidebar,#notes.notes-sidebar-open>.notes-sidebar,#cloud>.cloud-sidebar{@apply hidden;}
+ #cloud.active{@apply [grid-template-rows:minmax(0,1fr)];}
+ .file-layout{@apply relative;}.file-layout>aside{@apply hidden;}.file-layout>.ui-drawer-trigger{@apply [align-self:flex-start] shrink-0;}
+ .studio-workbench{@apply [grid-template-columns:minmax(0,1fr)]!;}.studio-workbench>.studio-explorer,.studio-workbench>.studio-inspector,.studio-workbench>.ui-splitter{@apply hidden!;}.studio-workbench>.studio-editor{@apply flex! [grid-column:1];}
+ .launcher-dialog#app-drawer{@apply fixed m-0 max-w-none [inset:0_auto_0_0] [width:min(380px,calc(100vw_-_40px))] h-dvh max-h-none rounded-none [border-right:1px_solid_var(--border-subtle)] [animation:drawer-enter-left_.22s_cubic-bezier(.2,.8,.2,1)];}
+ #app-drawer .drawer-apps{@apply [grid-template-columns:repeat(3,minmax(0,1fr))] p-4 gap-3;}
+ .notes-toolbar,.cloud-toolbar{@apply gap-1.5;}.notes-document,.notes-welcome{@apply px-6;}.cloud-main{@apply p-3;}
+ .dialog:not(#app-drawer):not(.ui-side-drawer){@apply [max-height:calc(100dvh_-_32px)];}
+}
+@media(prefers-reduced-motion:reduce){.ui-side-drawer[open],.launcher-dialog#app-drawer{@apply fixed m-0 max-w-none animate-none;}button,.button{@apply transition-none;}}
+
+}

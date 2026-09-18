@@ -110,3 +110,6 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 - `static/js/notes.js`, `notes-templates.js`, `static/css/notes.css`: 화면과 템플릿.
 - `tools/notes-editor/`: 고정 npm 의존성, 빌드 소스, 실제 편집기 DOM 테스트.
 - `static/vendor/notes-editor.js`, `.css`, `.LICENSE.txt`: 배포 번들과 라이선스 고지.
+
+- `tools/ui/`: Tailwind CSS 빌드 진입점과 잠금 파일. 생성물은 `static/vendor/workspace-ui.css`이며 홈·로그인·오류 템플릿에서 공통 사용한다.
+- `static/js/drawers.js`: 모바일 모달 사이드바의 열기·닫기, 패널 상태와 포커스 복원 담당.

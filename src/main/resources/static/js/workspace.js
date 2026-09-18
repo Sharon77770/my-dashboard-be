@@ -80,6 +80,7 @@
   async function checkStatus(id) { statuses.set(id, await api(`/devices/${id}/status`)); render(); }
   async function refreshStatuses() { for (let offset = 0; offset < state.devices.length; offset += 3) await Promise.all(state.devices.slice(offset,offset+3).map(item => checkStatus(item.id).catch(error => toast(error.message)))); }
   function showView(id) {
+    window.WorkspaceDrawers?.close();
     rememberScreen(id,null);
     if(id!=='home' && !pageTabs.includes(id)){pageTabs.push(id);savePageTabs();}
     activeView=id;
@@ -127,6 +128,7 @@
     await activateTab(tab.id);
   }
   async function activateTab(id) {
+    window.WorkspaceDrawers?.close();
     window.WorkspaceLogs?.open('runtime').catch(error=>toast(error.message));
     const tab = tabs.find(item => item.id === id); if (!tab) return;
     rememberScreen(activeView,id);

@@ -3,7 +3,7 @@
 window.WorkspaceApps = (() => {
   const builtins = [
     {id:'devices',name:'장비',icon:'devices',route:'devices',widgets:['device-status']},
-    {id:'notes',name:'메모장',icon:'clip',route:'notes'},
+    {id:'notes',name:'메모장',icon:'notes',route:'notes'},
     {id:'cloud',name:'클라우드 드라이브',icon:'files',route:'cloud'},
     {id:'files',name:'파일',icon:'files',route:'files',widgets:['recent-files']},
     {id:'logs',name:'장비 로그',icon:'terminal',route:'logs'},
