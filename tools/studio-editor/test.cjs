@@ -14,10 +14,10 @@ const api=async(url,method,body)=>{
  if(method==='DELETE'){cancelled=true;return null;}
  if(url.startsWith('/studio/jobs/')&&!method)return {id:'running',state:cancelled?'CANCELLED':'RUNNING',events:[],error:cancelled?'사용자가 중지했습니다.':null};
  if(method==='POST'){calls.push(body);const id=String(++jobs);requests.set(id,body);let result={ok:true};
-  if(body.action==='list')result={root:body.root,path:'.',entries:[{name:'app.py',path:'app.py',directory:false},{name:'<img src=x onerror=alert(1)>',path:'<unsafe>',directory:false}]};
+  if(body.action==='list')result={root:body.root,path:'.',entries:[{name:'project',path:'project',directory:true},{name:'app.py',path:'app.py',directory:false},{name:'<img src=x onerror=alert(1)>',path:'<unsafe>',directory:false}]};
   if(body.action==='read')result={content,revision};
   if(body.action==='save'){assert.equal(body.args.revision,revision);content=body.args.content;revision='v2';result={revision};}
-  if(body.action==='git-status')result={branch:'main',branches:['main'],changes:[],history:'abc first'};
+  if(body.action==='git-status')result={branch:'main',branches:['main'],changes:[{index:'M',worktree:' ',path:'staged.ts'},{index:' ',worktree:'M',path:'working.ts'},{index:'U',worktree:'U',path:'conflict.ts'},{index:'?',worktree:'?',path:'new.ts'}],history:'abc first'};
   if(body.action==='codex-status')result={authenticated:false};
   if(body.action==='codex-account')result={assistant:{authenticated:false}};
   if(body.action==='codex-models')result={assistant:{models:[{id:'test-model',name:'Test',defaultModel:true,defaultEffort:'medium',efforts:[{reasoningEffort:'medium'}]}]}};
@@ -46,6 +46,8 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  assert.ok(calls.slice(0,3).every(c=>c.deviceId==='local'));
  assert.equal(d.querySelector('.studio-connection').textContent,'서버 자체 · 로컬 실행');
  assert.equal(d.querySelector('.studio-workbench').hidden,false);
+ assert.match(d.querySelector('#studio-changes').textContent,/해결이 필요한 충돌/);assert.match(d.querySelector('#studio-changes').textContent,/커밋에 포함될 변경/);assert.match(d.querySelector('#studio-changes').textContent,/작업 폴더 변경/);assert.equal(d.querySelector('[data-studio="git-stage-all"]')!==null,true);
+ click('[data-studio="folder-options"]');await tick();assert.equal(d.querySelector('#studio-folder-options option').value,'/app/data/files/project');assert.match(d.querySelector('#studio-folder-status').textContent,/폴더를 검색/);
  assert.equal(d.querySelector('#studio-tree img'),null);
  click('[data-studio="file"][data-path="app.py"]');await tick();assert.equal(loaded,content);
  edit('print("changed")');assert.match(d.querySelector('#studio-dirty').textContent,/저장하지/);

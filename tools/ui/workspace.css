@@ -66,4 +66,15 @@ dialog::backdrop{@apply [background:var(--drawer-overlay)] [backdrop-filter:blur
 }
 @media(prefers-reduced-motion:reduce){.ui-side-drawer[open],.launcher-dialog#app-drawer{@apply fixed m-0 max-w-none animate-none;}button,.button{@apply transition-none;}}
 
+.studio-change button:first-child{@apply flex items-center gap-2;}
+.studio-change em{@apply ml-auto shrink-0 rounded-sm px-1.5 py-0.5 text-[10px] not-italic;}
+.git-status-danger{@apply [color:var(--danger)];}
+.git-status-success{@apply [color:var(--success)];}
+.git-status-warning{@apply [color:var(--warning)];}
+.studio-change em{@apply [color:var(--text-secondary)] bg-surface-hover;}
+.change-group-hint{@apply m-0 px-1 py-1 text-[10px] [color:var(--text-muted)];}
+.change-group summary button{@apply ml-auto;}
+.change-group summary>span{@apply flex items-center gap-2;}
+.change-group.is-empty .change-group-hint{@apply opacity-70;}
+
 }

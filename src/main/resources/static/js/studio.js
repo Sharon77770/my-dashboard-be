@@ -23,6 +23,14 @@
 <section id="studio-git"><div class="studio-toolbar"><b id="studio-branch">소스 관리</b><button class="icon-btn" data-studio="git-refresh" aria-label="Git 새로고침">↻</button><details class="ui-menu"><summary aria-label="저장소 설정">⋯</summary><div class="ui-menu-content"><button data-studio="git-init">저장소 초기화</button><button data-studio="git-clone">저장소 복제</button><button data-studio="git-identity">커밋 작성자</button><button data-studio="git-remote">원격 저장소</button><button data-studio="git-branch">새 브랜치</button><button data-studio="github-login">GitHub 로그인</button><button data-studio="github-status" id="studio-github-auth">GitHub 인증 확인</button></div></details></div><label class="studio-branch-select">브랜치<select id="studio-branches"><option>—</option></select></label><div class="studio-git-actions"><button data-studio="git-fetch">Fetch</button><button data-studio="git-pull">Pull</button><button data-studio="git-push">Push</button></div><form id="studio-commit"><textarea id="studio-commit-message" placeholder="변경 내용을 요약하세요" aria-label="커밋 메시지" maxlength="4000" required rows="2"></textarea><button type="submit" class="primary">커밋</button></form><div id="studio-changes"></div><details class="studio-history"><summary>최근 커밋</summary><pre id="studio-history"></pre></details></section>
 <section id="studio-codex" hidden></section></aside></div>
 <details class="studio-output" aria-label="작업 결과"><summary class="studio-toolbar"><b id="studio-job-status" role="status">작업 폴더를 열어 주세요</b><button data-studio="cancel" class="danger sm" hidden>실행 중지</button></summary><div id="studio-events" aria-live="polite"></div><pre id="studio-diff" hidden></pre></details>`;
+    const folderInput=$('#studio-root');
+    folderInput.placeholder='목록에서 작업 폴더를 검색하세요';
+    folderInput.autocomplete='off';
+    folderInput.setAttribute('list','studio-folder-options');
+    folderInput.setAttribute('aria-describedby','studio-folder-status');
+    const folderOptions=document.createElement('datalist');folderOptions.id='studio-folder-options';folderInput.after(folderOptions);
+    const folderStatus=document.createElement('p');folderStatus.id='studio-folder-status';folderStatus.className='section-hint';folderStatus.role='status';folderStatus.textContent='장비를 선택하면 ls 결과에서 폴더 목록을 불러옵니다.';folderInput.closest('label').after(folderStatus);
+    const folderRefresh=document.createElement('button');folderRefresh.type='button';folderRefresh.className='ghost sm';folderRefresh.dataset.studio='folder-options';folderRefresh.textContent='폴더 목록 새로고침';folderStatus.after(folderRefresh);
     window.StudioPanels.attach(root);
     codeEditor = window.WorkspaceCodeEditor($('#studio-code'), content => {
       const doc = documents.get(activeFile);
@@ -33,7 +41,8 @@
     root.addEventListener('click', onClick);
     root.addEventListener('submit', onSubmit);
     $('.studio-project-menu').addEventListener('keydown',event=>{if(event.key==='Escape'){$('.studio-project-menu').open=false;$('.studio-project-menu summary').focus();}});
-    $('#studio-device').addEventListener('change', () => { $('.studio-project-menu').open=true; const option = $('#studio-device').selectedOptions[0]; $('#studio-root').value = option?.dataset.root || ''; });
+    $('#studio-device').addEventListener('change', () => { $('.studio-project-menu').open=true; const option = $('#studio-device').selectedOptions[0]; $('#studio-root').value = option?.dataset.root || ''; refreshFolderOptions(); });
+    $('#studio-root').addEventListener('change', refreshFolderOptions);
     $('#studio-branches').addEventListener('change', () => guard(async () => { if (dirty()) throw new Error('편집 내용을 먼저 저장해 주세요.'); await execute('git-switch', {branch:$('#studio-branches').value}); documents.clear(); activeFile = null; codeEditor.load('', ''); renderTabs(); await refreshFiles(); await refreshGit(); }));
     document.addEventListener('keydown', event => { if(root.classList.contains('active') && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {event.preventDefault(); guard(saveFile);} });
     window.addEventListener('beforeunload', event => { if(dirty() || busy) {event.preventDefault(); event.returnValue='';} });
@@ -112,6 +121,30 @@
   function renderFiles(listing) {
     currentPath=listing.path;directories.set(listing.path,listing);expanded.add(listing.path);$('#studio-directory').textContent=currentPath==='.'?project.root:currentPath;renderTree();
   }
+  const selectedDeviceRoot=()=>$('#studio-device').selectedOptions[0]?.dataset.root||'';
+  const relativeFolderPath=(value,base)=>{
+    if(!value||!base||value===base)return '.';
+    const prefix=base.endsWith('/')?base:base+'/';
+    return value.startsWith(prefix)?value.slice(prefix.length)||'.':value;
+  };
+  async function folderListing(){
+    const base=selectedDeviceRoot(),value=$('#studio-root').value.trim()||base;
+    if(!base)return null;
+    let job=await ui.api('/studio/jobs','POST',{deviceId:$('#studio-device').value,root:base,action:'list',args:{path:relativeFolderPath(value,base)}});
+    while(job.state==='RUNNING'){await new Promise(resolve=>setTimeout(resolve,250));job=await ui.api('/studio/jobs/'+job.id);}
+    if(job.state!=='SUCCEEDED')throw new Error(job.error||'폴더 목록을 불러오지 못했습니다.');
+    return job.result;
+  }
+  async function refreshFolderOptions(){
+    const status=$('#studio-folder-status'),list=$('#studio-folder-options');
+    if(!status||!list)return;
+    try{
+      status.textContent='폴더 목록을 불러오는 중…';
+      const listing=await folderListing(),base=selectedDeviceRoot(),rootPath=listing?.root||base;
+      list.innerHTML=(listing?.entries||[]).filter(entry=>entry.directory).map(entry=>{const path=rootPath==='/'?'/'+entry.path:rootPath+'/'+entry.path;return `<option value="${escape(path)}" label="${escape(entry.name)}"></option>`;}).join('');
+      status.textContent=`${list.options.length}개 폴더를 검색할 수 있습니다. 경로를 입력하면 해당 위치의 하위 폴더를 다시 읽습니다.`;
+    }catch(error){status.textContent=error.message;list.replaceChildren();}
+  }
   function renderTree(){
     const branch=(path,depth)=> (directories.get(path)?.entries||[]).map(entry=>'<div class="studio-file-row '+(entry.path===activeFile?'selected':'')+'" style="--tree-depth:'+depth+'"><button data-studio="'+(entry.directory?'directory':'file')+'" data-path="'+escape(entry.path)+'" title="'+escape(entry.name)+'" '+(entry.directory?'aria-expanded="'+expanded.has(entry.path)+'"':'')+'><span>'+(entry.directory?(expanded.has(entry.path)?'⌄':'›'):'·')+'</span>'+escape(entry.name)+'</button><button data-studio="rename" data-path="'+escape(entry.path)+'" aria-label="이름 변경">✎</button><button data-studio="delete" data-path="'+escape(entry.path)+'" aria-label="삭제">×</button></div>'+(entry.directory&&expanded.has(entry.path)?branch(entry.path,depth+1):'')).join('');
     $('#studio-tree').innerHTML=branch('.',0)||'<p class="empty-state">빈 폴더입니다.</p>';
@@ -137,13 +170,22 @@
     const saved=await execute('save',{path,content,revision:doc.revision});
     doc.revision=saved.revision;doc.saved=content;doc.dirty=doc.content!==content;renderTabs();
   }
+  function gitStatusLabel(change,staged){
+    if(change.index==='U'||change.worktree==='U')return ['충돌','danger'];
+    const code=staged?change.index:change.worktree;
+    if(code==='?')return ['새 파일','success'];
+    return ({A:['추가','success'],M:['수정','warning'],D:['삭제','danger'],R:['이름 변경','neutral'],C:['복사','neutral']})[code]||['변경','neutral'];
+  }
   async function refreshGit() {
     try {
       const status=await execute('git-status');$('#studio-branch').textContent=`⑂ ${status.branch}`;
-      $('#studio-branches').innerHTML=[...new Set([status.branch,...status.branches])].map(branch=>`<option ${branch===status.branch?'selected':''}>${escape(branch)}</option>`).join('');
-      const changeRows=(changes,staged)=>changes.map(change=>'<div class="studio-change"><button data-studio="git-diff" data-path="'+escape(change.path)+'" data-untracked="'+(change.index==='?')+'" data-staged="'+staged+'"><code>'+escape(staged?change.index:change.worktree)+'</code><span>'+escape(change.path)+'</span></button><button data-studio="'+(staged?'git-unstage':'git-stage')+'" data-path="'+escape(change.path)+'" aria-label="'+(staged?'스테이징 취소':'스테이징')+'">'+(staged?'−':'+')+'</button></div>').join('');
-      const staged=status.changes.filter(change=>change.index!==' '&&change.index!=='?'),unstaged=status.changes.filter(change=>change.worktree!==' '||change.index==='?');
-      $('#studio-changes').innerHTML='<details open class="change-group"><summary>스테이징 <span class="badge">'+staged.length+'</span></summary>'+changeRows(staged,true)+'</details><details open class="change-group"><summary>변경 사항 <span class="badge">'+unstaged.length+'</span></summary>'+changeRows(unstaged,false)+'</details>'+(status.changes.length?'':'<p class="empty-state">모든 변경이 저장소에 반영되어 있습니다.</p>');
+      $('#studio-branches').innerHTML=[...new Set([status.branch,...status.branches])].map(branch=>`<option value="${escape(branch)}" ${branch===status.branch?'selected':''}>${escape(branch)}</option>`).join('');
+      const conflicts=status.changes.filter(change=>change.index==='U'||change.worktree==='U');
+      const staged=status.changes.filter(change=>!conflicts.includes(change)&&change.index!==' '&&change.index!=='?');
+      const working=status.changes.filter(change=>!conflicts.includes(change)&&(change.worktree!==' '||change.index==='?'));
+      const changeRows=(changes,stagedGroup)=>changes.map(change=>{const [label,tone]=gitStatusLabel(change,stagedGroup),disabled=label==='충돌';return `<div class="studio-change"><button data-studio="git-diff" data-path="${escape(change.path)}" data-untracked="${change.index==='?'}" data-staged="${stagedGroup}" aria-label="${escape(change.path)} ${label} 변경 내용 보기"><code class="git-status-${tone}">${escape(stagedGroup?change.index:change.worktree)}</code><span>${escape(change.path)}</span><em>${label}</em></button><button data-studio="${stagedGroup?'git-unstage':'git-stage'}" data-path="${escape(change.path)}" aria-label="${stagedGroup?'스테이징 취소':'스테이징'}" ${disabled?'disabled':''}>${stagedGroup?'−':'+'}</button></div>`;}).join('');
+      const group=(title,description,changes,stagedGroup,action)=>`<details open class="change-group ${changes.length?'':'is-empty'}"><summary><span>${title} <span class="badge">${changes.length}</span></span>${action?`<button type="button" class="ghost sm" data-studio="${action}">${stagedGroup?'전체 스테이징 해제':'전체 스테이징'}</button>`:''}</summary><p class="change-group-hint">${description}</p>${changeRows(changes,stagedGroup)||'<p class="empty-state">없음</p>'}</details>`;
+      $('#studio-changes').innerHTML=group('해결이 필요한 충돌','충돌을 해결한 뒤 파일을 다시 스테이징하세요.',conflicts,false,null)+group('커밋에 포함될 변경','아래 파일만 다음 커밋에 들어갑니다.',staged,true,'git-unstage-all')+group('작업 폴더 변경','검토한 뒤 스테이징하거나 변경 내용을 확인하세요.',working,false,'git-stage-all')+(status.changes.length?'':'<p class="empty-state">작업 폴더가 깨끗합니다.</p>');
       publish({branch:status.branch,changes:status.changes.length});
       $('#studio-history').textContent=status.history;
     } catch(error) {$('#studio-branch').textContent='Git 저장소 확인 필요';$('#studio-changes').textContent=error.message;$('#studio-history').textContent='';$('#studio-branches').innerHTML='<option>—</option>';}
@@ -164,7 +206,8 @@
     if(button.dataset.studioPanel) {activePanel=button.dataset.studioPanel;$('.studio-workbench').dataset.mobilePane='inspector';$('#studio-git').hidden=activePanel!=='git';$('#studio-codex').hidden=activePanel!=='codex';root.querySelectorAll('[data-studio-panel]').forEach(item=>{item.classList.toggle('active',item===button);item.setAttribute('aria-selected',String(item===button));});if(activePanel==='codex')codex.load();return;}
     const action=button.dataset.studio, path=button.dataset.path;if(!action)return;
     await guard(async()=>{
-      if(action==='open-project'){$('.studio-project-menu').open=true;$('#studio-root').focus();return;}
+      if(action==='open-project'){$('.studio-project-menu').open=true;$('#studio-root').focus();await refreshFolderOptions();return;}
+      if(action==='folder-options'){await refreshFolderOptions();return;}
       if(action==='cancel') {event.preventDefault();if(jobId)await ui.api(`/studio/jobs/${jobId}`,'DELETE');return;}
       if(action==='terminal') {await ui.openTerminal(project.deviceId);return;}
       if(action==='file' || action==='tab') {await openFile(path);return;}
@@ -182,6 +225,7 @@
       if(action==='git-refresh') {await refreshGit();return;}
       if(action==='github-login' || action==='github-status') {const result=await execute(action);$('#studio-github-auth').textContent=result.authenticated?'GitHub 인증됨':'GitHub 로그인 필요';return;}
       if(action==='git-diff') {const result=await execute(action,{path,staged:button.dataset.staged==='true',untracked:button.dataset.untracked==='true'});$('#studio-diff').textContent=result.diff || '변경 내용이 없습니다.';$('#studio-diff').hidden=false;$('.studio-output').open=true;return;}
+      if(action==='git-stage-all'||action==='git-unstage-all') {const status=await execute('git-status');const stagedGroup=action==='git-unstage-all';const paths=status.changes.filter(change=>stagedGroup?(change.index!==' '&&change.index!=='?'):(change.worktree!==' '||change.index==='?')).filter(change=>!(change.index==='U'||change.worktree==='U')).map(change=>change.path);for(const item of paths)await execute(stagedGroup?'git-unstage':'git-stage',{path:item});await refreshGit();return;}
       if(action==='git-clone') {await input('Git 저장소 복제',[{name:'url',label:'저장소 주소',max:2048},{name:'target',label:'새 폴더 이름'}],async args=>{const result=await execute(action,args);$('#studio-root').value=result.path;await refreshFiles();ui.toast('복제되었습니다. 작업 폴더 열기로 저장소를 여세요.');});return;}
       if(action==='git-branch') {if(dirty())throw new Error('편집 내용을 먼저 저장해 주세요.');await input('새 브랜치로 전환',[{name:'branch',label:'브랜치 이름'}],async args=>{await execute(action,args);await refreshGit();});return;}
       if(action==='git-identity') {await input('이 저장소의 커밋 작성자',[{name:'name',label:'이름',max:200},{name:'email',label:'이메일',max:200}],args=>execute(action,args));return;}
