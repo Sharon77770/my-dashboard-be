@@ -77,4 +77,9 @@ dialog::backdrop{@apply [background:var(--drawer-overlay)] [backdrop-filter:blur
 .change-group summary>span{@apply flex items-center gap-2;}
 .change-group.is-empty .change-group-hint{@apply opacity-70;}
 
+/* Keep the current insertion point visible even after the editor briefly loses focus. */
+#studio-code .cm-content{@apply [caret-color:var(--accent)]!;}
+#studio-code .cm-cursor,#studio-code .cm-dropCursor{@apply [border-left:2px_solid_var(--accent)]! [margin-left:-1px] pointer-events-none;}
+#studio-code .cm-editor:not(.cm-focused) .cm-cursor{@apply block! opacity-80;}
+
 }

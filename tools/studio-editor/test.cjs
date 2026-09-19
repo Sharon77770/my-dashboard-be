@@ -82,6 +82,9 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  actualEditor.load('sample.py','print("hello")\n');
  assert.match(mount.querySelector('.cm-content').textContent,/print\("hello"\)/);
  assert.ok(mount.querySelector('.cm-gutters'));
+ const workspaceCss=fs.readFileSync(path.join(root,'src/main/resources/static/vendor/workspace-ui.css'),'utf8');
+ assert.match(workspaceCss,/#studio-code \.cm-cursor/);
+ assert.match(workspaceCss,/caret-color:var\(--accent\)!important/);
  actualEditor.destroy();
  dom.window.close();console.log('PASS: actual CodeMirror bundle mount plus editor connect/bootstrap, escaped file names, tabs, dirty tracking, save, cancel dialog, Codex unsaved guard');
 })().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});
