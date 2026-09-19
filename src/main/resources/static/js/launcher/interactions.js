@@ -10,7 +10,7 @@ window.LauncherInteractions = {
       if(!target){if(event.target.closest('.launcher-grid')){swipeStart={x:event.clientX,y:event.clientY};if(event.pointerType==='touch')holdTimer=setTimeout(()=>{options.context(null);suppressClick=true;swipeStart=null;},550);}return;}
       const editable=options.editable();
       if(!editable&&target.closest('.launcher-grid'))swipeStart={x:event.clientX,y:event.clientY};
-      pending={target,x:event.clientX,y:event.clientY,pointer:event.pointerId,dragging:false,resizing:Boolean(event.target.closest("[data-widget-resize]"))};
+      pending={target,x:event.clientX,y:event.clientY,pointer:event.pointerId,pointerType:event.pointerType,dragging:false,resizing:Boolean(event.target.closest("[data-widget-resize]"))};
       if(event.pointerType==='touch'&&!editable)holdTimer=setTimeout(()=>{options.context(target);suppressClick=true;pending=null;},550);
     });
     host.addEventListener('pointermove',event=>{
@@ -18,7 +18,8 @@ window.LauncherInteractions = {
       if(!pending||event.pointerId!==pending.pointer)return;
       const distance=Math.hypot(event.clientX-pending.x,event.clientY-pending.y);if(distance<8)return;
       clearTimeout(holdTimer);
-      if(!options.editable()&&!pending.target.dataset.drawerApp){pending=null;return;}
+      // Touch browsing must keep native scrolling; only edit mode opts into touch dragging.
+      if(!options.editable()&&(pending.pointerType==='touch'||!pending.target.dataset.drawerApp)){pending=null;return;}
       if(!pending.dragging){if(options.locked())return;pending.dragging=true;swipeStart=null;options.dragStart(pending.target);host.classList.add('is-dragging');const ghost=pending.target.cloneNode(true);ghost.className='launcher-drag-ghost';ghost.removeAttribute('id');ghost.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));document.body.append(ghost);}
       event.preventDefault();options.dragMove?.(pending.target,event.clientX,event.clientY);const ghost=document.querySelector('.launcher-drag-ghost');if(ghost){ghost.style.left=event.clientX+12+'px';ghost.style.top=event.clientY+12+'px';}
       document.querySelector('.drop-target')?.classList.remove('drop-target');document.elementFromPoint(event.clientX,event.clientY)?.closest('[data-home-item],[data-page],[data-folder-app]')?.classList.add('drop-target');

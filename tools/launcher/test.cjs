@@ -29,6 +29,27 @@ const moved=grid.move(projected,'b',{x:0,y:0},4);assert.ok(!grid.overlap(moved[0
 click('#home-grid [data-view="calendar"]');await tick();assert.equal(d.querySelector('#calendar').classList.contains('active'),true);assert.equal(d.querySelectorAll('#switcher-apps [data-view="calendar"]').length,1);assert.equal(d.body.dataset.home,'false');
 click('[data-action="app-switcher"]');assert.equal(d.querySelector('#app-switcher').open,true);click('#switcher-apps [data-view="home"]');await tick();assert.equal(d.body.dataset.home,'true');
 click('[data-action="os-back"]');await tick();assert.equal(d.querySelector('#calendar').classList.contains('active'),true);click('[data-action="os-back"]');await tick();assert.equal(d.body.dataset.home,'true');
+// Swiping a drawer icon must leave the drawer open and must not mutate the home layout.
+const touchPointer=(type,node,x,y)=>{const event=new w.MouseEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,button:0});Object.defineProperties(event,{pointerId:{value:2},pointerType:{value:'touch'}});node.dispatchEvent(event);return event;};
+click('[data-launcher="drawer"]');const beforeSwipe=w.localStorage.getItem(w.HomePersistence.key());
+const drawerIcon=d.querySelector('[data-drawer-app] .launcher-shortcut');
+for(const end of ['pointerup','pointercancel']){
+  touchPointer('pointerdown',drawerIcon,40,200);
+  assert.equal(touchPointer('pointermove',drawerIcon,42,180).defaultPrevented,false);
+  assert.equal(touchPointer('pointermove',drawerIcon,44,80).defaultPrevented,false);
+  assert.equal(d.querySelector('#app-drawer').open,true);
+  assert.equal(d.querySelector('.launcher-drag-ghost'),null);
+  touchPointer(end,d,44,80);
+}
+await new Promise(resolve=>setTimeout(resolve,580));
+assert.equal(d.querySelector('#home-context').open,false);
+assert.equal(w.localStorage.getItem(w.HomePersistence.key()),beforeSwipe);
+// A stationary long press still opens actions; a normal tap still launches the app.
+touchPointer('pointerdown',drawerIcon,40,200);await new Promise(resolve=>setTimeout(resolve,580));
+assert.equal(d.querySelector('#home-context').open,true);touchPointer('pointerup',d,40,200);drawerIcon.click();
+d.querySelector('#home-context').close();click('#app-drawer [data-launcher="close"]');
+click('[data-launcher="drawer"]');click('#drawer-apps [data-view="calendar"]');await tick();
+assert.equal(d.querySelector('#calendar').classList.contains('active'),true);click('.os-navigation [data-view="home"]');await tick();
 click('#home-edit');assert.equal(d.querySelector('#home-edit-tools').hidden,false);click('[data-launcher="page-add"]');assert.equal(load().pages,2);
 click('[data-page="0"]');click('[data-launcher="drawer"]');assert.equal(d.querySelector('#app-drawer').open,true);assert.equal(d.querySelectorAll('#drawer-apps img').length,0);
 d.querySelector('#drawer-search').value='터미널';d.querySelector('#drawer-search').dispatchEvent(new w.Event('input'));assert.equal(d.querySelectorAll('[data-drawer-app]').length,1);
@@ -48,7 +69,7 @@ const pointer=(type,node,x,y)=>{const event=new w.MouseEvent(type,{bubbles:true,
 pointer('pointerdown',source,10,10);pointer('pointermove',source,120,10);pointer('pointerup',d,120,10);await new Promise(resolve=>setTimeout(resolve,320));
 const merged=load().items.find(item=>item.type==='folder');assert.ok(merged);assert.equal(merged.apps.length,2);
 click('[data-launcher="folder"][data-item="'+merged.id+'"]');const folderApps=[...d.querySelectorAll('[data-folder-app]')];d.elementFromPoint=()=>folderApps[1];d.querySelector('#home-folder').getBoundingClientRect=()=>({left:0,top:0,right:800,bottom:800});
-pointer('pointerdown',folderApps[0],10,10);pointer('pointermove',folderApps[0],120,10);pointer('pointerup',d,120,10);await new Promise(resolve=>setTimeout(resolve,320));assert.equal(load().items.find(item=>item.id===merged.id).apps[1],merged.apps[0]);click('#home-folder [data-launcher="close"]');
+touchPointer('pointerdown',folderApps[0],10,10);touchPointer('pointermove',folderApps[0],120,10);touchPointer('pointerup',d,120,10);await new Promise(resolve=>setTimeout(resolve,320));assert.equal(load().items.find(item=>item.id===merged.id).apps[1],merged.apps[0]);click('#home-folder [data-launcher="close"]');
 // Lock prevents mutation; mobile uses same data and four-column projection.
 click('#home-lock');const count=load().items.length;click('[data-launcher="drawer"]');click('[data-launcher="add-app"][data-app="terminal"]');await tick();assert.equal(load().items.length,count);assert.match(d.querySelector('#toast').textContent,/잠금/);
 narrow=true;mediaChange();assert.equal(d.querySelector('#home-grid').style.getPropertyValue('--home-columns'),'4');
@@ -59,5 +80,3 @@ const key=w.HomePersistence.key();d.body.dataset.account='another';assert.notEqu
 const clean=grid.sanitize({version:1,pages:2,dock:['missing','terminal'],items:[{id:'x',type:'folder',apps:[],page:0,x:0,y:0},{id:'y',type:'app',appId:'missing'}]},w.WorkspaceApps,w.WorkspaceWidgets);assert.equal(clean.items.length,0);assert.equal(clean.dock.length,1);
 dom.window.close();console.log('PASS launcher: grid collisions/projection, registry XSS, tabs/switcher, pages, drawer, folders/extraction, widgets/resize, lock, shared search, account persistence');
 })().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});
-
-

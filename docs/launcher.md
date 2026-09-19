@@ -54,7 +54,7 @@ Launcher → 레지스트리/격자/저장 모듈 방향으로 의존한다. 업
 
 Desktop은 44px 앱 아이콘과 작은 라벨, OS 상태바와 카드형 실행 앱 전환기, 우클릭 메뉴, 마우스 드래그, 툴팁을 사용한다. IDE는 Explorer | Editor | Git/Codex이며 구분선을 마우스 또는 방향키로 조절한다. 좁은 데스크톱에서는 패널 폭을 제한하고 Files / Git·Codex 버튼으로 패널을 접을 수 있다.
 
-Mobile은 4열 홈, 길게 누르기 메뉴, 수평 스와이프, 하단 Dock, 전체 화면 Drawer, 하단 Context/Widget/App Switcher sheet를 사용한다. 상단에는 현재 앱을 표시하고 열린 앱 전환기를 제공한다. IDE는 Editor가 기본이며 Files와 Git/Codex는 전체 보조 화면으로 전환한다. 터미널은 불필요한 외곽을 제거하고 `100dvh`/VisualViewport 및 기존 fit/ResizeObserver로 키보드 크기 변경에 대응한다. safe-area를 헤더/Dock/sheet에 적용한다.
+Mobile은 4열 홈, 길게 누르기 메뉴, 수평 스와이프, 하단 Dock, 전체 화면 Drawer, 하단 Context/Widget/App Switcher sheet를 사용한다. 모든 앱 목록의 일반 터치 스와이프는 스크롤로 처리하며 앱을 드래그하거나 홈 편집 모드로 전환하지 않는다. 터치 드래그는 홈 편집 모드에서만 가능하고, 일반 모드에서는 탭으로 앱 실행, 길게 누르기로 메뉴 열기를 지원한다. 마우스의 Drawer 드래그는 기존대로 지원한다. 상단에는 현재 앱을 표시하고 열린 앱 전환기를 제공한다. IDE는 Editor가 기본이며 Files와 Git/Codex는 전체 보조 화면으로 전환한다. 터미널은 불필요한 외곽을 제거하고 `100dvh`/VisualViewport 및 기존 fit/ResizeObserver로 키보드 크기 변경에 대응한다. safe-area를 헤더/Dock/sheet에 적용한다.
 
 `manifest.webmanifest`는 standalone 이름/시작 경로/아이콘을 제공한다. 인증 세션으로 manifest를 가져온다. 서비스 워커, 오프라인 업무 데이터, push 알림은 도입하지 않는다. 브라우저별 설치 조건은 다를 수 있다.
 
