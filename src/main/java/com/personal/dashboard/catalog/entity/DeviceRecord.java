@@ -1,5 +1,7 @@
 package com.personal.dashboard.catalog.entity;
 
+import java.util.List;
+
 /** SQLite connection profile; encrypted fields are never serialized as an API response. */
 public record DeviceRecord(
     String id,
@@ -17,7 +19,8 @@ public record DeviceRecord(
     String mac,
     String broadcast,
     boolean pinned,
-    NetworkMode networkMode) {
+    NetworkMode networkMode,
+    List<String> jumpDeviceIds) {
   public DeviceRecord(
       String id,
       String name,
@@ -50,7 +53,8 @@ public record DeviceRecord(
         mac,
         broadcast,
         pinned,
-        NetworkMode.DIRECT);
+        NetworkMode.DIRECT,
+        List.of());
   }
 
   @Override

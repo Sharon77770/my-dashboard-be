@@ -2,6 +2,7 @@ package com.personal.dashboard.catalog.dto;
 
 import com.personal.dashboard.catalog.entity.NetworkMode;
 import jakarta.validation.constraints.*;
+import java.util.List;
 
 /** Password blanks preserve existing credentials; fingerprints pin SSH host identity. */
 public record DeviceRequest(
@@ -19,7 +20,8 @@ public record DeviceRequest(
     @Size(max = 17) String mac,
     @Size(max = 253) String broadcast,
     boolean pinned,
-    NetworkMode networkMode) {
+    NetworkMode networkMode,
+    List<@Size(max = 80) String> jumpDeviceIds) {
   public DeviceRequest(
       String name,
       String host,
@@ -50,7 +52,43 @@ public record DeviceRequest(
         mac,
         broadcast,
         pinned,
-        NetworkMode.DIRECT);
+        NetworkMode.DIRECT,
+        List.of());
+  }
+
+  public DeviceRequest(
+      String name,
+      String host,
+      int sshPort,
+      String username,
+      String password,
+      String fingerprint,
+      String rootPath,
+      String remoteProtocol,
+      int remotePort,
+      String remoteUsername,
+      String remotePassword,
+      String mac,
+      String broadcast,
+      boolean pinned,
+      NetworkMode networkMode) {
+    this(
+        name,
+        host,
+        sshPort,
+        username,
+        password,
+        fingerprint,
+        rootPath,
+        remoteProtocol,
+        remotePort,
+        remoteUsername,
+        remotePassword,
+        mac,
+        broadcast,
+        pinned,
+        networkMode,
+        List.of());
   }
 
   @Override

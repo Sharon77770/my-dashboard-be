@@ -91,7 +91,8 @@ public class CatalogService {
         device.mac(),
         device.broadcast(),
         device.pinned(),
-        device.networkMode());
+        device.networkMode(),
+        device.jumpDeviceIds());
   }
 
   @PreAuthorize("hasRole('OWNER')")
@@ -111,6 +112,8 @@ public class CatalogService {
       throw new WorkspaceException(400, "MAC 주소 형식을 확인해 주세요.");
     if (!request.rootPath().startsWith("/") || request.rootPath().contains("\u0000"))
       throw new WorkspaceException(400, "SFTP 루트는 절대 경로여야 합니다.");
+    List<String> jumpDeviceIds = resolveJumpDeviceIds(request, old);
+    validateJumpDeviceIds(id, jumpDeviceIds);
     DeviceRecord device =
         new DeviceRecord(
             id == null ? UUID.randomUUID().toString() : id,
@@ -130,9 +133,33 @@ public class CatalogService {
             request.pinned(),
             request.networkMode() == null
                 ? (old == null ? NetworkMode.DIRECT : old.networkMode())
-                : request.networkMode());
+                : request.networkMode(),
+            jumpDeviceIds);
     repository.save(device);
     return view(device);
+  }
+
+  private List<String> resolveJumpDeviceIds(DeviceRequest request, DeviceRecord old) {
+    return request.jumpDeviceIds() == null
+        ? (old == null ? List.of() : old.jumpDeviceIds())
+        : List.copyOf(request.jumpDeviceIds());
+  }
+
+  private void validateJumpDeviceIds(String targetId, List<String> jumpDeviceIds) {
+    if (jumpDeviceIds.size() > 5) throw new WorkspaceException(400, "점프 프록시는 최대 5개까지 지정할 수 있습니다.");
+    if (new HashSet<>(jumpDeviceIds).size() != jumpDeviceIds.size())
+      throw new WorkspaceException(400, "점프 프록시는 중복해서 지정할 수 없습니다.");
+    for (String jumpId : jumpDeviceIds) {
+      if (jumpId == null || jumpId.isBlank() || "local".equals(jumpId) || jumpId.equals(targetId))
+        throw new WorkspaceException(400, "유효한 원격 점프 장비를 선택해 주세요.");
+      DeviceRecord jump = requireDevice(jumpId);
+      if (jump.username().isBlank()
+          || jump.passwordCipher().isBlank()
+          || jump.fingerprint().isBlank())
+        throw new WorkspaceException(400, "점프 장비는 SSH 계정, 비밀번호, 호스트 키 지문이 등록되어 있어야 합니다.");
+      if (!jump.jumpDeviceIds().isEmpty())
+        throw new WorkspaceException(400, "점프 장비 자체에는 다른 점프 프록시를 설정할 수 없습니다.");
+    }
   }
 
   /** Missing UI fingerprints preserve the same host key or enroll a newly selected SSH host. */

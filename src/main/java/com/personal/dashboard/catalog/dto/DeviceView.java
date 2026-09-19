@@ -1,6 +1,7 @@
 package com.personal.dashboard.catalog.dto;
 
 import com.personal.dashboard.catalog.entity.NetworkMode;
+import java.util.List;
 
 /** Safe profile projection; only password-presence flags are exposed. */
 public record DeviceView(
@@ -19,7 +20,8 @@ public record DeviceView(
     String mac,
     String broadcast,
     boolean pinned,
-    NetworkMode networkMode) {
+    NetworkMode networkMode,
+    List<String> jumpDeviceIds) {
   public DeviceView(
       String id,
       String name,
@@ -52,6 +54,7 @@ public record DeviceView(
         mac,
         broadcast,
         pinned,
-        NetworkMode.DIRECT);
+        NetworkMode.DIRECT,
+        List.of());
   }
 }

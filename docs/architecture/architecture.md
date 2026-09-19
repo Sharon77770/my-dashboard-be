@@ -68,7 +68,7 @@ Sidebar와 대시보드형 Home을 앱/폴더/위젯/페이지/Dock/Drawer 구�
 
 StudioController → StudioService(OWNER/HTTP 세션·수명·크기 제한) → StudioAdapter(고정 helper와 stdin 입력) → codex_bridge.py → Codex App Server stdio. 로컬/SSH가 같은 경로를 사용한다. App Server 포트는 열지 않는다. CLI thread 저장소가 대화 원본이며 SQLite 모델은 추가하지 않는다. 승인 응답은 동일 job의 stdin으로 전달한다.
 
-장비의 NetworkMode는 DIRECT/TAILSCALE이다. SshAdapter와 RemoteAdapter는 주입된 DeviceNetworkAdapter를 사용하고, 원격 브라우저·단순 포트 상태 조회는 CatalogService.connectionHost를 통해 같은 adapter를 사용한다. 네트워크/DNS 처리는 controller나 UI에서 수행하지 않는다. TAILSCALE은 tailscale0에 tailnet 주소가 존재하는지 확인한 뒤 3초 이내 DNS 결과 중 tailnet 주소만 선택하여 숫자 IP로 접속한다. 일반 주소 fallback은 없다. CLI 로그인 상태 저장이나 LocalAPI 노출은 추가하지 않는다.
+장비의 NetworkMode는 DIRECT/TAILSCALE이다. SshAdapter와 RemoteAdapter는 주입된 DeviceNetworkAdapter를 사용하고, 원격 브라우저·단순 포트 상태 조회는 CatalogService.connectionHost를 통해 같은 adapter를 사용한다. 네트워크/DNS 처리는 controller나 UI에서 수행하지 않는다. TAILSCALE은 tailscale0에 tailnet 주소가 존재하는지 확인한 뒤 3초 이내 DNS 결과 중 tailnet 주소만 선택하여 숫자 IP로 접속한다. 일반 주소 fallback은 없다. 장비는 최대 5개의 등록 점프 장비 ID를 순서대로 저장할 수 있으며 SshAdapter가 각 홉에 SSH 인증·호스트 키 검증 후 Direct-TCPIP 채널로 다음 홉을 연결한다. 점프 장비의 점프 체인 중첩은 차단한다. CLI 로그인 상태 저장이나 LocalAPI 노출은 추가하지 않는다.
 
 장비 로그는 StudioService의 세션 소유 비동기 작업으로 실행하고 StudioAdapter → 고정 logs.py → 로컬/SSH CLI를 경유한다. 기존 SSH/Tailscale 경계를 재사용한다. 로그 작업은 프로젝트 잠금을 잡지 않고 최근 이벤트만 메모리에 보유한다. 상세 계약은 [장비 로그](../device-logs.md)를 따른다.
 

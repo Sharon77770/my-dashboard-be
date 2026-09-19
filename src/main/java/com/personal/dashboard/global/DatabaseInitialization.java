@@ -24,5 +24,10 @@ public class DatabaseInitialization implements InitializingBean {
           .execute(dataSource);
     new ResourceDatabasePopulator(new ClassPathResource("db/migrations/V4__notes.sql"))
         .execute(dataSource);
+    if (jdbc.queryForList("PRAGMA table_info(devices)").stream()
+        .noneMatch(column -> "jump_device_ids".equals(column.get("name"))))
+      new ResourceDatabasePopulator(
+              new ClassPathResource("db/migrations/V5__device_jump_proxy.sql"))
+          .execute(dataSource);
   }
 }

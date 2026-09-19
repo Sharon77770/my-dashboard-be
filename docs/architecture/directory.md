@@ -27,7 +27,7 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 | `global/integration/` | SSH/서버 명령 어댑터 |
 | `global/security/` | 계정 인증 및 영속 credential vault |
 | `home/controller/`, `login/controller/`, `health/` | 대시보드·로그인·liveness |
-| `src/main/resources/db/schema.sql` | 스키마 v2 (기존 데이터 보존 추가) |
+| `src/main/resources/db/schema.sql` | 스키마 v5 (기존 데이터 보존 추가) |
 | `src/main/resources/templates/` | Thymeleaf 로그인·대시보드·오류 |
 | `src/main/resources/static/css/workspace.css` | 앱 콘텐츠와 실행 화면 레이아웃 (테마는 design-system.css) |
 | `src/main/resources/static/js/workspace.js` | UI 조작, API/WS 전송과 화면 상태 |
@@ -78,6 +78,7 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 - global/integration/DeviceNetworkAdapter.java: Tailscale 인터페이스 및 목적지 주소 해석.
 - catalog/entity/NetworkMode.java: DIRECT/TAILSCALE 장비 설정.
 - resources/db/migrations/V3__device_network.sql: 기존 장비의 네트워크 기본값을 보존하는 v3 마이그레이션.
+- resources/db/migrations/V5__device_jump_proxy.sql: 장비별 순서형 점프 프록시 체인을 추가하는 v5 마이그레이션.
 
 - `src/main/resources/studio/logs.py`: Docker/tmux 읽기 전용 목록·실시간 출력 CLI 어댑터.
 - `src/main/resources/static/js/device-logs.js`, `static/css/device-logs.css`: 장비 로그 앱의 선택·수신·취소·표시.

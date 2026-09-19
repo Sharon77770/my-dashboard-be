@@ -99,6 +99,7 @@ class WorkspaceIntegrationTest {
     body.put("remoteProtocol", "NONE");
     body.put("remotePort", 3389);
     body.put("networkMode", "TAILSCALE");
+    body.put("jumpDeviceIds", List.of());
     String response =
         mvc.perform(
                 post("/api/v1/devices")
@@ -123,6 +124,9 @@ class WorkspaceIntegrationTest {
         .andExpect(jsonPath("$.networkMode").value("TAILSCALE"));
     assertThat(jdbc.queryForObject("SELECT network_mode FROM devices WHERE id=?", String.class, id))
         .isEqualTo("TAILSCALE");
+    assertThat(
+            jdbc.queryForObject("SELECT jump_device_ids FROM devices WHERE id=?", String.class, id))
+        .isEqualTo("");
     body.put("networkMode", "PROXY_COMMAND");
     mvc.perform(
             put("/api/v1/devices/" + id)

@@ -71,9 +71,13 @@ JWT/refresh/remember-me는 없다. HTML의 비밀번호 입력은 복원하지 �
 | mac | String | optional/null 허용 | 빈 값 또는 6개 16진 octet, ':' 또는 '-' 구분 |
 | broadcast | String | optional/null 허용 | 최대 253, Wake 대상 주소 |
 | pinned | boolean | optional | 기본 false |
+| networkMode | NetworkMode enum | optional/null 허용 | DIRECT 또는 TAILSCALE, null은 기존 값 유지 |
+| jumpDeviceIds | String[] | optional/null 허용 | 순서대로 연결할 등록 장비 ID, 최대 5개. null은 기존 값 유지, 빈 배열은 직접 연결 |
 
-DeviceView: `id`, `name`, `host`, `sshPort`, `username`, `fingerprint`, `rootPath`, `remoteProtocol`, `remotePort`, `remoteUsername`, `mac`, `broadcast`, `pinned`는 위 의미/타입이며 모두 필수 non-null이다.
+DeviceView: `id`, `name`, `host`, `sshPort`, `username`, `fingerprint`, `rootPath`, `remoteProtocol`, `remotePort`, `remoteUsername`, `mac`, `broadcast`, `pinned`, `networkMode`, `jumpDeviceIds`는 위 의미/타입이며 모두 필수 non-null이다.
 추가 `hasPassword: boolean`, `hasRemotePassword: boolean`은 설정 여부다. password/암호문 필드는 없다.
+
+`jumpDeviceIds`에 지정한 장비는 local이 아니고 중복될 수 없으며 SSH 사용자·암호·호스트 키 지문이 등록되어야 한다. 점프 장비 자체에는 점프 체인을 설정할 수 없다. 연결은 대시보드 → 첫 점프 장비 → 다음 점프 장비 → 대상 장비 순서로 SSH Direct-TCPIP 채널을 만든다. 각 홉의 호스트 키를 검증하며 어느 홉이라도 실패하면 전체 연결을 실패시킨다.
 
 ### DELETE /api/v1/devices/{id}
 - query/body 없음. 204. local 삭제 400, 대상 없음 404. 장비와 FK 즐겨찾기 및 최근 이력을 제거한다.

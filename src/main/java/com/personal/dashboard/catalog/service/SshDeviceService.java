@@ -3,6 +3,7 @@ package com.personal.dashboard.catalog.service;
 import com.personal.dashboard.catalog.dto.*;
 import com.personal.dashboard.global.WorkspaceException;
 import com.personal.dashboard.global.integration.SshAdapter;
+import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -96,13 +97,25 @@ public class SshDeviceService {
                 ? com.personal.dashboard.catalog.entity.NetworkMode.DIRECT
                 : existing.networkMode())
             : request.networkMode();
+    List<com.personal.dashboard.catalog.entity.DeviceRecord> jumps =
+        request.jumpDeviceIds() == null
+            ? List.of()
+            : request.jumpDeviceIds().stream().map(catalog::requireDevice).toList();
     var discovered =
-        ssh.discover(
-            network.resolve(target.host(), mode),
-            target.port(),
-            target.username(),
-            request.password(),
-            fingerprints.isEmpty() ? "" : fingerprints.getFirst());
+        jumps.isEmpty()
+            ? ssh.discover(
+                network.resolve(target.host(), mode),
+                target.port(),
+                target.username(),
+                request.password(),
+                fingerprints.isEmpty() ? "" : fingerprints.getFirst())
+            : ssh.discover(
+                network.resolve(target.host(), mode),
+                target.port(),
+                target.username(),
+                request.password(),
+                fingerprints.isEmpty() ? "" : fingerprints.getFirst(),
+                jumps);
     String name = request.name() == null ? "" : request.name().trim();
     if (name.isEmpty())
       name = existing == null ? target.username() + "@" + target.host() : existing.name();
@@ -124,6 +137,7 @@ public class SshDeviceService {
             existing == null ? "" : existing.mac(),
             existing == null ? "" : existing.broadcast(),
             existing == null || existing.pinned(),
-            mode));
+            mode,
+            request.jumpDeviceIds() == null ? List.of() : request.jumpDeviceIds()));
   }
 }

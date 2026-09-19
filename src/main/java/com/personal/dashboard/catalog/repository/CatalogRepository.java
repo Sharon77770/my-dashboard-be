@@ -29,7 +29,8 @@ public class CatalogRepository {
               row.getString("mac"),
               row.getString("broadcast"),
               row.getBoolean("pinned"),
-              NetworkMode.valueOf(row.getString("network_mode")));
+              NetworkMode.valueOf(row.getString("network_mode")),
+              parseJumpDeviceIds(row.getString("jump_device_ids")));
 
   public CatalogRepository(JdbcTemplate jdbc) {
     this.jdbc = jdbc;
@@ -45,7 +46,7 @@ public class CatalogRepository {
 
   public void save(DeviceRecord device) {
     jdbc.update(
-        "INSERT INTO devices (id,name,host,ssh_port,username,password_cipher,fingerprint,root_path,remote_protocol,remote_port,remote_username,remote_password_cipher,mac,broadcast,pinned,network_mode) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,host=excluded.host,ssh_port=excluded.ssh_port,username=excluded.username,password_cipher=excluded.password_cipher,fingerprint=excluded.fingerprint,root_path=excluded.root_path,remote_protocol=excluded.remote_protocol,remote_port=excluded.remote_port,remote_username=excluded.remote_username,remote_password_cipher=excluded.remote_password_cipher,mac=excluded.mac,broadcast=excluded.broadcast,pinned=excluded.pinned,network_mode=excluded.network_mode",
+        "INSERT INTO devices (id,name,host,ssh_port,username,password_cipher,fingerprint,root_path,remote_protocol,remote_port,remote_username,remote_password_cipher,mac,broadcast,pinned,network_mode,jump_device_ids) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,host=excluded.host,ssh_port=excluded.ssh_port,username=excluded.username,password_cipher=excluded.password_cipher,fingerprint=excluded.fingerprint,root_path=excluded.root_path,remote_protocol=excluded.remote_protocol,remote_port=excluded.remote_port,remote_username=excluded.remote_username,remote_password_cipher=excluded.remote_password_cipher,mac=excluded.mac,broadcast=excluded.broadcast,pinned=excluded.pinned,network_mode=excluded.network_mode,jump_device_ids=excluded.jump_device_ids",
         device.id(),
         device.name(),
         device.host(),
@@ -61,7 +62,16 @@ public class CatalogRepository {
         device.mac(),
         device.broadcast(),
         device.pinned(),
-        device.networkMode().name());
+        device.networkMode().name(),
+        String.join(",", device.jumpDeviceIds()));
+  }
+
+  private static List<String> parseJumpDeviceIds(String value) {
+    if (value == null || value.isBlank()) return List.of();
+    return List.of(value.split(",")).stream()
+        .map(String::trim)
+        .filter(item -> !item.isEmpty())
+        .toList();
   }
 
   public void deleteDevice(String id) {

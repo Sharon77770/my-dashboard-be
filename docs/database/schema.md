@@ -1,7 +1,7 @@
-# SQLite schema v4
+# SQLite schema v5
 
 소스: `src/main/resources/db/schema.sql`. DatabaseInitialization이 시작 시 idempotent CREATE/INSERT와 기본 schema 적용 후 V4__notes.sql로 user_version=4를 적용한다.
-기존 초기 프로젝트에는 업무 테이블이 없었으므로 데이터 삭제 없이 추가한다. v3는 db/migrations/V3__device_network.sql로 기존 devices에 network_mode를 추가한다. PRAGMA table_info로 적용 여부를 확인하므로 재시작 시 반복 추가하지 않는다. 기존 장비는 DIRECT로 보존한다.
+기존 초기 프로젝트에는 업무 테이블이 없었으므로 데이터 삭제 없이 추가한다. v3는 db/migrations/V3__device_network.sql로 기존 devices에 network_mode를, v5는 db/migrations/V5__device_jump_proxy.sql로 jump_device_ids를 추가한다. PRAGMA table_info로 적용 여부를 확인하므로 재시작 시 반복 추가하지 않는다. 기존 장비는 DIRECT와 빈 점프 체인으로 보존한다.
 기존 테이블 owner는 catalog이며 soft delete는 사용하지 않는다. 아래 표의 컬럼은 별도 명시가 없으면 NOT NULL, default 없음이다.
 TEXT ID는 서버 생성 UUID이며 devices의 기본 프로필만 `local`이다. 기존 catalog 시간은 INTEGER Unix epoch milliseconds, boolean은 INTEGER 0/1이다.
 
@@ -15,6 +15,7 @@ TEXT ID는 서버 생성 UUID이며 devices의 기본 프로필만 `local`이다
 | name | TEXT | 예 | 없음 | 없음 | 표시 이름 |
 | host | TEXT | 예 | 없음 | 없음 | DNS/IP (TAILSCALE이면 Tailscale IP/MagicDNS) |
 | network_mode | TEXT | 예 | DIRECT | CHECK | DIRECT/TAILSCALE |
+| jump_device_ids | TEXT | 예 | 빈 문자열 | 없음 | 순서가 있는 점프 장비 ID CSV, 최대 5개 |
 | ssh_port | INTEGER | 예 | 없음 | 없음 | SSH 포트 1~65535 |
 | username | TEXT | 예 | 없음 | 없음 | SSH 사용자, 미설정 빈 문자열 |
 | password_cipher | TEXT | 예 | 없음 | 없음 | AES-GCM nonce+ciphertext, 미설정 빈 문자열 |

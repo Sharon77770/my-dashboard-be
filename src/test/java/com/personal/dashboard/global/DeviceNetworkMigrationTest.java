@@ -30,5 +30,6 @@ class DeviceNetworkMigrationTest {
     assertThat(device.passwordCipher()).isEqualTo("encrypted-fixture");
     assertThat(device.rootPath()).isEqualTo("/home/tester");
     assertThat(device.pinned()).isTrue();
+    assertThat(device.jumpDeviceIds()).isEmpty();
   }
 }

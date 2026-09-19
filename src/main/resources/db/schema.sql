@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS devices (
  root_path TEXT NOT NULL, remote_protocol TEXT NOT NULL, remote_port INTEGER NOT NULL,
  remote_username TEXT NOT NULL, remote_password_cipher TEXT NOT NULL, mac TEXT NOT NULL,
  broadcast TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0,
- network_mode TEXT NOT NULL DEFAULT 'DIRECT' CHECK(network_mode IN ('DIRECT','TAILSCALE'))
+ network_mode TEXT NOT NULL DEFAULT 'DIRECT' CHECK(network_mode IN ('DIRECT','TAILSCALE')),
+ jump_device_ids TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS applications (
  id TEXT PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, pinned INTEGER NOT NULL DEFAULT 0
@@ -55,4 +56,4 @@ CREATE TABLE IF NOT EXISTS timetable_meetings (
  day INTEGER NOT NULL CHECK(day BETWEEN 1 AND 7), starts_at TEXT NOT NULL, ends_at TEXT NOT NULL,
  PRIMARY KEY(course_id,day,starts_at)
 );
-PRAGMA user_version=3;
+PRAGMA user_version=5;
