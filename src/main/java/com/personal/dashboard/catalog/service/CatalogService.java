@@ -122,7 +122,7 @@ public class CatalogService {
             request.sshPort(),
             blank(request.username()),
             secret(request.password(), old == null ? "" : old.passwordCipher()),
-            resolveFingerprint(request, old),
+            resolveFingerprint(request, old, jumpDeviceIds),
             request.rootPath(),
             request.remoteProtocol(),
             request.remotePort(),
@@ -163,7 +163,8 @@ public class CatalogService {
   }
 
   /** Missing UI fingerprints preserve the same host key or enroll a newly selected SSH host. */
-  private String resolveFingerprint(DeviceRequest request, DeviceRecord old) {
+  private String resolveFingerprint(
+      DeviceRequest request, DeviceRecord old, List<String> jumpDeviceIds) {
     if (request.fingerprint() != null) return request.fingerprint();
     if (old != null
         && old.host().equalsIgnoreCase(request.host())
@@ -186,17 +187,25 @@ public class CatalogService {
     String password = request.password();
     if (password == null || password.isEmpty())
       password = old == null ? "" : vault.decrypt(old.passwordCipher());
-    return ssh.discover(
-            network.resolve(
-                request.host(),
-                request.networkMode() == null && old != null
-                    ? old.networkMode()
-                    : request.networkMode()),
-            request.sshPort(),
-            request.username(),
-            password,
-            known.isEmpty() ? "" : known.getFirst())
-        .fingerprint();
+    String host =
+        network.resolve(
+            request.host(),
+            request.networkMode() == null && old != null
+                ? old.networkMode()
+                : request.networkMode());
+    String expected = known.isEmpty() ? "" : known.getFirst();
+    // Enrollment must use the same ordered route as subsequent SSH connections.
+    var discovered =
+        jumpDeviceIds.isEmpty()
+            ? ssh.discover(host, request.sshPort(), request.username(), password, expected)
+            : ssh.discover(
+                host,
+                request.sshPort(),
+                request.username(),
+                password,
+                expected,
+                jumpDeviceIds.stream().map(this::requireDevice).toList());
+    return discovered.fingerprint();
   }
 
   private String secret(String raw, String previous) {

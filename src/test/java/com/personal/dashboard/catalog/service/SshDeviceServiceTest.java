@@ -12,6 +12,80 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class SshDeviceServiceTest {
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+  void reenrollmentPreservesOmittedJumpChainButAllowsExplicitDirectConnection(boolean omitChain) {
+    var catalog = mock(CatalogService.class);
+    var ssh = mock(SshAdapter.class);
+    var bridge =
+        new com.personal.dashboard.catalog.entity.DeviceRecord(
+            "bridge",
+            "Bridge",
+            "bridge.tailnet",
+            22,
+            "tester",
+            "cipher",
+            "SHA256:bridge",
+            "/home/tester",
+            "NONE",
+            3389,
+            "",
+            "",
+            "",
+            "",
+            false,
+            com.personal.dashboard.catalog.entity.NetworkMode.TAILSCALE,
+            List.of());
+    when(catalog.requireDevice("bridge")).thenReturn(bridge);
+    when(catalog.devices())
+        .thenReturn(
+            List.of(
+                new DeviceView(
+                    "target",
+                    "Target",
+                    "private-host",
+                    22,
+                    "tester",
+                    true,
+                    "SHA256:pinned",
+                    "/home/tester",
+                    "NONE",
+                    3389,
+                    "",
+                    false,
+                    "",
+                    "",
+                    false,
+                    com.personal.dashboard.catalog.entity.NetworkMode.DIRECT,
+                    List.of("bridge"))));
+    var discovered = new SshAdapter.DiscoveredHost("SHA256:pinned", "/home/tester");
+    if (omitChain) {
+      when(ssh.discover(
+              "private-host", 22, "tester", "fixture-password", "SHA256:pinned", List.of(bridge)))
+          .thenReturn(discovered);
+    } else {
+      when(ssh.discover("private-host", 22, "tester", "fixture-password", "SHA256:pinned"))
+          .thenReturn(discovered);
+    }
+
+    new SshDeviceService(
+            catalog, ssh, new com.personal.dashboard.global.integration.DeviceNetworkAdapter())
+        .connect(
+            new SshDeviceRequest(
+                "ssh tester@private-host",
+                "fixture-password",
+                "",
+                null,
+                omitChain ? null : List.of()));
+
+    var saved = ArgumentCaptor.forClass(DeviceRequest.class);
+    verify(catalog).saveDevice(eq("target"), saved.capture());
+    assertThat(saved.getValue().jumpDeviceIds())
+        .isEqualTo(omitChain ? List.of("bridge") : List.of());
+    if (omitChain)
+      verify(ssh, never()).discover(anyString(), anyInt(), anyString(), anyString(), anyString());
+  }
+
   @Test
   void tailscaleEnrollmentConnectsToResolvedAddressAndPersistsOriginalNameAndMode() {
     var catalog = mock(CatalogService.class);

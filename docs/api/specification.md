@@ -79,6 +79,8 @@ DeviceView: `id`, `name`, `host`, `sshPort`, `username`, `fingerprint`, `rootPat
 
 `jumpDeviceIds`에 지정한 장비는 local이 아니고 중복될 수 없으며 SSH 사용자·암호·호스트 키 지문이 등록되어야 한다. 점프 장비 자체에는 점프 체인을 설정할 수 없다. 연결은 대시보드 → 첫 점프 장비 → 다음 점프 장비 → 대상 장비 순서로 SSH Direct-TCPIP 채널을 만든다. 각 홉의 호스트 키를 검증하며 어느 홉이라도 실패하면 전체 연결을 실패시킨다.
 
+장비 추가·수정 시 호스트 키를 새로 확인하는 연결도 요청의 점프 체인(생략/null이면 기존 체인)을 사용한다. 각 장비의 `networkMode`를 독립 적용하므로 TAILSCALE 브릿지를 거쳐 DIRECT 목표에 연결할 수 있다. DIRECT 목표의 내부 호스트명은 브릿지에서 해석하며 목표 자체에는 Tailscale이 필요하지 않다.
+
 ### DELETE /api/v1/devices/{id}
 - query/body 없음. 204. local 삭제 400, 대상 없음 404. 장비와 FK 즐겨찾기 및 최근 이력을 제거한다.
 
@@ -204,6 +206,8 @@ OWNER 세션 + CSRF. path/query 없음. SSH 연결을 검증하고 장비를 생
 | command | String | 필수/null 불가 | 최대 512. ssh 사용자@호스트, 선택 -p 포트/-p포트(대상 앞/뒤, 1~65535). 기본 22. IPv6 대괄호 허용. 사용자명 영문/숫자/밑줄로 시작, 이후 점/하이픈 허용, 최대 128. 호스트 영문/숫자/점/하이픈/콜론, 최대 253. 다른 SSH 옵션/셸 명령 불가 |
 | password | String | 필수/null 불가 | 비어 있지 않은 대상 SSH 비밀번호, 최대 4096. 응답/로그/toString에 노출하지 않음 |
 | name | String | 선택/null 허용 | 최대 80. 공백 제거 후 비면 기존 이름 또는 사용자@호스트(80자까지) |
+| networkMode | NetworkMode enum | 선택/null 허용 | DIRECT 또는 TAILSCALE. 생략/null이면 기존 장비 값 유지, 신규는 DIRECT. 목표 장비에 적용하며 점프 장비는 각각 저장된 모드 사용 |
+| jumpDeviceIds | String[] | 선택/null 허용 | 순서대로 연결할 등록 장비 ID, 최대 5개. 생략/null이면 기존 체인 유지, 신규는 빈 체인. 빈 배열이면 직접 연결 |
 
 성공 200: 기존 DeviceView와 동일한 필드/타입/필수성(위 DeviceView 정의). 새로운 장비는 원격 화면 NONE, 원격 포트 3389, pinned true, SFTP canonical 홈이 rootPath다. 동일 host(대소문자 무시)/port/username이면 기존 ID/파일 루트/원격 설정/고정 상태를 유지한다. 첫 키 자동 신뢰, 이후 저장 키 일치 필요. 인증/SFTP 확인이 끝난 후에만 암호화 저장하며 실패 시 저장하지 않는다.
 오류: 400 INVALID_INPUT(지원 구문 또는 필수 값 오류), 401 UNAUTHENTICATED, 403 FORBIDDEN(CSRF/OWNER), 409 CONFLICT(같은 호스트에 서로 다른 저장 키), 502 CONNECTION_FAILED(접속 거부/timeout/인증/SFTP 실패 또는 호스트 키 변경), 500 INTERNAL_ERROR(저장 실패). 응답 오류 형식은 공통 message이며 인증정보/외부 예외는 노출하지 않는다. connect 5초, I/O 10초, 자동 재시도 없음. SSH 명령은 셸 실행 없이 파싱하여 SSHJ adapter에 전달한다.

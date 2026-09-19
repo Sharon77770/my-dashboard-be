@@ -97,10 +97,12 @@ public class SshDeviceService {
                 ? com.personal.dashboard.catalog.entity.NetworkMode.DIRECT
                 : existing.networkMode())
             : request.networkMode();
-    List<com.personal.dashboard.catalog.entity.DeviceRecord> jumps =
+    List<String> jumpDeviceIds =
         request.jumpDeviceIds() == null
-            ? List.of()
-            : request.jumpDeviceIds().stream().map(catalog::requireDevice).toList();
+            ? (existing == null ? List.of() : existing.jumpDeviceIds())
+            : request.jumpDeviceIds();
+    List<com.personal.dashboard.catalog.entity.DeviceRecord> jumps =
+        jumpDeviceIds.stream().map(catalog::requireDevice).toList();
     var discovered =
         jumps.isEmpty()
             ? ssh.discover(
@@ -138,6 +140,6 @@ public class SshDeviceService {
             existing == null ? "" : existing.broadcast(),
             existing == null || existing.pinned(),
             mode,
-            request.jumpDeviceIds() == null ? List.of() : request.jumpDeviceIds()));
+            jumpDeviceIds));
   }
 }
