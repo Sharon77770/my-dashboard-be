@@ -2,7 +2,9 @@
 
 대시보드 오른쪽 아래의 ✦ 버튼에서 여는 앱 전용 대화 화면이다. IDE의 Codex 패널과 화면·상태·API 진입점을 분리한다. 어느 대시보드 페이지에서든 버튼을 드래그해 위치를 옮길 수 있고, 브라우저별 위치와 현재 대화는 브라우저 저장소에 보관한다. 화면은 대시보드 테마와 모바일 폭을 따른다.
 
-이 assistant는 개인 대시보드 기능을 다루는 용도로만 사용한다. 페이지나 등록 앱을 열고, 일정과 노트를 찾거나 작성할 수 있다. 모델과 추론 강도는 Codex가 반환한 사용 가능한 목록에서 고른다. 첫 사용 시 대시보드 서버에서 Codex CLI를 준비하고 기기 코드로 로그인한다.
+이 assistant는 개인 대시보드 기능을 다루는 용도로만 사용한다. 페이지나 등록 앱을 열고, 대시보드에 저장된 일정과 노트를 찾거나 작성할 수 있다. 캘린더는 외부 서비스 연결 없이 대시보드 자체 일정을 조회한다. 모델과 추론 강도는 Codex가 반환한 사용 가능한 목록에서 고른다. 첫 사용 시 대시보드 서버에서 Codex CLI를 준비하고 기기 코드로 로그인한다.
+
+로그인이 필요하면 도우미의 `Codex 로그인` 버튼을 누른다. CLI가 발급한 OpenAI 인증 URL과 일회용 코드를 도우미 안에 표시하며, 인증 페이지는 새 창에서 열고 코드를 복사할 수 있다. 로그인 완료 후 계정 상태를 다시 확인한다. 인증 URL과 코드는 브라우저 저장소에 보관하지 않는다.
 
 ## 제공 기능
 
@@ -30,4 +32,6 @@ MCP 요청은 `Authorization: Bearer` 인증을 사용한다. Compose에서 `DAS
 
 외부 MCP 연결은 HTTPS reverse proxy 또는 VPN으로 보호한 뒤 `/api/v1/mcp`를 지정한다. 대시보드 로그인 세션 쿠키는 MCP 인증에 쓰지 않는다. CSRF 검사는 MCP 경로에서만 제외하고 bearer 검증은 MCP controller에서 상수 시간 비교로 수행한다. assistant browser events와 job endpoint는 기존 OWNER 세션 및 CSRF 정책을 유지한다.
 
-MCP 앱 동작은 현재 단일 OWNER 계정과 해당 계정의 개인 일정·노트 저장소를 사용한다. MCP navigation queue와 기본 난수 토큰은 서버 재시작 시 초기화된다. 외부 client에서 고정 bearer token을 운영하려면 `DASHBOARD_MCP_TOKEN`을 직접 제공한다.
+MCP 앱 동작은 현재 단일 OWNER 계정과 해당 계정의 개인 일정·노트 저장소를 사용한다. 대화 전 Codex App Server의 `personal-dashboard` 연결 상태를 조회하며, 연결이 없거나 준비되지 않으면 도우미 요청을 시작하지 않고 복구가 필요함을 표시한다. MCP navigation queue와 기본 난수 토큰은 서버 재시작 시 초기화된다. 외부 client에서 고정 bearer token을 운영하려면 `DASHBOARD_MCP_TOKEN`을 직접 제공한다.
+
+서버 assistant 준비는 매 setup에서 `personal-dashboard` MCP 서버를 Codex CLI에 다시 등록해 URL과 bearer 환경변수 연결을 복구한다. 등록 실패는 setup job 실패로 전달한다. 갱신 전용 setup도 CLI 업데이트 확인 후 MCP 등록을 다시 맞춘다.

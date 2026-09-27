@@ -66,7 +66,12 @@ public class McpController {
                 java.util.Map.of("name", "personal-dashboard", "version", "1.0.0"),
                 "instructions",
                 "Use dashboard tools to open app pages, manage calendar events and write notebook"
-                    + " notes. Confirm ambiguous dates before creating events."));
+                    + " notes. The calendar tool reads events stored in this dashboard; there is no"
+                    + " external calendar connection requirement. For a requested month, call"
+                    + " list_calendar_events with the first day of that month as from and the first"
+                    + " day of the next month as exclusive to. Always use the tool for calendar"
+                    + " lookup; an empty result means no events are stored in that period."
+                    + " Confirm ambiguous dates before creating events."));
     return result(id, reply);
   }
 

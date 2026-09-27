@@ -77,7 +77,11 @@ public class AssistantMcpService {
             false),
         tool(
             "list_calendar_events",
-            "List calendar events in a half-open local date range [from, to).",
+            "List events already stored in this dashboard's calendar; no external calendar connection is required. "
+                + "Use ISO dates and a half-open local date range [from, to). For October of year YYYY, "
+                + "use from=YYYY-10-01 and to=YYYY-11-01. The to date is excluded. "
+                + "Always call this tool when the user asks to see or explain calendar events; "
+                + "an empty events array means there are no saved events in that range.",
             schema(List.of("from", "to"), Map.of("from", date(), "to", date())),
             true),
         tool(

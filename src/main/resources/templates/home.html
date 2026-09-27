@@ -45,6 +45,11 @@
     </header>
     <div class="assistant-model-bar"><label><span class="assistant-sr-only">모델</span><select id="assistant-model" aria-label="모델"><option value="">모델 불러오는 중</option></select></label><label><span class="assistant-sr-only">추론 강도</span><select id="assistant-effort" aria-label="추론 강도"><option value="">기본</option></select></label></div>
     <div id="assistant-status" class="assistant-status" role="status" aria-live="polite"><span id="assistant-status-text"></span><button id="assistant-login" type="button" hidden>Codex 로그인</button></div>
+    <section id="assistant-login-guide" class="assistant-login-guide" aria-live="polite" hidden>
+      <p id="assistant-login-message">Codex 계정에 로그인하면 대시보드 도우미를 사용할 수 있어요.</p>
+      <a id="assistant-login-link" href="https://auth.openai.com/" target="_blank" rel="noopener noreferrer" hidden>Codex 인증 페이지 열기</a>
+      <div class="assistant-login-code" id="assistant-login-code-row" hidden><code id="assistant-login-code"></code><button id="assistant-copy-code" type="button">코드 복사</button></div>
+    </section>
     <div id="assistant-messages" class="assistant-messages" role="log" aria-live="polite">
       <div class="assistant-welcome"><span class="assistant-welcome-mark">✦</span><h2>대시보드에서 무엇을 도와드릴까요?</h2><p>일정과 노트를 찾고, 대시보드 화면이나 등록한 앱을 열 수 있어요.</p><div class="assistant-suggestions"><button type="button" data-assistant-prompt="오늘 일정 보여줘">오늘 일정 보기</button><button type="button" data-assistant-prompt="등록된 앱을 보여줘">등록 앱 확인</button><button type="button" data-assistant-prompt="최근 노트를 찾아줘">노트 찾기</button></div></div>
     </div>

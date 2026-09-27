@@ -79,6 +79,13 @@
 .assistant-window .assistant-status button { flex: 0 0 auto; min-height: 26px; padding: 2px 8px; font-size: 10px; }
 .assistant-window .assistant-status:empty { min-height: 8px; padding-bottom: 0; }
 .assistant-window .assistant-status[data-kind="error"] { color: var(--danger, #d55); }
+.assistant-window .assistant-login-guide { display: grid; gap: 8px; margin: 0 14px 8px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--bg-surface); font-size: 11px; }
+.assistant-window .assistant-login-guide[hidden] { display: none; }
+.assistant-window .assistant-login-guide p { margin: 0; color: var(--text-secondary); line-height: 1.5; }
+.assistant-window .assistant-login-guide a { width: fit-content; color: var(--accent); }
+.assistant-window .assistant-login-code { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.assistant-window .assistant-login-code code { font-size: 17px; font-weight: 700; letter-spacing: .08em; }
+.assistant-window .assistant-login-code button { min-height: 28px; padding: 3px 9px; font-size: 10px; }
 
 .assistant-window .assistant-messages { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px 14px 20px; scroll-behavior: smooth; }
 .assistant-window .assistant-welcome { max-width: 340px; margin: auto; text-align: center; }

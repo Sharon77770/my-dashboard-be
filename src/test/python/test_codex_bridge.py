@@ -17,6 +17,7 @@ for line in sys.stdin:
  f=json.loads(line);m=f.get('method');p=f.get('params',{});result={}
  if m=='initialize': result={}
  elif m=='model/list': result={'data':[dict(model='fixture',displayName='Fixture',isDefault=True,defaultReasoningEffort='medium',supportedReasoningEfforts=[dict(reasoningEffort='medium',description='Balanced')])]}
+ elif m=='mcpServerStatus/list': result={'data':[dict(name='personal-dashboard',authStatus='bearer',runtimeStatus='connected',tools={'list_calendar_events':{}},toolsError=None)]}
  elif m=='thread/start' or m=='thread/resume': result={'thread':thread,'model':'fixture'}
  elif m=='thread/read':
   if p['threadId']=='foreign': thread['cwd']='/other-project'
@@ -55,6 +56,13 @@ class CodexBridgeTest(unittest.TestCase):
         result = remote.codex_action(self.root, 'codex-models', {})
         self.assertEqual(result['assistant']['models'][0]['id'], 'fixture')
         self.assertEqual(result['assistant']['models'][0]['efforts'][0]['reasoningEffort'], 'medium')
+
+    def test_dashboard_mcp_connection_reports_runtime_and_calendar_tool(self):
+        result = remote.codex_action(self.root, 'codex-connections', {})
+        connection = result['assistant']['connections'][0]
+        self.assertEqual(connection['name'], 'personal-dashboard')
+        self.assertEqual(connection['runtimeStatus'], 'connected')
+        self.assertIn('list_calendar_events', connection['tools'])
 
     def test_new_session_is_draft_until_first_turn(self):
         result = remote.codex_action(self.root, 'codex-thread-new', {})

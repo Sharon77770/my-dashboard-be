@@ -205,7 +205,10 @@ def codex_action(root, action, args):
                 for entry in result.get('data', []) for s in entry.get('skills', [])]))
         if action == 'codex-connections':
             result = bridge.call('mcpServerStatus/list', dict(limit=100))
-            return dict(assistant=dict(connections=[dict(name=s['name'], status=s.get('authStatus', 'unknown')) for s in result.get('data', [])]))
+            return dict(assistant=dict(connections=[dict(name=s['name'], status=s.get('authStatus', 'unknown'),
+                runtimeStatus=s.get('runtimeStatus'), tools=list(s.get('tools', {}).keys()),
+                error=clean((s.get('toolsError') or {}).get('message', ''))[:1000])
+                for s in result.get('data', [])]))
         ident = args.get('threadId')
         thread = bridge.owned(ident) if ident else None
         bridge.thread_id = ident

@@ -315,10 +315,12 @@ def setup(device_id=None, refresh=False):
                 'https://github.com/openai/codex/releases/download/rust-v0.154.0/' + name + '.tar.gz',
                 'sha256:' + hashes[arch])
         install_github_cli()
-    if device_id == 'local' and not refresh:
+    if device_id == 'local':
         url = os.environ.get('DASHBOARD_MCP_URL', '')
         token = os.environ.get('DASHBOARD_MCP_TOKEN', '')
         if not url or len(token) < 32: raise Failure('대시보드 MCP 설정을 확인해 주세요.', 500)
+        # Reconcile the MCP entry on every setup, including refreshes. Existing entries are
+        # updated by the CLI, and failures must fail setup rather than silently disable tools.
         run([str(destination), 'mcp', 'remove', 'personal-dashboard'], check=False)
         run([str(destination), 'mcp', 'add', 'personal-dashboard', '--url', url,
              '--bearer-token-env-var', 'DASHBOARD_MCP_TOKEN'])

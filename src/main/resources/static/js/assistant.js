@@ -11,6 +11,12 @@
   const statusLabel = document.querySelector('#assistant-status-text');
   const accountStatus = document.querySelector('#assistant-account-status');
   const loginButton = document.querySelector('#assistant-login');
+  const loginGuide = document.querySelector('#assistant-login-guide');
+  const loginMessage = document.querySelector('#assistant-login-message');
+  const loginLink = document.querySelector('#assistant-login-link');
+  const loginCodeRow = document.querySelector('#assistant-login-code-row');
+  const loginCode = document.querySelector('#assistant-login-code');
+  const copyCodeButton = document.querySelector('#assistant-copy-code');
   const stopButton = document.querySelector('#assistant-stop');
   const sendButton = document.querySelector('#assistant-send');
   const runtime = window.WorkspaceAssistantRuntime;
@@ -22,6 +28,8 @@
   const assistantRoot = localDevice.rootPath;
   let busy = false;
   let ready = false;
+  let mcpReady = false;
+  let needsMcpRepair = false;
   let readyAt = 0;
   let preparing = null;
   let currentJob = null;
@@ -196,17 +204,37 @@
     if (loading) return loading;
     loading = (async () => {
       try {
+        mcpReady = false;
+        needsMcpRepair = false;
         await prepareServerCodex();
         const modelResult = await runJob('codex-models');
         renderModels(modelResult.assistant?.models);
+        const connectionResult = await runJob('codex-connections');
+        const dashboardMcp = (connectionResult.assistant?.connections || []).find(item => item.name === 'personal-dashboard');
+        if (!dashboardMcp || dashboardMcp.runtimeStatus !== 'connected'
+            || !dashboardMcp.tools?.includes('list_calendar_events')) {
+          needsMcpRepair = true;
+          const detail = dashboardMcp?.error ? ' (' + dashboardMcp.error + ')' : '';
+          throw new Error('대시보드 MCP 일정 도구 연결에 실패했습니다. 도구 준비를 다시 실행해 주세요.' + detail);
+        }
+        mcpReady = true;
         const accountResult = await runJob('codex-account');
         const authenticated = Boolean(accountResult.assistant?.authenticated);
         accountStatus.textContent = authenticated ? '대시보드 기능에 연결됨' : 'Codex 로그인이 필요합니다';
         loginButton.hidden = authenticated;
+        loginGuide.hidden = authenticated;
+        if (!authenticated) loginMessage.textContent = 'Codex 로그인을 시작하면 인증 주소와 일회용 코드를 여기에 표시합니다.';
         setStatus(authenticated ? '개인 대시보드 기능 전용 · Codex 연결됨' : '대시보드 Codex 계정에 로그인해 주세요.');
         if (!refreshModels && !conversation.length && !threadId) renderConversation();
       } catch (error) {
-        accountStatus.textContent = '서버 Codex 연결을 확인해 주세요';
+        mcpReady = false;
+        if (needsMcpRepair) {
+          loginButton.hidden = false;
+          loginButton.textContent = 'MCP 연결 복구';
+          accountStatus.textContent = '대시보드 MCP 연결 확인 필요';
+        } else {
+          accountStatus.textContent = '서버 Codex 연결을 확인해 주세요';
+        }
         setStatus(error.message, 'error');
         throw error;
       }
@@ -281,16 +309,18 @@
 
   function receiveEvent(event, responseIndex, jobId) {
     if (event.event === '인증 주소' && /^https:\/\/auth\.openai\.com\//.test(event.url || '')) {
-      const link = document.createElement('a');
-      link.href = event.url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.textContent = '인증 페이지 열기';
-      setStatus('새 창에서 Codex 로그인을 완료한 뒤 돌아오세요.');
-      statusLabel.append(' ', link);
+      loginGuide.hidden = false;
+      loginLink.href = event.url;
+      loginLink.hidden = false;
+      loginMessage.textContent = '인증 페이지를 열고 Codex 로그인을 완료하세요.';
+      setStatus('인증 페이지에서 로그인을 진행해 주세요.');
     }
     if (event.event === '일회용 인증 코드' && event.code) {
-      setStatus('Codex 인증 코드: ' + event.code);
+      loginGuide.hidden = false;
+      loginCode.textContent = event.code;
+      loginCodeRow.hidden = false;
+      loginMessage.textContent = '인증 페이지에서 아래 일회용 코드를 입력하세요.';
+      setStatus('인증 페이지에 표시된 입력란에 일회용 코드를 입력해 주세요.');
     }
     const update = event.assistant;
     if (!update) return;
@@ -315,6 +345,10 @@
   async function sendMessage(value = prompt.value) {
     const text = String(value || '').trim();
     if (!text || busy) return;
+    if (!mcpReady) {
+      setStatus('대시보드 MCP 연결을 먼저 복구해 주세요.', 'error');
+      return;
+    }
     prompt.value = '';
     conversation.push({ role: 'user', text }, { role: 'assistant', text: '', pending: true });
     conversation = conversation.slice(-60);
@@ -358,6 +392,24 @@
 
   async function login() {
     loginButton.disabled = true;
+    if (needsMcpRepair) {
+      setStatus('대시보드 MCP 연결을 복구하고 있어요…');
+      try {
+        await runJob('setup', { refresh: true });
+        ready = false;
+        await load(true);
+      } catch (error) {
+        setStatus(error.message, 'error');
+      } finally {
+        loginButton.disabled = false;
+      }
+      return;
+    }
+    loginButton.textContent = 'Codex 로그인';
+    loginGuide.hidden = false;
+    loginLink.hidden = true;
+    loginCodeRow.hidden = true;
+    loginMessage.textContent = 'Codex 인증 정보를 기다리고 있어요…';
     setStatus('Codex 로그인을 준비하고 있어요…');
     try {
       await runJob('codex-login', {}, event => receiveEvent(event, -1));
@@ -369,6 +421,16 @@
       loginButton.disabled = false;
     }
   }
+
+  copyCodeButton.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(loginCode.textContent);
+      copyCodeButton.textContent = '복사됨';
+      setTimeout(() => { copyCodeButton.textContent = '코드 복사'; }, 1600);
+    } catch {
+      setStatus('코드를 선택해 직접 복사해 주세요.', 'error');
+    }
+  });
 
   function placePanel() {
     if (panel.hidden) return;
