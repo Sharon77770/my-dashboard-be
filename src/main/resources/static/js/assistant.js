@@ -132,7 +132,11 @@
         job = await runtime.api('/assistant/jobs/' + encodeURIComponent(jobId));
       }
       deliverEvents(job.events);
-      if (job.state !== 'SUCCEEDED') throw new Error(job.error || '대시보드 요청을 완료하지 못했습니다.');
+      if (job.state !== 'SUCCEEDED') {
+        const error = new Error(job.error || '대시보드 요청을 완료하지 못했습니다.');
+        error.status = job.errorStatus;
+        throw error;
+      }
       return job.result || {};
     } finally {
       if (currentJob === jobId) currentJob = null;
@@ -390,6 +394,15 @@
       setStatus('대시보드 요청을 완료했습니다.');
     } catch (error) {
       const message = conversation[responseIndex];
+      if (error.status === 401) {
+        mcpReady = false;
+        needsMcpRepair = false;
+        loginButton.hidden = false;
+        loginButton.textContent = 'Codex 로그인';
+        loginGuide.hidden = false;
+        loginMessage.textContent = error.message;
+        accountStatus.textContent = 'Codex 재로그인이 필요합니다';
+      }
       if (message) {
         message.pending = false;
         if (!message.text) message.text = error.message;

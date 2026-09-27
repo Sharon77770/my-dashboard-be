@@ -17,6 +17,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     if (path === '/assistant/events?after=0') return [];
     assert.equal(method, 'POST');
     calls.push(body.action);
+    if (body.action === 'codex-run' && state.expired) return { id: 'expired', state: 'FAILED', errorStatus: 401, error: 'Codex 로그인이 만료되었습니다.' };
     if (body.action === 'codex-connections' && state.connectionFailure) throw Error('MCP unavailable');
     const result = body.action === 'codex-account' ? { assistant: { authenticated: state.authenticated } }
       : body.action === 'codex-connections' ? { assistant: { connections: state.connection ? [state.connection] : [] } }
@@ -58,6 +59,17 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       assert.match(f.d.querySelector('#assistant-account-status').textContent, /연결됨/);
     } finally { f.dom.window.close(); }
   }
+  const expired = await fixture(connected);
+  try {
+    expired.state.expired = true;
+    expired.d.querySelector('#assistant-prompt').value = '등록된 앱을 보여줘';
+    expired.d.querySelector('#assistant-form').dispatchEvent(new expired.w.Event('submit', { cancelable: true }));
+    await tick();
+    assert.equal(expired.d.querySelector('#assistant-login').hidden, false);
+    assert.equal(expired.d.querySelector('#assistant-login').textContent, 'Codex 로그인');
+    assert.match(expired.d.querySelector('#assistant-account-status').textContent, /재로그인/);
+    assert.match(expired.d.querySelector('#assistant-status').textContent, /만료/);
+  } finally { expired.dom.window.close(); }
   const loggedOut = await fixture(null, false);
   try {
     assert.equal(loggedOut.d.querySelector('#assistant-login').hidden, false);

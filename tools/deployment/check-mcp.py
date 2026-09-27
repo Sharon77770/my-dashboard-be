@@ -1,9 +1,12 @@
 """Linux smoke: isolated dashboard DB + real Codex MCP discovery and calendar call.
 
 Run inside the built dashboard image with this file, studio resources and a Linux
-Codex binary mounted read-only. Uses no existing accounts, volumes or model turns.
+Codex binary mounted read-only. By default uses no existing accounts or model turns.
+With --live-turns, uses the existing Codex login for three real model responses
+against temporary fixture data and archives the diagnostic conversation.
 """
 import http.cookiejar
+import argparse
 from html.parser import HTMLParser
 import json
 import os
@@ -28,22 +31,24 @@ class CsrfParser(HTMLParser):
             self.token = attrs.get('value', attrs.get('content', ''))
 
 
-def check():
+def check(options):
     with tempfile.TemporaryDirectory(prefix='dashboard-mcp-check-') as directory:
         root = Path(directory)
-        home, files = root / 'home', root / 'files'
+        home, files = (Path(os.environ['HOME']) if options.live_turns else root / 'home'), root / 'files'
         files.mkdir()
-        binary = home / '.local/bin/codex'
-        binary.parent.mkdir(parents=True)
-        shutil.copyfile('/qa/codex', binary)
-        binary.chmod(0o755)
+        binary = Path(options.codex) if options.live_turns else home / '.local/bin/codex'
+        if not options.live_turns:
+            binary.parent.mkdir(parents=True)
+            shutil.copyfile(options.codex, binary)
+            binary.chmod(0o755)
         token, password = secrets.token_hex(32), secrets.token_hex(20)
         env = dict(os.environ, HOME=str(home), DASHBOARD_MCP_TOKEN=token,
                    DASHBOARD_AUTH_ID='mcp-fixture', DASHBOARD_AUTH_PASSWORD=password,
                    DASHBOARD_DB_PATH=str(root / 'dashboard.db'), WORKSPACE_ROOT=str(files),
                    CREDENTIAL_KEY_PATH=str(root / 'credential.key'), CLOUD_ROOT=str(root / 'cloud'),
-                   SESSION_COOKIE_SECURE='false', SERVER_PORT='8080')
-        base = 'http://127.0.0.1:8080'
+                   SESSION_COOKIE_SECURE='false', SERVER_PORT=str(options.port))
+        base = 'http://127.0.0.1:' + str(options.port)
+        env['DASHBOARD_MCP_URL'] = base + '/api/v1/mcp'
         client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
         def request(path, body=None, headers=None):
@@ -59,7 +64,7 @@ def check():
                 {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token})['result']
 
         with (root / 'server.log').open('w') as output:
-            server = subprocess.Popen(['java', '-jar', '/app/app.jar'], env=env, stdout=output, stderr=output)
+            server = subprocess.Popen(['java', '-jar', options.jar], env=env, stdout=output, stderr=output)
             try:
                 deadline = time.monotonic() + 60
                 while True:
@@ -73,9 +78,6 @@ def check():
                 created = mcp('create_calendar_event', dict(title='MCP fixture',
                     start='2026-10-05T09:00:00', end='2026-10-05T10:00:00'))
                 assert not created['isError'], 'Fixture event creation failed'
-                subprocess.run([str(binary), 'mcp', 'add', 'personal-dashboard', '--url', base + '/api/v1/mcp',
-                    '--bearer-token-env-var', 'DASHBOARD_MCP_TOKEN'], env=env, check=True, capture_output=True)
-
                 csrf = CsrfParser()
                 csrf.feed(request('/login'))
                 form = urllib.parse.urlencode(dict(id='mcp-fixture', password=password, _csrf=csrf.token)).encode()
@@ -94,14 +96,46 @@ def check():
                 assert connection.get('runtimeStatus') in (None, 'connected'), 'Unexpected runtime state'
                 print('PASS: real Codex discovery -> Java job response includes calendar tool; runtimeStatus=' + str(connection.get('runtimeStatus')), flush=True)
 
+                if options.live_turns:
+                    request('/api/v1/applications', dict(name='MCP fixture app', url='https://example.invalid', pinned=False),
+                        {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token})
+                    thread_id = None
+                    for prompt, tool, expected in [('등록된 앱을 보여줘', 'list_apps', 'MCP fixture app'),
+                                                  ('연결된 mcp들 알려줘', None, 'personal-dashboard'),
+                                                  ('2026년 10월 일정 설명해줘', 'list_calendar_events', 'MCP fixture')]:
+                        job = request('/api/v1/assistant/jobs', dict(deviceId='local', root=str(files), action='codex-run',
+                            args=dict(prompt=prompt, threadId=thread_id, mode='read-only')),
+                            {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token})
+                        deadline = time.monotonic() + 180
+                        while job['state'] == 'RUNNING' and time.monotonic() < deadline:
+                            time.sleep(.5)
+                            job = request('/api/v1/assistant/jobs/' + job['id'])
+                        if job['state'] == 'RUNNING':
+                            client.open(urllib.request.Request(base + '/api/v1/assistant/jobs/' + job['id'], method='DELETE',
+                                headers={'X-CSRF-TOKEN': csrf.token})).close()
+                        assert job['state'] == 'SUCCEEDED', 'Live model turn failed: ' + str(job.get('error'))
+                        thread = job['result']['assistant']['thread']
+                        thread_id = thread['id']
+                        last_turn = thread['turns'][-1]
+                        assert last_turn['status'] == 'completed', 'Model turn status=' + last_turn['status']
+                        items = thread['turns'][-1]['items']
+                        answer = '\n'.join(item.get('text', '') for item in items if item['type'] == 'agentMessage')
+                        if tool:
+                            assert any(item.get('server') == 'personal-dashboard' and item.get('tool') == tool for item in items), 'Model did not call ' + tool
+                        assert expected in answer, 'Model did not return verified dashboard data'
+                        print('PASS: live model turn ' + (tool or 'MCP inventory') + ' returned verified fixture data', flush=True)
+
                 module = types.ModuleType('mcp_smoke_helper')
-                source = Path('/qa/studio/remote.py').read_text().replace('# CODEX_BRIDGE', Path('/qa/studio/codex_bridge.py').read_text())
+                resources = Path(options.studio)
+                source = (resources / 'remote.py').read_text().replace('# CODEX_BRIDGE', (resources / 'codex_bridge.py').read_text())
                 exec(source, module.__dict__)
                 module.env.update(env, PATH=str(binary.parent) + ':' + env.get('PATH', ''))
-                bridge = module.CodexBridge(files)
+                bridge = module.CodexBridge(files, dashboard=True)
                 try:
                     bridge.call('initialize', dict(clientInfo=dict(name='mcp_smoke', version='1'), capabilities=dict(experimentalApi=True)))
                     bridge.write(dict(method='initialized'))
+                    if options.live_turns and thread_id:
+                        bridge.call('thread/archive', dict(threadId=thread_id))
                     thread = bridge.call('thread/start', dict(cwd=str(files), sandbox='read-only', approvalPolicy='never'))
                     result = bridge.call('mcpServer/tool/call', dict(threadId=thread['thread']['id'], server='personal-dashboard',
                         tool='list_calendar_events', arguments={'from': '2026-10-01', 'to': '2026-11-01'}))
@@ -121,4 +155,10 @@ def check():
 
 
 if __name__ == '__main__':
-    check()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--live-turns', action='store_true', help='Use the existing Codex login for three real model turns against fixture data')
+    parser.add_argument('--codex', default='/qa/codex')
+    parser.add_argument('--jar', default='/app/app.jar')
+    parser.add_argument('--studio', default='/qa/studio')
+    parser.add_argument('--port', default=8080, type=int)
+    check(parser.parse_args())

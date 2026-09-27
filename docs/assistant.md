@@ -36,13 +36,24 @@ MCP 앱 동작은 현재 단일 OWNER 계정과 해당 계정의 개인 일정·
 
 서버 assistant 준비는 매 setup에서 `personal-dashboard` MCP 서버를 Codex CLI에 다시 등록해 URL과 bearer 환경변수 연결을 복구한다. 등록 실패는 setup job 실패로 전달한다. 갱신 전용 setup도 CLI 업데이트 확인 후 MCP 등록을 다시 맞춘다.
 
+Codex 배포에는 `codex`와 같은 버전의 `codex-code-mode-host`가 모두 필요하다. CLI만 설치되면 MCP 목록 조회는 성공해도 모델의 도구 호출에서 `failed to spawn code-mode host`가 발생할 수 있다. setup은 공식 릴리스의 두 실행 파일을 각각 SHA256 검증해 설치하며, 이미 최신 CLI가 있어도 host 누락·버전 불일치를 복구한다. host를 복구하지 못하면 준비 완료로 처리하지 않는다. 기존 설치는 배포 후 도우미 창을 새로 열 때 setup에서 복구한다.
+
+모델 turn 실패는 성공한 job으로 처리하지 않는다. 인증 만료·갱신 토큰 오류는 재로그인 안내와 Codex 로그인 버튼으로 연결하며, MCP 연결 실패와 구분한다. upstream 인증 오류 원문은 사용자 응답에 복사하지 않는다.
+
 연결 확인은 Codex 계정 로그인 확인 뒤 `codex-connections`로 수행한다. Python helper에서 Java DTO와 브라우저까지 `runtimeStatus`, `tools`, `error`를 전달한다. 스레드 없는 조회에서 runtimeStatus가 null/생략되어도 오류 없이 `list_calendar_events` 도구가 발견되면 연결된 것으로 판단한다. 명시적인 실패 상태·도구 누락·도구 조회 오류는 연결 복구 버튼을 표시한다. `toolsError`는 문자열로 처리하고 인증 정보가 포함될 수 있는 원문은 노출하지 않는다. 복구는 setup 한 번과 계정·연결 재조회로 수행한다.
 
 ## 연결 회귀 검증
 
+질문을 실행하는 Codex 프로세스마다 대시보드 MCP 주소와 bearer 환경변수 연결을 적용한다. 새 대화와 기존 대화 재개 모두 대시보드 역할·도구 사용 지침과 현재 MCP 목록을 전달하며, 실제 threadId의 도구 목록을 확인한 뒤 turn을 시작한다. 등록 앱 질문은 `list_apps`, 일정 질문은 `list_calendar_events`를 사용한다. 연결된 MCP 질문은 전달된 조회 결과를 바탕으로 답한다. 이 검사는 창을 열 때 수행하는 연결 검사와 별도로 매 질문에 적용된다.
+
 - `AssistantConnectionJsonTest`: 실제 Spring Jackson 설정으로 helper → Java DTO → HTTP 응답 변환 시 연결 정보 보존을 검사한다.
 - `src/test/python/test_codex_bridge.py`: MCP 목록 pagination, null 상태, 문자열 오류를 검사한다.
+- `src/test/python/test_codex_install.py`: 같은 버전 CLI의 host 복구, 버전 일치, SHA256 검증, 두 파일 설치, 이전 cache 갱신을 검사한다.
 - `tools/launcher/assistant-test.cjs`: jsdom으로 정상 연결, 실패 시 전송 차단, 단일 setup 복구, 로그인 안내를 검사한다. 기존 UI 테스트와 같은 `jsdom` 환경에서 실행한다.
 - `tools/deployment/check-mcp.py`: 새 Linux dashboard 이미지 안에서 임시 DB·홈·계정으로 서버를 띄우고, 실제 Codex로 도구 발견 → assistant HTTP job 응답 → 10월 일정 조회를 검사한다. 모델 turn은 실행하지 않는다. `/qa/codex`에 Linux Codex 바이너리, `/qa/studio`에 `src/main/resources/studio`, `/qa/check.py`에 이 스크립트를 읽기 전용 마운트하고 `--entrypoint python3 <image> /qa/check.py`로 실행한다. 운영 볼륨과 포트를 연결하지 않는다.
+
+같은 스크립트의 `--live-turns`는 기존 HOME의 Codex 로그인으로 실제 모델 3회를 실행하는 명시적 검증 옵션이다. 별도 임시 DB와 계정에 fixture 앱·일정을 저장하고 앱 조회 → 동일 대화에서 MCP 목록 → 10월 일정 조회를 검사하며, 실제 `mcpToolCall`의 server/tool과 fixture가 응답에 포함됐는지 확인한다. `--port`, `--jar`, `--codex`, `--studio`로 검증 환경을 지정한다. 기존 MCP 설정 파일은 바꾸지 않으며 임시 서버를 종료하고 성공한 진단 대화는 보관 처리한다.
+
+실제 대화 검증에 쓰는 Codex 실행 파일 옆에도 동일 버전 `codex-code-mode-host`가 있어야 한다. 인증 상태 조회 성공만으로 모델 실행 성공을 판정하지 않으며, 각 turn의 완료 상태와 실제 도구 호출·응답을 검사한다.
 
 App Server 호출은 [공식 Codex App Server 문서](https://learn.chatgpt.com/docs/app-server)의 `mcpServerStatus/list` 및 `mcpServer/tool/call` 계약을 따른다.

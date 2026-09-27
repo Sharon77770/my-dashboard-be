@@ -191,8 +191,8 @@ def install_github_cli():
             finally: tmp.unlink(missing_ok=True)
 
 
-def install_codex_artifact(destination, arch, url, expected_digest):
-    name = 'codex-' + arch + '-unknown-linux-musl'
+def install_codex_artifact(destination, arch, url, expected_digest, component='codex'):
+    name = component + '-' + arch + '-unknown-linux-musl'
     if not url.startswith('https://github.com/openai/codex/releases/download/'):
         raise Failure('Codex 릴리스 다운로드 주소가 올바르지 않습니다.', 502)
     digest_match = re.fullmatch(r'sha256:([a-f0-9]{64})', expected_digest)
@@ -234,7 +234,9 @@ def latest_codex_release(cache, arch):
         if (isinstance(cached, dict) and 0 <= cached_age < 600
                 and re.fullmatch(r'\d+\.\d+\.\d+', cached.get('version', ''))
                 and cached.get('url', '').startswith('https://github.com/openai/codex/releases/download/')
-                and re.fullmatch(r'sha256:[a-f0-9]{64}', cached.get('digest', ''))): return cached
+                and re.fullmatch(r'sha256:[a-f0-9]{64}', cached.get('digest', ''))
+                and cached.get('hostUrl', '').startswith('https://github.com/openai/codex/releases/download/')
+                and re.fullmatch(r'sha256:[a-f0-9]{64}', cached.get('hostDigest', ''))): return cached
     except (OSError, ValueError, KeyError, TypeError, AttributeError): pass
     request = urllib.request.Request(
         'https://api.github.com/repos/openai/codex/releases/latest',
@@ -247,12 +249,15 @@ def latest_codex_release(cache, arch):
     version = re.fullmatch(r'rust-v(\d+\.\d+\.\d+)', tag)
     asset_name = 'codex-' + arch + '-unknown-linux-musl.tar.gz'
     asset = next((item for item in release.get('assets', []) if item.get('name') == asset_name), None)
-    if not version or not asset: raise Failure('최신 Codex stable 릴리스에 지원되는 Linux 바이너리가 없습니다.', 502)
+    host_name = 'codex-code-mode-host-' + arch + '-unknown-linux-musl.tar.gz'
+    host = next((item for item in release.get('assets', []) if item.get('name') == host_name), None)
+    if not version or not asset or not host: raise Failure('최신 Codex stable 릴리스에 필요한 Linux 실행 파일이 없습니다.', 502)
     result = dict(version=version.group(1), url=asset.get('browser_download_url', ''),
-                  digest=asset.get('digest', ''), checkedAt=now)
-    if not result['url'].startswith('https://github.com/openai/codex/releases/download/'):
+                  digest=asset.get('digest', ''), hostUrl=host.get('browser_download_url', ''),
+                  hostDigest=host.get('digest', ''), checkedAt=now)
+    if not all(result[key].startswith('https://github.com/openai/codex/releases/download/') for key in ('url', 'hostUrl')):
         raise Failure('Codex 릴리스 다운로드 주소가 올바르지 않습니다.', 502)
-    if not re.fullmatch(r'sha256:[a-f0-9]{64}', result['digest']):
+    if not all(re.fullmatch(r'sha256:[a-f0-9]{64}', result[key]) for key in ('digest', 'hostDigest')):
         raise Failure('최신 Codex 릴리스 체크섬을 확인할 수 없습니다.', 502)
     cache.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=cache.parent, delete=False) as output:
@@ -266,9 +271,7 @@ def latest_codex_release(cache, arch):
     return result
 
 
-def ensure_server_codex(destination, arch, cache):
-    if arch not in ('x86_64', 'aarch64'): raise Failure('Codex 자동 설치는 Linux x86_64 / aarch64를 지원합니다.')
-    release = latest_codex_release(cache, arch)
+def installed_codex_version(destination):
     installed = ''
     if destination.exists():
         try:
@@ -276,9 +279,36 @@ def ensure_server_codex(destination, arch, cache):
             match = re.search(r'\b(\d+\.\d+\.\d+)\b', output)
             if match: installed = match.group(1)
         except Exception: pass
+    return installed
+
+
+def codex_host_ready(destination, version):
+    host = destination.with_name('codex-code-mode-host')
+    try:
+        return bool(version) and os.access(host, os.X_OK) and host.with_suffix('.version').read_text().strip() == version
+    except OSError: return False
+
+
+def install_codex_host(destination, arch, release):
+    host = destination.with_name('codex-code-mode-host')
+    install_codex_artifact(host, arch, release['hostUrl'], release['hostDigest'], 'codex-code-mode-host')
+    host.with_suffix('.version').write_text(release['version'])
+
+
+def ensure_server_codex(destination, arch, cache):
+    if arch not in ('x86_64', 'aarch64'): raise Failure('Codex 자동 설치는 Linux x86_64 / aarch64를 지원합니다.')
+    release = latest_codex_release(cache, arch)
+    installed = installed_codex_version(destination)
     def version_tuple(value): return tuple(int(part) for part in value.split('.'))
-    if installed and version_tuple(installed) >= version_tuple(release['version']): return
+    if installed and version_tuple(installed) >= version_tuple(release['version']):
+        if codex_host_ready(destination, installed): return
+        if installed != release['version']:
+            raise Failure('설치된 Codex 버전에 맞는 도구 실행 파일을 확인할 수 없습니다. 잠시 후 도구 준비를 다시 실행해 주세요.', 502)
+        emit(event='누락된 Codex 도구 실행 파일 복구 중')
+        install_codex_host(destination, arch, release)
+        return
     emit(event='Codex 최신 버전 ' + release['version'] + ' 확인, 다운로드 및 SHA256 검증 중')
+    install_codex_host(destination, arch, release)
     install_codex_artifact(destination, arch, release['url'], release['digest'])
 
 
@@ -287,6 +317,8 @@ def setup(device_id=None, refresh=False):
     arch = os.uname().machine
     hashes = {'x86_64': 'd7e18b2597ae8f242f5f31ee9e90deef48dbc9edd634d9868fb6435d08c07f02',
               'aarch64': '583b48df32804213bdcd338c2e5adb06b34340821fa757a726cc0a524fa33c27'}
+    host_hashes = {'x86_64': 'a68df7cca23c6da7cde175677df7de61c73a234add1333a1254b86d641af01f7',
+                   'aarch64': '20aefa302c2022b496e32911bf954a5f76c7fd749c6bdb9fbd711e32b66dcbfa'}
     if arch not in hashes: raise Failure('Codex 자동 설치는 Linux x86_64 / aarch64를 지원합니다.')
     destination = Path.home() / '.local/bin/codex'
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -294,26 +326,38 @@ def setup(device_id=None, refresh=False):
     lockdir.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (lockdir / 'install.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        fallback = dict(version='0.154.0',
+            hostUrl='https://github.com/openai/codex/releases/download/rust-v0.154.0/codex-code-mode-host-' + arch + '-unknown-linux-musl.tar.gz',
+            hostDigest='sha256:' + host_hashes[arch])
         if device_id == 'local':
             try:
                 ensure_server_codex(destination, arch, lockdir / 'codex-release.json')
             except Exception:
-                if not destination.exists():
+                installed = installed_codex_version(destination)
+                if not installed:
                     emit(event='최신 Codex 확인에 실패해 검증된 기본 버전을 설치합니다')
+                    install_codex_host(destination, arch, fallback)
                     name = 'codex-' + arch + '-unknown-linux-musl'
                     install_codex_artifact(
                         destination, arch,
                         'https://github.com/openai/codex/releases/download/rust-v0.154.0/' + name + '.tar.gz',
                         'sha256:' + hashes[arch])
-                else:
+                elif installed == fallback['version'] and not codex_host_ready(destination, installed):
+                    install_codex_host(destination, arch, fallback)
+                elif codex_host_ready(destination, installed):
                     emit(event='최신 Codex를 확인할 수 없어 설치된 버전으로 계속합니다')
+                else:
+                    raise Failure('Codex 도구 실행 파일을 복구하지 못했습니다. 네트워크를 확인하고 도구 준비를 다시 실행해 주세요.', 502)
         elif not destination.exists():
             emit(event='공식 Codex 0.154.0 다운로드 및 SHA256 검증 중')
+            install_codex_host(destination, arch, fallback)
             name = 'codex-' + arch + '-unknown-linux-musl'
             install_codex_artifact(
                 destination, arch,
                 'https://github.com/openai/codex/releases/download/rust-v0.154.0/' + name + '.tar.gz',
                 'sha256:' + hashes[arch])
+        elif installed_codex_version(destination) == fallback['version'] and not codex_host_ready(destination, fallback['version']):
+            install_codex_host(destination, arch, fallback)
         install_github_cli()
     if device_id == 'local':
         url = os.environ.get('DASHBOARD_MCP_URL', '')
@@ -453,7 +497,8 @@ def handle(request):
             return dict(authenticated=True)
         if action == 'codex-logout':
             run(['codex', 'logout']); return dict(authenticated=False)
-        if action.startswith('codex-'): return codex_action(root, action, args)
+        if action.startswith('codex-'):
+            return codex_action(root, action, args, dashboard=request.get('deviceId') == 'local')
         raise Failure('지원하지 않는 작업입니다.')
 
 

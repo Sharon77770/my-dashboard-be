@@ -4,6 +4,7 @@ from pathlib import Path
 import tempfile
 import types
 import unittest
+from unittest.mock import patch
 
 RESOURCE = Path(__file__).parents[2] / 'main/resources/studio'
 remote = types.ModuleType('codex_remote')
@@ -13,21 +14,43 @@ FIXTURE = '''#!/usr/bin/python3
 import json,sys,os
 def send(**v): print(json.dumps(v),flush=True)
 thread=dict(id='thread-1',cwd=os.getcwd(),turns=[])
+dashboard=False
+thread_checked=False
 for line in sys.stdin:
  f=json.loads(line);m=f.get('method');p=f.get('params',{});result={}
  if m=='initialize': result={}
  elif m=='model/list': result={'data':[dict(model='fixture',displayName='Fixture',isDefault=True,defaultReasoningEffort='medium',supportedReasoningEfforts=[dict(reasoningEffort='medium',description='Balanced')])]}
  elif m=='mcpServerStatus/list':
   assert p['detail']=='toolsAndAuthOnly'
-  result={'data':[], 'nextCursor':'next'} if not p.get('cursor') else {'data':[dict(name='personal-dashboard',authStatus='bearerToken',runtimeStatus=None,tools={'list_calendar_events':{}},toolsError=None)]}
- elif m=='thread/start' or m=='thread/resume': result={'thread':thread,'model':'fixture'}
+  if p.get('threadId'):thread_checked=True
+  failed=p.get('threadId') and os.path.exists('fail-thread-mcp')
+  result={'data':[], 'nextCursor':'next'} if not p.get('cursor') else {'data':[dict(name='personal-dashboard',authStatus='bearerToken',runtimeStatus='failed' if failed else None,tools={} if failed else {'list_calendar_events':{},'list_apps':{},'list_notes':{}},toolsError=None)]}
+ elif m=='thread/start' or m=='thread/resume':
+  dashboard='developerInstructions' in p
+  if dashboard:
+   assert 'list_apps' in p['developerInstructions'] and 'MCP discovery inventory' in p['developerInstructions']
+   assert p['config']['mcp_servers.personal-dashboard.enabled'] is True
+   assert p['config']['mcp_servers.personal-dashboard.bearer_token_env_var']=='DASHBOARD_MCP_TOKEN'
+   assert '-c' in sys.argv
+  result={'thread':thread,'model':'fixture'}
  elif m=='thread/read':
   if p['threadId']=='foreign': thread['cwd']='/other-project'
   result={'thread':thread}
  elif m=='turn/start':
+  open('turn-started','w').close()
   turn=dict(id='turn-1',status='inProgress',items=[])
   send(id=f['id'],result={'turn':turn})
   send(method='turn/started',params={'turn':turn})
+  if dashboard:
+   assert thread_checked
+   item=dict(id='tool',type='mcpToolCall',server='personal-dashboard',tool='list_apps',status='completed')
+   send(method='item/completed',params={'item':item})
+   turn=dict(id='turn-1',status='completed',items=[item]);thread['turns']=[turn]
+   if os.path.exists('fail-model'):
+    turn['status']='failed'
+    turn['error']=dict(codexErrorInfo='unauthorized' if os.path.exists('fail-auth') else 'other',message='private-upstream-detail')
+   send(method='turn/completed',params={'turn':turn})
+   continue
   send(id=900,method='item/commandExecution/requestApproval',params=dict(threadId=thread['id'],turnId=turn['id'],itemId='cmd',command='echo safe',reason='Run command?'))
   continue
  elif f.get('id')==900 and not m:
@@ -65,6 +88,31 @@ class CodexBridgeTest(unittest.TestCase):
         self.assertEqual(connection['name'], 'personal-dashboard')
         self.assertIsNone(connection['runtimeStatus'])
         self.assertIn('list_calendar_events', connection['tools'])
+
+    def test_dashboard_start_and_resume_receive_config_instructions_and_thread_check(self):
+        with patch.dict(remote.env, DASHBOARD_MCP_URL='http://127.0.0.1:8080/api/v1/mcp', DASHBOARD_MCP_TOKEN='f' * 32):
+            for thread_id in (None, 'thread-1'):
+                result = remote.codex_action(self.root, 'codex-run', dict(prompt='등록된 앱을 보여줘', threadId=thread_id), dashboard=True)
+                item = result['assistant']['thread']['turns'][0]['items'][0]
+                self.assertEqual(item['server'], 'personal-dashboard')
+                self.assertEqual(item['tool'], 'list_apps')
+
+    def test_thread_mcp_failure_prevents_model_turn(self):
+        (self.root / 'fail-thread-mcp').touch()
+        with patch.dict(remote.env, DASHBOARD_MCP_URL='http://127.0.0.1:8080/api/v1/mcp', DASHBOARD_MCP_TOKEN='f' * 32):
+            with self.assertRaises(remote.Failure):
+                remote.codex_action(self.root, 'codex-run', dict(prompt='등록된 앱을 보여줘'), dashboard=True)
+        self.assertFalse((self.root / 'turn-started').exists())
+
+    def test_dashboard_model_failure_is_not_reported_as_success(self):
+        (self.root / 'fail-model').touch()
+        with patch.dict(remote.env, DASHBOARD_MCP_URL='http://127.0.0.1:8080/api/v1/mcp', DASHBOARD_MCP_TOKEN='f' * 32):
+            for authenticated, status in ((True, 502), (False, 401)):
+                if not authenticated: (self.root / 'fail-auth').touch()
+                with self.assertRaises(remote.Failure) as error:
+                    remote.codex_action(self.root, 'codex-run', dict(prompt='등록된 앱을 보여줘'), dashboard=True)
+                self.assertEqual(error.exception.status, status)
+                self.assertNotIn('private-upstream-detail', error.exception.message)
 
     def test_mcp_string_discovery_error_is_projected_without_exposing_credentials(self):
         result = remote.assistant_connection(dict(name='personal-dashboard', runtimeStatus='failed',

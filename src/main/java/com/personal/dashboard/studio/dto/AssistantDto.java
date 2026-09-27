@@ -46,6 +46,8 @@ public final class AssistantDto {
       String status,
       String command,
       String output,
+      String server,
+      String tool,
       List<FileChange> files) {}
 
   public record Turn(String id, String status, List<Item> items, String error) {}

@@ -60,7 +60,7 @@ HTTP 오류: 익명401, 권한/CSRF403, 미존재/다른 세션 작업404, 잘�
 
 context는 최대 16개 {kind:file|selection|image|skill,path?,name?,content?,fromLine?,toLine?,dataUrl?}. file/selection 경로는 프로젝트 안에서만 허용한다. 파일은 서버에서 읽고 selection은 사용자가 선택한 UTF-8 스냅샷을 받는다. 텍스트 합계 128000자, selection당 32000자, image는 PNG/JPEG/WebP data URL 최대 3000000자. 요청 컨텍스트 content/dataUrl 전체는 4000000자 이하. skill은 CLI skills/list의 활성 항목과 이름·경로가 일치해야 한다.
 
-실행 이벤트에는 assistant {sequence,kind,threadId?,turnId?,item?,usage?,interaction?,requestId?,text?}가 추가된다. sequence는 job별 단조 증가하며 UI는 중복을 제거하고 item ID로 최신 내용을 갱신한다. kind는 started/item/interaction/answered/usage/plan/diff/notice/completed. usage는 누적 토큰과 마지막 컨텍스트 사용량·윈도 크기다.
+실행 이벤트에는 assistant {sequence,kind,threadId?,turnId?,item?,usage?,interaction?,requestId?,text?}가 추가된다. sequence는 job별 단조 증가하며 UI는 중복을 제거하고 item ID로 최신 내용을 갱신한다. kind는 started/item/interaction/answered/usage/plan/diff/notice/completed. usage는 누적 토큰과 마지막 컨텍스트 사용량·윈도 크기다. `mcpToolCall` item에는 호출한 `server`, `tool` 이름도 포함한다. 원본 인자와 도구 결과는 이 메타데이터에 포함하지 않는다.
 
 POST /api/v1/studio/jobs/{id}/inputs body:
 - 승인: {type:approval,requestId,decision:accept|acceptForSession|decline|cancel}
@@ -75,6 +75,10 @@ codex-run/review/thread-compact의 실행 중 job에만 입력할 수 있다. �
 별도 `/api/v1/assistant/jobs` 경로는 OWNER와 생성한 HTTP 세션을 사용한다. 도우미가 사용하는 action은 `setup`, `codex-models`, `codex-account`, `codex-connections`, `codex-login`, `codex-run`이다.
 
 `codex-connections`는 App Server의 MCP 목록을 모든 페이지에 걸쳐 조회한다. `status`는 인증 방식이며 연결 성공을 뜻하지 않는다. 브라우저는 오류 없이 일정 도구가 발견되고 `runtimeStatus`가 `connected` 또는 null/생략이면 준비 완료로 처리한다. 명시적인 비연결 상태와 빈 도구 목록은 실패다. 계정 미인증은 MCP 조회보다 먼저 로그인 안내로 처리한다. API의 OWNER/session 소유권, 입력 처리와 취소 동작은 유지한다.
+
+server-local `codex-run`은 App Server 실행 및 thread/start·resume에 서버 MCP URL, bearer 환경변수 이름, enabled/required 설정을 명시적으로 적용한다. 대시보드용 developerInstructions는 앱·일정·노트 도구의 용도, 서버 날짜, 조회한 MCP 목록을 제공한다. thread 생성/재개 후 같은 threadId로 앱·일정·노트 조회 도구를 다시 확인하고 실패 시 모델 turn 전에 job을 FAILED/errorStatus=502로 종료한다. SSH 프로젝트 Codex에는 이 설정과 지침을 적용하지 않는다.
+
+server-local 모델 turn이 failed이면 job도 FAILED로 반환한다. Codex 인증 실패·갱신 토큰 오류는 errorStatus=401과 재로그인 안내, 그 외 모델 실패는 errorStatus=502와 일반 오류 안내를 반환한다. 이 401은 비동기 job 결과이며 대시보드 HTTP 로그인 세션 만료와 구분한다. 브라우저는 Codex 로그인 버튼을 다시 표시한다.
 
 
 ## 장비 로그 작업
