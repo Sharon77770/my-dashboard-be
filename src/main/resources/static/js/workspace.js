@@ -96,6 +96,7 @@
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active',view.id === id));
     for (const runtime of runtimes.values()) runtime.element.hidden = true;
     renderTabs(); window.WorkspaceLauncher?.opened();
+    window.dispatchEvent(new CustomEvent('workspace:view', {detail:{id}}));
   }
   window.addEventListener('assistant:navigate', event => {
     const route=event.detail?.route;

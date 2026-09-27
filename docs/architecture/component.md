@@ -30,7 +30,7 @@ studio-codex.js는 세션/모델/컨텍스트 및 대화 표시를 소유하고 
 
 ### 서버 Codex assistant
 
-assistant.js와 assistant.css는 IDE Codex 패널과 분리된 대시보드 전용 대화 화면을 소유한다. 프로젝트 컨텍스트나 StudioCodex 화면을 재사용하지 않는다. 대화는 기존 assistant job과 Codex API를 호출한다. 일반 StudioController의 프로젝트 Codex는 SSH 대상을 사용한다. McpController는 Streamable HTTP 요청·bearer 검증만 담당하고 AssistantMcpService는 기존 Catalog/Planner/Notes service의 고정 도구를 제공한다. AssistantEvents는 browser navigation event를 메모리에 보유하며 DB 모델을 추가하지 않는다.
+assistant.js와 assistant.css는 IDE Codex 패널과 분리된 대시보드 전용 내장 앱 뷰를 소유한다. launcher의 앱 registry가 `assistant`를 홈·Dock·모든 앱·검색에 노출하고 workspace 라우터가 앱 열기 이벤트를 전달한다. 프로젝트 컨텍스트나 StudioCodex 화면을 재사용하지 않는다. 대화는 기존 assistant job과 Codex API를 호출한다. 일반 StudioController의 프로젝트 Codex는 SSH 대상을 사용한다. McpController는 Streamable HTTP 요청·bearer 검증만 담당하고 AssistantMcpService는 기존 Catalog/Planner/Notes service의 고정 도구를 제공한다. AssistantEvents는 browser navigation event를 메모리에 보유하며 DB 모델을 추가하지 않는다.
 
 장비 로그 화면(device-logs.js)은 선택·표시·취소를 담당하고 StudioService가 작업 소유권·수명·보유 제한을 관리한다. logs.py는 고정 CLI 인자와 출력 읽기만 담당한다. StudioDto.LogTarget과 Event.sequence가 목록 및 중복 없는 출력 계약이며 파일 Entry나 Codex 이벤트 타입과 혼용하지 않는다.
 

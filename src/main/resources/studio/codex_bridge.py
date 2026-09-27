@@ -50,6 +50,22 @@ def assistant_connection(server):
                 error=error)
 
 
+def assistant_rate_limits(result):
+    buckets = result.get('rateLimitsByLimitId') or {}
+    if not buckets and result.get('rateLimits'):
+        bucket = result['rateLimits']
+        buckets = {bucket.get('limitId') or 'codex': bucket}
+    limits = []
+    for ident, bucket in buckets.items():
+        name = bucket.get('limitName') or ('Codex' if ident == 'codex' else str(ident))
+        for window in ('primary', 'secondary'):
+            data = bucket.get(window)
+            if isinstance(data, dict):
+                limits.append(dict(name=name, windowDurationMins=data.get('windowDurationMins'),
+                                   usedPercent=data.get('usedPercent'), resetsAt=data.get('resetsAt')))
+    return limits
+
+
 def assistant_item(item):
     kind = item.get('type', '')
     text = item.get('text', '')
@@ -259,6 +275,9 @@ def codex_action(root, action, args, dashboard=False):
             result = bridge.call('account/read', {})
             account = result.get('account') or {}
             return dict(assistant=dict(authenticated=bool(account), plan=account.get('planType', account.get('type', ''))))
+        if action == 'codex-rate-limits':
+            result = bridge.call('account/rateLimits/read', {})
+            return dict(assistant=dict(rateLimits=assistant_rate_limits(result)))
         if action == 'codex-skills':
             result = bridge.call('skills/list', dict(cwds=[str(root)]))
             return dict(assistant=dict(skills=[dict(name=s['name'], description=clean(s['description'])[:2000], path=s['path'], enabled=s['enabled'])

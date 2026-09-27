@@ -67,7 +67,9 @@ Tailscale은 사용자 링크 승인 방식으로 인증한다. dashboard가 네
 
 SSH 장비의 프로젝트 열기 → Codex 탭 → 원격 model/list 및 account/read → 최근 thread 복원 또는 세션 목록 선택 → 파일/선택/이미지/스킬 첨부 → thread/start 또는 resume → turn/start → 스트림 표시 → 필요 시 승인/질문 응답 → turn/completed → thread/read. 서버 자체(local) 프로젝트에서 Codex 요청은 400으로 거부하고 SSH 장비를 선택하도록 안내한다. 전송 전 미저장 편집을 막는다. 첫 메시지 전 새 세션은 draft다. 다른 cwd의 thread 작업은 403. 자동 모델 호출 재시도는 하지 않는다.
 
-전역 Codex assistant: 플로팅 버튼 열기 → server-local setup/MCP 연결 및 계정·모델 확인 → 사용자 turn을 assistant job으로 실행 → MCP tools/call로 페이지 이동·일정·노트 작업 → app-server usage/item/interaction 이벤트를 채팅에 표시 → navigation queue를 브라우저가 polling해 내부 페이지 또는 등록 앱을 연다. 프로젝트 편집기 job endpoint는 사용하지 않는다. 로그인 만료, 설치 오류와 MCP 도구 오류는 채팅 상태로 표시하고 삭제·셸 도구는 제공하지 않는다.
+전역 Codex assistant: 내장 `대시보드 도우미` 앱 열기 → server-local setup/MCP 연결 및 계정·모델 확인 → 사용자 turn을 assistant job으로 실행 → MCP tools/call로 페이지 이동·일정·노트 작업 → app-server usage/item/interaction 이벤트를 채팅에 표시 → navigation queue를 브라우저가 polling해 내부 페이지 또는 등록 앱을 연다. 앱을 벗어나도 실행 중인 job과 세션 대화는 유지되고 다시 열면 해당 세션 대화를 표시한다. 프로젝트 편집기 job endpoint는 사용하지 않는다. 로그인 만료, 설치 오류와 MCP 도구 오류는 채팅 상태로 표시하고 삭제·셸 도구는 제공하지 않는다.
+
+assistant UI는 응답 대기 중 진행 말풍선을 표시하고 turn/reasoning, MCP 도구, agentMessage 이벤트에 따라 단계 문구를 갱신한다. 내용 없는 agentMessage 시작 이벤트는 빈 답변으로 확정하지 않는다. 첫 실제 답변 텍스트 또는 job 완료/실패가 진행 표시를 종료한다. 새로고침 뒤 sessionStorage에 남은 미완료 표시도 완료 상태의 재시도 안내로 바꾼다.
 
 장비 네트워크 선택과 점프 장비 순서 지정 → 저장/SSH 등록의 호스트 키 확인에도 동일한 점프 체인 적용 → 각 장비의 networkMode가 TAILSCALE이면 공유 tailscale0 인터페이스 주소 확인 및 Tailscale 주소 해석 → 첫 점프 장비부터 SSH 호스트 키 검증·인증 → 각 점프 장비에서 Direct-TCPIP 채널로 다음 주소에 연결 → 대상 장비 호스트 키 검증·인증 → SFTP/터미널/원격 어댑터 연결. TAILSCALE 브릿지 뒤의 DIRECT 목표는 Tailscale 확인 없이 브릿지에서 목표 주소를 해석·연결한다. 점프 체인은 최대 5개이며 어느 홉이라도 실패하면 전체 연결을 실패시킨다. 실패 시 기본 네트워크로 재시도하지 않는다. SSH 재등록에서 jumpDeviceIds 생략/null은 기존 체인을 유지하고 빈 배열은 직접 연결을 지정한다. 프로필 변경 전 열린 실행 세션은 생성 당시 설정을 유지하므로 새 연결로 적용한다.
 

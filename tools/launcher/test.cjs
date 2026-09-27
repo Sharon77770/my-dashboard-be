@@ -16,8 +16,10 @@ const click=selector=>{const node=d.querySelector(selector);assert.ok(node,selec
 const load=()=>JSON.parse(w.localStorage.getItem(w.HomePersistence.key()));
 (async()=>{
 for(const file of ['ui.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js','workspace.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
-await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,11);
-assert.equal(w.WorkspaceApps.all().length,18);assert.equal(d.querySelectorAll('#home-grid img').length,0);
+await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,13);
+assert.equal(w.WorkspaceApps.all().length,20);assert.equal(d.querySelectorAll('#home-grid img').length,0);
+assert.ok(d.querySelector('#home-grid [data-view="assistant"]'));
+assert.ok(d.querySelector('#launcher-dock-apps [data-view="assistant"]'));
 // Grid projects one model without collisions or changing canonical coordinates.
 assert.equal(w.WorkspaceApps.get('kakaotalk'),undefined);
 const retiredLayout=w.HomeGrid.sanitize({version:1,pages:1,dock:['kakaotalk','files'],items:[{id:'removed',type:'app',appId:'kakaotalk',page:0,x:0,y:0},{id:'old-folder',type:'folder',apps:['kakaotalk'],name:'old',page:0,x:1,y:0}]},w.WorkspaceApps,w.WorkspaceWidgets);
@@ -29,6 +31,8 @@ const moved=grid.move(projected,'b',{x:0,y:0},4);assert.ok(!grid.overlap(moved[0
 click('#home-grid [data-view="calendar"]');await tick();assert.equal(d.querySelector('#calendar').classList.contains('active'),true);assert.equal(d.querySelectorAll('#switcher-apps [data-view="calendar"]').length,1);assert.equal(d.body.dataset.home,'false');
 click('[data-action="app-switcher"]');assert.equal(d.querySelector('#app-switcher').open,true);click('#switcher-apps [data-view="home"]');await tick();assert.equal(d.body.dataset.home,'true');
 click('[data-action="os-back"]');await tick();assert.equal(d.querySelector('#calendar').classList.contains('active'),true);click('[data-action="os-back"]');await tick();assert.equal(d.body.dataset.home,'true');
+click('#launcher-dock-apps [data-view="assistant"]');await tick();assert.equal(d.querySelector('#assistant').classList.contains('active'),true);assert.equal(d.querySelectorAll('#switcher-apps [data-view="assistant"]').length,1);
+click('[data-action="os-back"]');await tick();assert.equal(d.body.dataset.home,'true');
 // Swiping a drawer icon must leave the drawer open and must not mutate the home layout.
 const touchPointer=(type,node,x,y)=>{const event=new w.MouseEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,button:0});Object.defineProperties(event,{pointerId:{value:2},pointerType:{value:'touch'}});node.dispatchEvent(event);return event;};
 click('[data-launcher="drawer"]');const beforeSwipe=w.localStorage.getItem(w.HomePersistence.key());
@@ -50,7 +54,7 @@ assert.equal(d.querySelector('#home-context').open,true);touchPointer('pointerup
 d.querySelector('#home-context').close();click('#app-drawer [data-launcher="close"]');
 click('[data-launcher="drawer"]');click('#drawer-apps [data-view="calendar"]');await tick();
 assert.equal(d.querySelector('#calendar').classList.contains('active'),true);click('.os-navigation [data-view="home"]');await tick();
-click('#home-edit');assert.equal(d.querySelector('#home-edit-tools').hidden,false);click('[data-launcher="page-add"]');assert.equal(load().pages,2);
+click('#home-edit');assert.equal(d.querySelector('#home-edit-tools').hidden,false);assert.equal(d.querySelector('#home-grid .launcher-shortcut[data-app-icon="studio"]').hasAttribute('data-view'),false);click('[data-launcher="page-add"]');assert.equal(load().pages,2);
 click('[data-page="0"]');click('[data-launcher="drawer"]');assert.equal(d.querySelector('#app-drawer').open,true);assert.equal(d.querySelectorAll('#drawer-apps img').length,0);
 d.querySelector('#drawer-search').value='터미널';d.querySelector('#drawer-search').dispatchEvent(new w.Event('input'));assert.equal(d.querySelectorAll('[data-drawer-app]').length,1);
 click('[data-launcher="add-app"][data-app="terminal"]');await tick();assert.equal(load().items.filter(item=>item.appId==='terminal').length,2);click('#app-drawer [data-launcher="close"]');
@@ -59,7 +63,7 @@ click('[data-launcher="new-folder"]');d.querySelector('#editor-fields [name="app
 d.querySelector('#editor-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();let folder=load().items.find(item=>item.type==='folder');assert.equal(folder.name,'Work <img>');assert.equal(d.querySelector('#home-grid img'),null);
 click(`[data-launcher="folder"][data-item="${folder.id}"]`);click('[data-launcher="folder-app-menu"]');click('[data-launcher="folder-extract"]');await tick();assert.equal(load().items.some(item=>item.type==='folder'),false);
 // Widget picker and resize preserve supported sizes and nonoverlap.
-click('[data-launcher="widgets"]');assert.equal(d.querySelectorAll('.widget-preview').length,7);click('[data-launcher="add-widget"][data-widget="codex"]');await tick();const widget=load().items.find(item=>item.widgetId==='codex');assert.ok(widget);
+click('[data-launcher="widgets"]');assert.equal(d.querySelectorAll('.widget-preview').length,8);click('[data-launcher="add-widget"][data-widget="codex"]');await tick();const widget=load().items.find(item=>item.widgetId==='codex');assert.ok(widget);
 click(`[data-home-item="${widget.id}"] [data-launcher="context"]`);click('#home-context [data-launcher="place"]');d.querySelector('[name="size"]').value='4,2';d.querySelector('[name="page"]').value='1';d.querySelector('[name="x"]').value='1';d.querySelector('#editor-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();assert.equal(load().items.find(item=>item.id===widget.id).page,1);assert.equal(load().items.find(item=>item.id===widget.id).w,4);
 // Pointer drag merges apps into a folder; folder reorder shares the same interaction layer.
 const source=d.querySelector('.home-item.app'),target=[...d.querySelectorAll('.home-item.app')].find(node=>node!==source);
@@ -74,7 +78,7 @@ touchPointer('pointerdown',folderApps[0],10,10);touchPointer('pointermove',folde
 click('#home-lock');const count=load().items.length;click('[data-launcher="drawer"]');click('[data-launcher="add-app"][data-app="terminal"]');await tick();assert.equal(load().items.length,count);assert.match(d.querySelector('#toast').textContent,/잠금/);
 narrow=true;mediaChange();assert.equal(d.querySelector('#home-grid').style.getPropertyValue('--home-columns'),'4');
 // One command engine includes registry apps; no second search API.
-click('#app-drawer [data-launcher="close"]');click('[data-action="palette"]');await tick();assert.ok(d.querySelector('#search-results [data-view="studio"]'));assert.ok(calls.some(call=>call.url.startsWith('/api/v1/search?')));
+click('#app-drawer [data-launcher="close"]');click('[data-action="palette"]');await tick();assert.ok(d.querySelector('#search-results [data-view="studio"]'));assert.ok(d.querySelector('#search-results [data-view="assistant"]'));assert.ok(calls.some(call=>call.url.startsWith('/api/v1/search?')));
 // Scoped persistence and untrusted layout validation.
 const key=w.HomePersistence.key();d.body.dataset.account='another';assert.notEqual(w.HomePersistence.key(),key);d.body.dataset.account='';
 const clean=grid.sanitize({version:1,pages:2,dock:['missing','terminal'],items:[{id:'x',type:'folder',apps:[],page:0,x:0,y:0},{id:'y',type:'app',appId:'missing'}]},w.WorkspaceApps,w.WorkspaceWidgets);assert.equal(clean.items.length,0);assert.equal(clean.dock.length,1);

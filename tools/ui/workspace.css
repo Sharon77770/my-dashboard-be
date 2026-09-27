@@ -36,8 +36,8 @@ button,.button{@apply [transition:background-color_.14s_ease,border-color_.14s_e
 .dialog,.editor-dialog{@apply rounded-xl border-subtle shadow-panel;}
 dialog::backdrop{@apply [background:var(--drawer-overlay)] [backdrop-filter:blur(4px)] [-webkit-backdrop-filter:blur(4px)];}
 .launcher-home{@apply bg-app;}
-.launcher-shortcut .launcher-icon{@apply shadow-none [border-radius:10px] bg-surface border-subtle;}
-.launcher-dock{@apply rounded-xl shadow-panel [border:1px_solid_var(--border-subtle)];}
+.launcher-shortcut .launcher-icon{@apply shadow-none [border-radius:10px];}
+.launcher-dock{@apply rounded-xl shadow-panel;}
 .os-statusbar,.os-tools,.os-navigation{@apply bg-sidebar;}
 .cloud-selection{@apply bg-transparent [border-bottom:1px_solid_var(--border-subtle)] rounded-none [padding:4px_0_12px];}
 .cloud-sidebar button{@apply justify-start border-0 bg-transparent;}.cloud-sidebar button:hover{@apply bg-surface-hover;}

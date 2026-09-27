@@ -8,10 +8,10 @@ window.WorkspaceLauncher = (() => {
   const mobile=()=>window.matchMedia('(max-width:700px)').matches;
   const columns=()=>mobile()?4:8;
   const id=()=>window.WorkspaceUI.uuid();
-  function defaults(){const items=['devices','files','terminal','studio','calendar','timetable','cloud','telemetry','apps'].map((appId,x)=>({id:id(),type:'app',appId,page:0,x,y:0,w:1,h:1}));items.push({id:id(),type:'widget',appId:'search',widgetId:'search',page:0,x:0,y:1,w:4,h:1},{id:id(),type:'widget',appId:'devices',widgetId:'device-status',page:0,x:0,y:2,w:4,h:2},{id:id(),type:'widget',appId:'calendar',widgetId:'today',page:0,x:4,y:2,w:4,h:2});return {version:1,pages:1,locked:false,dock:['terminal','studio','files','cloud'],items};}
+  function defaults(){const items=['devices','files','terminal','studio','calendar','timetable','cloud','telemetry','apps','assistant'].map((appId,index)=>({id:id(),type:'app',appId,page:0,x:index<8?index:index-4,y:index<8?0:1,w:1,h:1}));items.push({id:id(),type:'widget',appId:'search',widgetId:'search',page:0,x:0,y:1,w:4,h:1},{id:id(),type:'widget',appId:'devices',widgetId:'device-status',page:0,x:0,y:2,w:4,h:2},{id:id(),type:'widget',appId:'calendar',widgetId:'today',page:0,x:4,y:2,w:4,h:2});return {version:1,pages:1,locked:false,dock:['terminal','studio','files','cloud','assistant'],items};}
   function save(){try{window.HomePersistence.save(layout);}catch{helpers.toast('홈 배치를 저장하지 못했습니다. 브라우저 저장 공간과 권한을 확인하세요. 현재 배치는 이 창에서 유지됩니다.');}render();}
   function transaction(change){try{const next=JSON.parse(JSON.stringify(layout));change(next);if(next.items.length>160)throw new Error('홈에는 최대 160개 항목을 배치할 수 있습니다.');if(next.items.some(item=>item.type==='folder'&&item.apps.length>60))throw new Error('폴더에는 최대 60개 앱을 배치할 수 있습니다.');layout=next;save();}catch(error){helpers.toast(error.message);}}
-  function iconLabel(app,attrs=''){return `<button class="launcher-shortcut" ${attrs} aria-label="${e(app.name)}"><span class="launcher-icon">${icon(app.icon)}</span><span class="launcher-label">${e(app.name)}</span></button>`;}
+  function iconLabel(app,attrs=''){return `<button class="launcher-shortcut" data-app-icon="${e(app.id)}" ${attrs} aria-label="${e(app.name)}"><span class="launcher-icon">${icon(app.icon)}</span><span class="launcher-label">${e(app.name)}</span></button>`;}
   function render(){
     if(!layout)return;
     projection=grid.project(layout.items,columns());

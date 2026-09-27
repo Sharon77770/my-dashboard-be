@@ -17,20 +17,33 @@
 .os-navigation button:hover{background:var(--bg-surface-hover)}
 .os-navigation .os-mobile-drawer{display:none}
 .os-app-count{position:absolute;right:3px;top:1px;font-size:9px;background:var(--accent-subtle);color:var(--text-primary);border-radius:6px;padding:2px 4px}
-.launcher-home{min-height:100%;background:radial-gradient(ellipse at 80% 0%,var(--accent-subtle),transparent 65%),var(--bg-app);padding-bottom:130px}
+.launcher-home{min-height:100%;background:var(--bg-app);padding-bottom:130px}
 .launcher-head .eyebrow{letter-spacing:.18em;font-size:9px}.launcher-head h1{font-size:20px;font-weight:500}
-.launcher-shortcut .launcher-icon{border-radius:16px;border:1px solid var(--border-subtle);background:var(--bg-elevated);box-shadow:var(--shadow)}
-.launcher-dock{bottom:46px;border-radius:22px;background:var(--bg-elevated);padding:8px 12px;box-shadow:var(--shadow)}
+.launcher-shortcut .launcher-icon{border-radius:16px;border:0;background:var(--bg-elevated);box-shadow:none}
+.launcher-shortcut[data-app-icon=studio]{--app-icon-bg:var(--app-studio-bg);--app-icon-fg:var(--app-studio-fg)}
+.launcher-shortcut[data-app-icon=terminal],.launcher-shortcut[data-app-icon=logs]{--app-icon-bg:var(--app-terminal-bg);--app-icon-fg:var(--app-terminal-fg)}
+.launcher-shortcut[data-app-icon=files]{--app-icon-bg:var(--app-files-bg);--app-icon-fg:var(--app-files-fg)}
+.launcher-shortcut[data-app-icon=notes]{--app-icon-bg:var(--app-notes-bg);--app-icon-fg:var(--app-notes-fg)}
+.launcher-shortcut[data-app-icon=calendar],.launcher-shortcut[data-app-icon=timetable]{--app-icon-bg:var(--app-calendar-bg);--app-icon-fg:var(--app-calendar-fg)}
+.launcher-shortcut[data-app-icon=devices]{--app-icon-bg:var(--app-devices-bg);--app-icon-fg:var(--app-devices-fg)}
+.launcher-shortcut[data-app-icon=telemetry]{--app-icon-bg:var(--app-telemetry-bg);--app-icon-fg:var(--app-telemetry-fg)}
+.launcher-shortcut[data-app-icon=remote]{--app-icon-bg:var(--app-remote-bg);--app-icon-fg:var(--app-remote-fg)}
+.launcher-shortcut[data-app-icon=cloud]{--app-icon-bg:var(--app-cloud-bg);--app-icon-fg:var(--app-cloud-fg)}
+.launcher-shortcut[data-app-icon=assistant]{--app-icon-bg:var(--app-assistant-bg);--app-icon-fg:var(--app-assistant-fg)}
+.launcher-shortcut[data-app-icon] .launcher-icon{background:var(--app-icon-bg,var(--bg-elevated));color:var(--app-icon-fg,var(--text-secondary))}
+.launcher-dock{bottom:46px;border-radius:22px;background:var(--bg-elevated);border-color:transparent;padding:8px 12px;box-shadow:var(--shadow)}
 .launcher-dock .launcher-icon{box-shadow:none}
+.home-item.widget{border-color:transparent}
 #app-switcher{width:min(860px,calc(100vw - 48px));max-height:80dvh;border-radius:18px;background:var(--bg-app)}
 #app-switcher .dialog-head{background:transparent;border-bottom:0;padding:20px}
 #app-switcher h2{font-size:16px;font-weight:500}
 #switcher-apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;padding:4px 20px 24px}
-.os-task{position:relative;min-width:0;overflow:hidden;border-radius:16px;border:1px solid var(--border-default);background:var(--bg-surface)}
-.os-task.active{border-color:var(--accent);background:var(--accent-subtle)}
+.os-task{position:relative;min-width:0;overflow:hidden;border-radius:16px;border:1px solid transparent;background:var(--bg-surface)}
+.os-task.active{background:var(--accent-subtle)}
 .os-task-open{width:100%;min-height:190px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;border:0;background:transparent;padding:30px 12px 20px;color:var(--text-primary);text-align:center}
 .os-task-open:hover{background:var(--bg-surface-hover)}
-.os-task-icon{display:grid;place-items:center;width:58px;height:58px;border-radius:18px;background:var(--bg-elevated);color:var(--accent)}
+.os-task-icon{display:grid;place-items:center;width:58px;height:58px;border-radius:18px;background:var(--bg-elevated);color:var(--text-secondary)}
+.os-task.active .os-task-icon{background:var(--accent-subtle);color:var(--accent)}
 .os-task-icon .ui-icon{width:30px;height:30px}
 .os-task-open b{font-size:12px;font-weight:500;max-width:100%;overflow-wrap:anywhere}.os-task-open small{font-size:11px;color:var(--text-secondary)}
 .os-task-close,.os-task-pin{position:absolute;top:6px;right:6px;min-height:28px;width:28px;padding:2px;border:0;background:transparent;color:var(--text-secondary);font-size:17px;border-radius:50%}

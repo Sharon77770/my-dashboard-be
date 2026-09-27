@@ -59,6 +59,7 @@ public class StudioService {
           "codex-skills",
           "codex-connections",
           "codex-account",
+          "codex-rate-limits",
           "codex-review");
   private static final Set<String> AUTH_ACTIONS = Set.of("github-login", "github-status");
   private final CatalogService catalog;

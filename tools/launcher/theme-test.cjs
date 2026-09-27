@@ -10,6 +10,11 @@ for(const [index,theme] of blocks.entries()){
  for(const bg of ['accent-solid','accent-solid-hover'])assert.ok(ratio(theme['text-inverse'],theme[bg])>=4.5,`${name} primary button`);
  for(const fg of ['danger','warning','success','accent'])assert.ok(ratio(theme[fg],theme['bg-surface'])>=4.5,`${name} ${fg}`);
  for(const bg of ['bg-app','bg-surface','bg-surface-hover'])assert.ok(ratio(theme['border-strong'],theme[bg])>=3,`${name} control boundary ${bg}`);
+ for(const app of ['studio','terminal','files','notes','calendar','devices','telemetry','remote','cloud','assistant']){
+  const background=theme[`app-${app}-bg`],foreground=theme[`app-${app}-fg`];
+  assert.ok(background&&foreground,`${name} ${app} icon tokens`);
+  assert.ok(ratio(foreground,background)>=4.5,`${name} ${app} icon contrast`);
+ }
  console.log(`${name}: text minimum ${lowest.toFixed(2)}:1, primary/state/control contrast passed`);
 }
 for(const name of fs.readdirSync(dir).filter(name=>name.endsWith('.css')&&name!=='design-system.css'))assert.ok(!/#[0-9a-f]{3,8}(?=[;,)\s}])/i.test(fs.readFileSync(path.join(dir,name),'utf8')),`${name} hardcoded color`);

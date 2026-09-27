@@ -62,6 +62,8 @@ Mobile은 4열 홈, 길게 누르기 메뉴, 수평 스와이프, 하단 Dock, �
 
 색상 값은 `design-system.css`에만 둔다. 기능 CSS는 배경(surface), 텍스트, 경계, accent, 상태 토큰을 사용한다. 사용자가 지정한 일정/과목 색상은 데이터로서 테두리 표시를 유지한다. 본문은 테마 텍스트 색상으로 읽히므로 임의의 사용자 색상이 글자 대비를 깨뜨리지 않는다. 브랜드 SVG/manifest는 독립 배포 자산이다.
 
+Dark Theme은 cold charcoal 앱 배경(`#111318`)에서 surface(`#1a1d24`), elevated(`#20242c`), hover(`#272b34`) 순으로 밝아진다. Light Theme은 앱 배경(`#f5f6f8`), sidebar(`#eff1f4`), 흰 surface와 연회색 hover를 사용한다. 일반 경계는 각 surface보다 조용하게 두고 focus와 선택 상태에만 indigo accent를 사용한다. Primary 버튼은 흰 글자 대비가 4.5:1 이상이 되도록 요청된 indigo 예시보다 어두운 solid 값을 쓴다. Launcher의 앱 아이콘은 동일한 컨테이너에 `--app-*-bg`/`--app-*-fg`만 다르게 적용하며 Home·Drawer·Dock·폴더에 공유한다. Telemetry 상태점은 glow 없이 semantic 상태색을 사용하고 차트 막대는 단색 indigo다. Studio Codex의 사용자 말풍선, 코드 블록, 입력창은 surface 깊이로 구분한다.
+
 공통 Button(primary/secondary/ghost/danger, sm/md), IconButton, Input/Select/Textarea/Checkbox, Panel, Toolbar, Badge, Dialog, details 기반 Dropdown, Tooltip, Empty/Loading/Error, Splitter를 사용한다. spacing 기준은 4/8/12/16/24/32px, 기본 컨트롤 28/32px, radius 4/6px이다. Launcher 아이콘과 mobile sheet는 별도 형태 토큰에 준하는 12px 모서리를 사용한다. 의미별 색상 토큰은 두 테마에서 같은 이름을 가진다.
 
 primary 버튼은 단일 accent 배경과 inverse 글자 조합으로 고정하고 컨테이너별 덮어쓰기를 제거했다. xterm ANSI/배경/선택, CodeMirror 구문/검색/선택/자동완성, 캘린더/시간표도 토큰을 공유한다. 외부 VNC/RDP 화면 내부는 대상 앱의 테마를 따른다.
@@ -79,6 +81,7 @@ primary 버튼은 단일 accent 배경과 inverse 글자 조합으로 고정하�
 `tools/launcher/planner-test.cjs`: 일정/학기/수업 CRUD 회귀.
 `tools/launcher/responsive-test.cjs`: 1440/1280/1024/768/700/390px CSS 규칙과 IDE 모드 선택.
 `tools/launcher/theme-test.cjs`: 양쪽 테마 텍스트 4.5:1, 주요 컨트롤 경계 3:1, 기능 CSS의 고정 색상 방지.
+앱 아이콘 전경/배경 대비도 양쪽 테마에서 4.5:1 이상 검사한다.
 `tools/studio-editor/test.cjs`: 실제 CodeMirror 번들, 파일 저장/수정 보호, Codex 인증 안내/Enter 실행/취소/결과 유지, 모바일 패널 상태.
 
 jsdom은 화면 배치와 실제 터치·가상 키보드를 렌더링하지 않는다. 이번 환경에는 연결 가능한 브라우저가 없어 실제 viewport/스크린샷 검증은 미완료다. 실제 기기에서 모바일 키보드와 드래그, 저해상도 패널 폭, 설치 UX를 추가 확인해야 한다.

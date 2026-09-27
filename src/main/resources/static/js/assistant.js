@@ -1,8 +1,6 @@
 'use strict';
 (() => {
-  const shell = document.querySelector('#assistant-float');
-  const launcher = document.querySelector('#assistant-launcher');
-  const panel = document.querySelector('#assistant-window');
+  const panel = document.querySelector('#assistant');
   const messages = document.querySelector('#assistant-messages');
   const form = document.querySelector('#assistant-form');
   const prompt = document.querySelector('#assistant-prompt');
@@ -10,6 +8,9 @@
   const effortSelect = document.querySelector('#assistant-effort');
   const statusLabel = document.querySelector('#assistant-status-text');
   const accountStatus = document.querySelector('#assistant-account-status');
+  const limitsText = document.querySelector('#assistant-limits-text');
+  const limitsRefresh = document.querySelector('#assistant-limits-refresh');
+  limitsRefresh.disabled = true;
   const loginButton = document.querySelector('#assistant-login');
   const loginGuide = document.querySelector('#assistant-login-guide');
   const loginMessage = document.querySelector('#assistant-login-message');
@@ -21,7 +22,7 @@
   const sendButton = document.querySelector('#assistant-send');
   const runtime = window.WorkspaceAssistantRuntime;
   const localDevice = window.workspaceInitial?.devices?.find(device => device.id === 'local');
-  if (!shell || !launcher || !panel || !runtime || !localDevice?.rootPath) return;
+  if (!panel || !runtime || !localDevice?.rootPath) return;
 
   const conversationKey = 'dashboard-assistant-conversation-v1';
   const threadKey = 'dashboard-assistant-thread-v1';
@@ -35,7 +36,6 @@
   let currentJob = null;
   let opened = false;
   let loading = null;
-  let drag = null;
   let threadId = '';
   let conversation = [];
   let models = [];
@@ -57,7 +57,10 @@
     try {
       const stored = JSON.parse(sessionStorage.getItem(conversationKey) || '[]');
       if (Array.isArray(stored)) {
-        conversation = stored.filter(item => ['user', 'assistant'].includes(item.role) && typeof item.text === 'string').slice(-60);
+        conversation = stored.filter(item => ['user', 'assistant'].includes(item.role) && typeof item.text === 'string')
+          .slice(-60).map(item => item.pending
+            ? { role: item.role, text: item.text || '이전 요청 상태를 확인할 수 없습니다. 다시 보내 주세요.', pending: false }
+            : item);
       }
       threadId = sessionStorage.getItem(threadKey) || '';
     } catch {
@@ -88,7 +91,25 @@
       label.textContent = entry.role === 'user' ? '나' : '대시보드 도우미';
       const body = document.createElement('div');
       body.className = 'assistant-message-body';
-      body.textContent = entry.text || (entry.pending ? '대시보드 기능을 확인하고 있어요…' : '');
+      if (entry.pending && !entry.text) {
+        const progress = document.createElement('span');
+        progress.className = 'assistant-progress';
+        const label = document.createElement('span');
+        label.textContent = {
+          preparing: '요청을 준비하고 있어요',
+          thinking: 'Codex가 생각하고 있어요',
+          tools: '대시보드 정보를 확인하고 있어요',
+          writing: '답변을 작성하고 있어요'
+        }[entry.phase] || '요청을 준비하고 있어요';
+        const dots = document.createElement('span');
+        dots.className = 'assistant-progress-dots';
+        dots.setAttribute('aria-hidden', 'true');
+        for (let index = 0; index < 3; index++) dots.append(document.createElement('span'));
+        progress.append(label, dots);
+        body.append(progress);
+      } else {
+        body.textContent = entry.text;
+      }
       article.append(label, body);
       messages.append(article);
     }
@@ -98,7 +119,7 @@
 
   function setBusy(value) {
     busy = value;
-    launcher.toggleAttribute('aria-busy', value);
+    panel.toggleAttribute('aria-busy', value);
     sendButton.disabled = value;
     stopButton.hidden = !value;
     if (value) setStatus('대시보드 기능을 확인하고 있어요…');
@@ -204,6 +225,43 @@
     renderEfforts(previousEffort);
   }
 
+  function renderRateLimits(limits) {
+    if (!Array.isArray(limits) || !limits.length) {
+      limitsText.textContent = '잔여 사용량 정보 없음';
+      return;
+    }
+    limitsText.textContent = limits.map(limit => {
+      const duration = Number(limit.windowDurationMins);
+      const windowLabel = Number.isFinite(duration) && duration > 0
+        ? duration >= 1440 && duration % 1440 === 0 ? duration / 1440 + '일'
+          : duration >= 60 && duration % 60 === 0 ? duration / 60 + '시간' : duration + '분'
+        : '기간 미상';
+      const used = Number(limit.usedPercent);
+      const remaining = limit.usedPercent != null && Number.isFinite(used)
+        ? Math.max(0, Math.min(100, 100 - used)).toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '%'
+        : '정보 없음';
+      const reset = Number(limit.resetsAt);
+      const resetLabel = Number.isFinite(reset) && reset > 0
+        ? ' · ' + new Date(reset * 1000).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 초기화'
+        : '';
+      return `${limit.name || 'Codex'} ${windowLabel} 잔여 ${remaining}${resetLabel}`;
+    }).join('  |  ');
+  }
+
+  async function refreshRateLimits() {
+    if (busy) return;
+    limitsRefresh.disabled = true;
+    limitsText.textContent = '잔여 사용량 확인 중…';
+    try {
+      const result = await runJob('codex-rate-limits');
+      renderRateLimits(result.assistant?.rateLimits);
+    } catch {
+      limitsText.textContent = '잔여 사용량을 확인할 수 없습니다';
+    } finally {
+      limitsRefresh.disabled = false;
+    }
+  }
+
   async function load(refreshModels = false) {
     if (loading) return loading;
     if (busy) return;
@@ -211,13 +269,17 @@
       try {
         mcpReady = false;
         needsMcpRepair = false;
+        limitsRefresh.disabled = true;
+        limitsText.textContent = '잔여 사용량 확인 전';
         await prepareServerCodex();
         const accountResult = await runJob('codex-account');
         const authenticated = Boolean(accountResult.assistant?.authenticated);
+        limitsRefresh.disabled = !authenticated;
         loginButton.hidden = authenticated;
         loginButton.textContent = 'Codex 로그인';
         loginGuide.hidden = authenticated;
         if (!authenticated) {
+          limitsText.textContent = '로그인 후 잔여 사용량을 확인할 수 있습니다';
           accountStatus.textContent = 'Codex 로그인이 필요합니다';
           loginMessage.textContent = 'Codex 로그인을 시작하면 인증 주소와 일회용 코드를 여기에 표시합니다.';
           setStatus('대시보드 Codex 계정에 로그인해 주세요.');
@@ -237,6 +299,7 @@
         const modelResult = await runJob('codex-models');
         renderModels(modelResult.assistant?.models);
         mcpReady = true;
+        await refreshRateLimits();
         accountStatus.textContent = '대시보드 기능에 연결됨';
         setStatus('개인 대시보드 기능 전용 · Codex 연결됨');
         if (!refreshModels && !conversation.length && !threadId) renderConversation();
@@ -321,6 +384,14 @@
     messages.scrollTop = messages.scrollHeight;
   }
 
+  function setResponsePhase(responseIndex, phase) {
+    const answer = conversation[responseIndex];
+    if (!answer?.pending || answer.text || answer.phase === phase) return;
+    answer.phase = phase;
+    saveConversation();
+    renderConversation();
+  }
+
   function receiveEvent(event, responseIndex, jobId) {
     if (event.event === '인증 주소' && /^https:\/\/auth\.openai\.com\//.test(event.url || '')) {
       loginGuide.hidden = false;
@@ -343,13 +414,24 @@
       saveConversation();
     }
     if (update.kind === 'interaction') renderInteraction(update.interaction, jobId);
-    if (update.kind === 'started' || update.kind === 'item' && update.item?.type === 'mcpToolCall') {
-      setStatus('대시보드 기능을 확인하고 있어요…');
+    if (update.kind === 'started') setResponsePhase(responseIndex, 'thinking');
+    if (update.kind === 'item' && update.item?.type === 'reasoning') {
+      setResponsePhase(responseIndex, 'thinking');
+      setStatus('Codex가 생각하고 있어요…');
+    }
+    if (update.kind === 'item' && update.item?.type === 'mcpToolCall') {
+      setResponsePhase(responseIndex, 'tools');
+      setStatus('대시보드 정보를 확인하고 있어요…');
     }
     if (update.kind === 'item' && update.item?.type === 'agentMessage') {
       const answer = conversation[responseIndex];
       if (!answer || answer.role !== 'assistant') return;
-      answer.text = update.item.text || '';
+      if (!update.item.text) {
+        setResponsePhase(responseIndex, 'writing');
+        setStatus('답변을 작성하고 있어요…');
+        return;
+      }
+      answer.text = update.item.text;
       answer.pending = false;
       saveConversation();
       renderConversation();
@@ -364,7 +446,7 @@
       return;
     }
     prompt.value = '';
-    conversation.push({ role: 'user', text }, { role: 'assistant', text: '', pending: true });
+    conversation.push({ role: 'user', text }, { role: 'assistant', text: '', pending: true, phase: 'preparing' });
     conversation = conversation.slice(-60);
     const responseIndex = conversation.length - 1;
     saveConversation();
@@ -391,6 +473,7 @@
       if (!message.text) message.text = '요청을 처리했지만 표시할 답변이 없습니다.';
       saveConversation();
       renderConversation();
+      await refreshRateLimits();
       setStatus('대시보드 요청을 완료했습니다.');
     } catch (error) {
       const message = conversation[responseIndex];
@@ -457,22 +540,7 @@
     }
   });
 
-  function placePanel() {
-    if (panel.hidden) return;
-    const anchor = shell.getBoundingClientRect();
-    const bounds = panel.getBoundingClientRect();
-    const left = anchor.left > innerWidth / 2 ? anchor.right - bounds.width : anchor.left;
-    const top = anchor.top > innerHeight / 2 ? anchor.top - bounds.height - 10 : anchor.bottom + 10;
-    panel.style.left = Math.max(8, Math.min(innerWidth - bounds.width - 8, left)) + 'px';
-    panel.style.top = Math.max(36, Math.min(innerHeight - bounds.height - 8, top)) + 'px';
-    panel.style.right = 'auto';
-    panel.style.bottom = 'auto';
-  }
-
   async function open() {
-    panel.hidden = false;
-    launcher.setAttribute('aria-expanded', 'true');
-    placePanel();
     const firstOpen = !opened;
     opened = true;
     if (firstOpen) restoreConversation();
@@ -494,17 +562,8 @@
     }
   }
 
-  launcher.addEventListener('click', () => {
-    if (drag?.moved) return;
-    if (panel.hidden) open().catch(error => runtime.toast(error.message));
-    else {
-      panel.hidden = true;
-      launcher.setAttribute('aria-expanded', 'false');
-    }
-  });
-  document.querySelector('#assistant-close').addEventListener('click', () => {
-    panel.hidden = true;
-    launcher.setAttribute('aria-expanded', 'false');
+  window.addEventListener('workspace:view', event => {
+    if (event.detail?.id === 'assistant') open().catch(error => runtime.toast(error.message));
   });
   document.querySelector('#assistant-new').addEventListener('click', () => {
     if (busy) return;
@@ -518,6 +577,7 @@
     setStatus('새 대화를 시작합니다.');
   });
   loginButton.addEventListener('click', login);
+  limitsRefresh.addEventListener('click', () => refreshRateLimits());
   stopButton.addEventListener('click', stopCurrentJob);
   modelSelect.addEventListener('change', () => renderEfforts());
   form.addEventListener('submit', event => {
@@ -534,43 +594,9 @@
     const suggestion = event.target.closest('[data-assistant-prompt]');
     if (suggestion) sendMessage(suggestion.dataset.assistantPrompt).catch(error => runtime.toast(error.message));
   });
-  window.addEventListener('resize', placePanel);
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && !panel.hidden) {
-      panel.hidden = true;
-      launcher.setAttribute('aria-expanded', 'false');
-    }
-  });
   setInterval(() => {
-    if (opened && !panel.hidden && !document.hidden && !busy) load(true).catch(() => {});
+    if (opened && panel.classList.contains('active') && !document.hidden && !busy) load(true).catch(() => {});
   }, 600000);
-
-  launcher.addEventListener('pointerdown', event => {
-    if (event.button !== 0) return;
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, left: shell.offsetLeft, top: shell.offsetTop, moved: false };
-    launcher.setPointerCapture(event.pointerId);
-  });
-  launcher.addEventListener('pointermove', event => {
-    if (!drag || drag.id !== event.pointerId) return;
-    const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
-    if (Math.abs(dx) + Math.abs(dy) > 6) drag.moved = true;
-    if (!drag.moved) return;
-    shell.style.left = Math.max(8, Math.min(innerWidth - shell.offsetWidth - 8, drag.left + dx)) + 'px';
-    shell.style.top = Math.max(38, Math.min(innerHeight - shell.offsetHeight - 52, drag.top + dy)) + 'px';
-    shell.style.right = 'auto';
-    shell.style.bottom = 'auto';
-    try { localStorage.setItem('assistant-position-v1', JSON.stringify({ left: shell.offsetLeft, top: shell.offsetTop })); } catch {}
-  });
-  launcher.addEventListener('pointerup', () => { if (drag) setTimeout(() => { drag = null; }, 0); });
-  try {
-    const position = JSON.parse(localStorage.getItem('assistant-position-v1'));
-    if (Number.isFinite(position?.left) && Number.isFinite(position?.top)) {
-      shell.style.left = Math.max(8, Math.min(innerWidth - 64, position.left)) + 'px';
-      shell.style.top = Math.max(38, Math.min(innerHeight - 64, position.top)) + 'px';
-      shell.style.right = 'auto';
-      shell.style.bottom = 'auto';
-    }
-  } catch {}
 
   let eventCursor = 0;
   try { eventCursor = Number(sessionStorage.getItem('assistant-event-cursor') || 0) || 0; } catch {}

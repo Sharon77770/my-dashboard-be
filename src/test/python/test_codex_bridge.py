@@ -19,6 +19,7 @@ thread_checked=False
 for line in sys.stdin:
  f=json.loads(line);m=f.get('method');p=f.get('params',{});result={}
  if m=='initialize': result={}
+ elif m=='account/rateLimits/read': result={'rateLimitsByLimitId': {'codex': dict(limitId='codex',limitName=None,primary=dict(usedPercent=25,windowDurationMins=300,resetsAt=1730947200),secondary=dict(usedPercent=40,windowDurationMins=10080,resetsAt=1731552000))}}
  elif m=='model/list': result={'data':[dict(model='fixture',displayName='Fixture',isDefault=True,defaultReasoningEffort='medium',supportedReasoningEfforts=[dict(reasoningEffort='medium',description='Balanced')])]}
  elif m=='mcpServerStatus/list':
   assert p['detail']=='toolsAndAuthOnly'
@@ -81,6 +82,13 @@ class CodexBridgeTest(unittest.TestCase):
         result = remote.codex_action(self.root, 'codex-models', {})
         self.assertEqual(result['assistant']['models'][0]['id'], 'fixture')
         self.assertEqual(result['assistant']['models'][0]['efforts'][0]['reasoningEffort'], 'medium')
+
+    def test_rate_limits_project_both_windows_without_credentials(self):
+        result = remote.codex_action(self.root, 'codex-rate-limits', {})
+        limits = result['assistant']['rateLimits']
+        self.assertEqual([(item['windowDurationMins'], item['usedPercent']) for item in limits],
+                         [(300, 25), (10080, 40)])
+        self.assertEqual(limits[0]['name'], 'Codex')
 
     def test_dashboard_mcp_connection_reports_runtime_and_calendar_tool(self):
         result = remote.codex_action(self.root, 'codex-connections', {})

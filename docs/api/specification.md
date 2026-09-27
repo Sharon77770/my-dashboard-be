@@ -413,6 +413,8 @@ Block 배열은 BlockNote 0.54.2의 JSON 문서다. 전체 UTF-8 직렬화 2 MiB
 | GET `/api/v1/assistant/events?after={sequence}` | OWNER | 선택 정수 `after`, 기본 0 | 200 `AssistantEvent[]`; sequence, route 또는 applicationId, message. 최대 최근 100개 메모리 큐 |
 | POST `/api/v1/mcp` | `Authorization: Bearer DASHBOARD_MCP_TOKEN`; CSRF 제외 | MCP JSON-RPC 2.0 body | JSON-RPC `initialize`, `ping`, `tools/list`, `tools/call`; 알림은 202 |
 
+`codex-rate-limits` action은 Codex App Server의 `account/rateLimits/read`를 호출한다. 성공 시 `JobView.result.assistant.rateLimits`는 기간별 항목 배열이며 각 항목은 `name`(문자열, 필수), `windowDurationMins`(정수 또는 null), `usedPercent`(숫자 또는 null), `resetsAt`(Unix 초 정수 또는 null)을 포함한다. 계정에 사용량 정보가 없으면 빈 배열이다. 조회 실패는 job FAILED로 반환하며 도우미 대화 요청에는 영향을 주지 않는다. 인증되지 않은 요청은 기존 OWNER 경계에서 거절한다.
+
 `DASHBOARD_MCP_TOKEN`은 환경변수로 제공할 때 32자 이상이어야 한다. 비어 있으면 부팅마다 난수 256-bit 값이 만들어져 server Codex child process에만 전달되며 외부 client에서는 사용할 수 없다. 외부 client는 설정한 값을 사용하고 HTTPS reverse proxy 또는 VPN을 거쳐 연결한다. authorization 누락/불일치는 401, Origin이 Host와 다른 요청은 403, Accept에 JSON이 없으면 406, JSON-RPC 입력 오류는 400이다. 응답은 `application/json`, protocolVersion은 요청이 지원되는 경우 `2025-03-26`, `2025-06-18`, `2025-11-25` 중 요청값을 반환하고 그 외에는 `2025-03-26`을 반환한다. 고정 세션 ID를 만들지 않는 stateless HTTP transport다.
 
 MCP tool 목록과 입력 계약:
