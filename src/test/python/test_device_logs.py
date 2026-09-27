@@ -59,7 +59,11 @@ class DeviceLogsTest(unittest.TestCase):
                 self.assertTrue(self.call('logs-targets', mode='tmux')['logTargets'])
             lockfile.unlink()
             class Finished(Exception): pass
-            with patch.object(self.remote.time, 'sleep', side_effect=Finished):
+            real_sleep = self.remote.time.sleep
+            def stop_after_snapshot(seconds):
+                if seconds == 1: raise Finished()
+                real_sleep(seconds)
+            with patch.object(self.remote.time, 'sleep', side_effect=stop_after_snapshot):
                 with self.assertRaises(Finished): self.call('logs-follow', mode='tmux', target=target)
             self.assertEqual(self.events[0]['event'], 'log-snapshot')
             self.assertEqual(self.events[0]['sequence'], 1)

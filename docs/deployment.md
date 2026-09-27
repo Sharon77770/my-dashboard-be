@@ -66,4 +66,4 @@ docker compose --env-file .env up -d --build dashboard guacd browser tailscale
 
 Tailscale의 NeedsLogin/unhealthy는 해당 장비 연결만 사용할 수 없다는 뜻이다. 기존 Tailscale 상태·대시보드 데이터 볼륨은 유지한다. dashboard가 재생성되면 공유 네트워크의 보조 서비스도 전체 up으로 재생성해야 한다. [Compose 의존성 기준](https://docs.docker.com/compose/how-tos/startup-order/).
 
-회귀 검증: tools/deployment/test-network.ps1은 별도 QA 프로젝트와 임시 계정으로 Tailscale 미기동, NeedsLogin, 중지 후 웹 로그인·드라이브·실제 DIRECT SSH 연결을 확인한다. QA 전용 볼륨만 정리하며 운영 데이터는 사용하지 않는다.
+회귀 검증: tools/deployment/test-network.ps1은 별도 QA 프로젝트와 임시 계정·포트로 Tailscale 미기동, NeedsLogin, 중지 후 웹 로그인·드라이브·Samba 기동·실제 DIRECT SSH 연결을 확인한다. QA 전용 볼륨만 정리하며 운영 데이터는 사용하지 않는다.

@@ -83,7 +83,8 @@ public final class AssistantDto {
   public record Connection(
       String name, String status, String runtimeStatus, List<String> tools, String error) {}
 
-  public record RateLimit(String name, Long windowDurationMins, Double usedPercent, Long resetsAt) {}
+  public record RateLimit(
+      String name, Long windowDurationMins, Double usedPercent, Long resetsAt) {}
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record Result(

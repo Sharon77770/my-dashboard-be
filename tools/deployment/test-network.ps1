@@ -1,14 +1,15 @@
 ﻿# Isolated regression test. Requires existing dashboard/tailscale/browser/SSH-fixture images.
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Net.Http
-$project='dashboard-network-qa'
+$project='dashboard-network-qa-'+[guid]::NewGuid().ToString('N').Substring(0,8)
+$sshName=$project+'-ssh'
 $repo=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $temp=Join-Path $repo '.tools/network-qa.env'
 $overlay=Join-Path $repo '.tools/network-qa.yaml'
 $qaPassword=[guid]::NewGuid().ToString('N')
 $env:QA_SSH_PASSWORD=[guid]::NewGuid().ToString('N')
-[IO.File]::WriteAllLines($temp,@('DASHBOARD_AUTH_ID=network-verifier',('DASHBOARD_AUTH_PASSWORD='+$qaPassword),'DASHBOARD_PORT=18102','DASHBOARD_BIND_ADDRESS=127.0.0.1','SESSION_COOKIE_SECURE=false','TAILSCALE_AUTHKEY='))
-[IO.File]::WriteAllText($overlay,"services:`n  dashboard:`n    image: my-dashboard-be-dashboard`n  tailscale:`n    image: my-dashboard-be-tailscale`n  browser:`n    image: my-dashboard-be-browser`n")
+[IO.File]::WriteAllLines($temp,@('DASHBOARD_AUTH_ID=network-verifier',('DASHBOARD_AUTH_PASSWORD='+$qaPassword),'DASHBOARD_PORT=18102','DASHBOARD_BIND_ADDRESS=127.0.0.1','SESSION_COOKIE_SECURE=false','NAS_USERNAME=network-verifier',('NAS_PASSWORD='+[guid]::NewGuid().ToString('N')),'NAS_SMB_BIND_ADDRESS=127.0.0.1'))
+[IO.File]::WriteAllText($overlay,"services:`n  dashboard:`n    image: my-dashboard-be-dashboard`n    ports: !override`n      - '127.0.0.1:18102:8080'`n      - '127.0.0.1:11445:445'`n  tailscale:`n    image: my-dashboard-be-tailscale`n  browser:`n    image: my-dashboard-be-browser`n  samba:`n    image: my-dashboard-be-samba`n  nas-storage-init:`n    image: my-dashboard-be-nas-storage-init`n")
 $compose=@('compose','--project-directory',$repo,'-p',$project,'--env-file',$temp,'-f',(Join-Path $repo 'compose.yaml'),'-f',$overlay)
 function ComposeRun([string[]]$arguments){
   $previous=$ErrorActionPreference;$ErrorActionPreference='Continue'
@@ -35,8 +36,16 @@ function Health {
 try {
  $config=(& docker @compose config --format json) | ConvertFrom-Json
  if($config.services.dashboard.network_mode -or $config.services.dashboard.depends_on){throw 'Dashboard depends on a sidecar'}
- foreach($service in @('tailscale','guacd','browser')){if($config.services.$service.network_mode -ne 'service:dashboard'){throw 'Wrong namespace owner'}}
- ComposeRun @('up','-d','--no-build','dashboard','guacd','browser')
+ foreach($service in @('tailscale','guacd','browser','samba')){if($config.services.$service.network_mode -ne 'service:dashboard'){throw 'Wrong namespace owner'}}
+ ComposeRun @('up','-d','--no-build','dashboard','guacd','browser','samba')
+ for($i=0;$i -lt 20;$i++){
+  $running=@(& docker @compose ps --status running --services)
+  if($LASTEXITCODE -ne 0){throw 'Could not read QA service status'}
+  $missing=@('dashboard','guacd','browser','samba') | Where-Object { $running -notcontains $_ }
+  if(-not $missing){break}
+  Start-Sleep -Seconds 1
+ }
+ if($missing){throw ('QA services did not stay running: '+($missing -join ', '))}
  for($i=0;$i -lt 60;$i++){try{if([int]$client.GetAsync($base+'/health').GetAwaiter().GetResult().StatusCode -eq 200){break}}catch{};Start-Sleep -Seconds 1}
  $page=$client.GetStringAsync($base+'/login').GetAwaiter().GetResult()
  $csrf=[regex]::Match($page,'name="_csrf" value="([^"]+)"').Groups[1].Value
@@ -47,10 +56,17 @@ try {
  $script:csrf=[regex]::Match($page,'name="csrf-token" content="([^"]+)"').Groups[1].Value
  Health
  Write-Output 'PASS dashboard login, workspace and cloud without a Tailscale container'
- $null=& docker run -d --rm --name dashboard-network-ssh --network ($project+'_default') -e QA_SSH_PASSWORD my-dashboard-ssh-verifier
+ $smbReady=$false
+ for($i=0;$i -lt 30;$i++){
+  $tcp=[Net.Sockets.TcpClient]::new()
+  try {$tcp.Connect('127.0.0.1',11445);$smbReady=$true;break}catch{Start-Sleep -Seconds 1}finally{$tcp.Dispose()}
+ }
+ if(-not $smbReady){throw 'Samba did not listen on the QA SMB port'}
+ Write-Output 'PASS Samba started on the isolated QA port'
+ $null=& docker run -d --rm --name $sshName --network ($project+'_default') -e QA_SSH_PASSWORD my-dashboard-ssh-verifier
  if($LASTEXITCODE -ne 0){throw 'SSH fixture failed'}
  Start-Sleep -Seconds 2
- $device=Api '/devices/ssh' 'POST' @{command='ssh tester@dashboard-network-ssh';password=$env:QA_SSH_PASSWORD;networkMode='DIRECT';name='Network QA'}
+ $device=Api '/devices/ssh' 'POST' @{command=('ssh tester@'+$sshName);password=$env:QA_SSH_PASSWORD;networkMode='DIRECT';name='Network QA'}
  if(-not $device.id){throw 'Direct SSH enrollment failed'}
  Write-Output 'PASS real DIRECT SSH without Tailscale'
  ComposeRun @('up','-d','--no-build','tailscale')
@@ -64,12 +80,12 @@ try {
  Write-Output 'PASS login and cloud with Tailscale NeedsLogin'
  ComposeRun @('stop','tailscale')
  Health
- $device=Api '/devices/ssh' 'POST' @{command='ssh tester@dashboard-network-ssh';password=$env:QA_SSH_PASSWORD;networkMode='DIRECT';name='Network QA'}
+ $device=Api '/devices/ssh' 'POST' @{command=('ssh tester@'+$sshName);password=$env:QA_SSH_PASSWORD;networkMode='DIRECT';name='Network QA'}
  Write-Output 'PASS dashboard and DIRECT SSH after stopping Tailscale'
 } finally {
  $client.Dispose()
  $ErrorActionPreference='Continue'
- $null=& docker stop dashboard-network-ssh 2>&1
+ $null=& docker stop $sshName 2>&1
  # Only the fixed QA project and its synthetic data are removed.
  $null=& docker @compose down -v --remove-orphans 2>&1
  Remove-Item -LiteralPath $temp,$overlay -ErrorAction SilentlyContinue
