@@ -78,7 +78,8 @@ public final class AssistantDto {
 
   public record Skill(String name, String description, String path, boolean enabled) {}
 
-  public record Connection(String name, String status) {}
+  public record Connection(
+      String name, String status, String runtimeStatus, List<String> tools, String error) {}
 
   public record RateLimit(String name, Double usedPercent, Long resetsAt) {}
 

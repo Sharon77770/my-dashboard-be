@@ -17,7 +17,9 @@ for line in sys.stdin:
  f=json.loads(line);m=f.get('method');p=f.get('params',{});result={}
  if m=='initialize': result={}
  elif m=='model/list': result={'data':[dict(model='fixture',displayName='Fixture',isDefault=True,defaultReasoningEffort='medium',supportedReasoningEfforts=[dict(reasoningEffort='medium',description='Balanced')])]}
- elif m=='mcpServerStatus/list': result={'data':[dict(name='personal-dashboard',authStatus='bearer',runtimeStatus='connected',tools={'list_calendar_events':{}},toolsError=None)]}
+ elif m=='mcpServerStatus/list':
+  assert p['detail']=='toolsAndAuthOnly'
+  result={'data':[], 'nextCursor':'next'} if not p.get('cursor') else {'data':[dict(name='personal-dashboard',authStatus='bearerToken',runtimeStatus=None,tools={'list_calendar_events':{}},toolsError=None)]}
  elif m=='thread/start' or m=='thread/resume': result={'thread':thread,'model':'fixture'}
  elif m=='thread/read':
   if p['threadId']=='foreign': thread['cwd']='/other-project'
@@ -61,8 +63,21 @@ class CodexBridgeTest(unittest.TestCase):
         result = remote.codex_action(self.root, 'codex-connections', {})
         connection = result['assistant']['connections'][0]
         self.assertEqual(connection['name'], 'personal-dashboard')
-        self.assertEqual(connection['runtimeStatus'], 'connected')
+        self.assertIsNone(connection['runtimeStatus'])
         self.assertIn('list_calendar_events', connection['tools'])
+
+    def test_mcp_string_discovery_error_is_projected_without_exposing_credentials(self):
+        result = remote.assistant_connection(dict(name='personal-dashboard', runtimeStatus='failed',
+            tools={}, toolsError='HTTP 401 Authorization: Bearer private-fixture-token'))
+        self.assertEqual(result['runtimeStatus'], 'failed')
+        self.assertEqual(result['tools'], [])
+        self.assertTrue(result['error'])
+        self.assertNotIn('private-fixture-token', json.dumps(result))
+
+    def test_mcp_bearer_credentials_alone_do_not_imply_discovery(self):
+        result = remote.assistant_connection(dict(name='personal-dashboard', authStatus='bearerToken', tools={}))
+        self.assertEqual(result['tools'], [])
+        self.assertIsNone(result['runtimeStatus'])
 
     def test_new_session_is_draft_until_first_turn(self):
         result = remote.codex_action(self.root, 'codex-thread-new', {})

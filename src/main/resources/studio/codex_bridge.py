@@ -6,6 +6,15 @@ import uuid
 controls = queue.Queue(maxsize=64)
 
 
+def assistant_connection(server):
+    # authStatus describes credentials, while a threadless inventory may have no runtimeStatus.
+    # toolsError is a nullable string in the App Server protocol, not an error object.
+    error = 'MCP 도구 목록을 가져오지 못했습니다. 서버 주소와 인증 설정을 확인해 주세요.' if server.get('toolsError') else ''
+    return dict(name=server['name'], status=server.get('authStatus', 'unknown'),
+                runtimeStatus=server.get('runtimeStatus'), tools=sorted((server.get('tools') or {}).keys()),
+                error=error)
+
+
 def assistant_item(item):
     kind = item.get('type', '')
     text = item.get('text', '')
@@ -204,11 +213,13 @@ def codex_action(root, action, args):
             return dict(assistant=dict(skills=[dict(name=s['name'], description=clean(s['description'])[:2000], path=s['path'], enabled=s['enabled'])
                 for entry in result.get('data', []) for s in entry.get('skills', [])]))
         if action == 'codex-connections':
-            result = bridge.call('mcpServerStatus/list', dict(limit=100))
-            return dict(assistant=dict(connections=[dict(name=s['name'], status=s.get('authStatus', 'unknown'),
-                runtimeStatus=s.get('runtimeStatus'), tools=list(s.get('tools', {}).keys()),
-                error=clean((s.get('toolsError') or {}).get('message', ''))[:1000])
-                for s in result.get('data', [])]))
+            connections, cursor = [], None
+            while True:
+                result = bridge.call('mcpServerStatus/list', dict(limit=100, cursor=cursor, detail='toolsAndAuthOnly'))
+                connections.extend(assistant_connection(s) for s in result.get('data', []))
+                cursor = result.get('nextCursor')
+                if not cursor: break
+            return dict(assistant=dict(connections=connections))
         ident = args.get('threadId')
         thread = bridge.owned(ident) if ident else None
         bridge.thread_id = ident

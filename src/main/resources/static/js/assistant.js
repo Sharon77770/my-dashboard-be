@@ -202,29 +202,39 @@
 
   async function load(refreshModels = false) {
     if (loading) return loading;
+    if (busy) return;
     loading = (async () => {
       try {
         mcpReady = false;
         needsMcpRepair = false;
         await prepareServerCodex();
-        const modelResult = await runJob('codex-models');
-        renderModels(modelResult.assistant?.models);
+        const accountResult = await runJob('codex-account');
+        const authenticated = Boolean(accountResult.assistant?.authenticated);
+        loginButton.hidden = authenticated;
+        loginButton.textContent = 'Codex 로그인';
+        loginGuide.hidden = authenticated;
+        if (!authenticated) {
+          accountStatus.textContent = 'Codex 로그인이 필요합니다';
+          loginMessage.textContent = 'Codex 로그인을 시작하면 인증 주소와 일회용 코드를 여기에 표시합니다.';
+          setStatus('대시보드 Codex 계정에 로그인해 주세요.');
+          return;
+        }
+        needsMcpRepair = true;
         const connectionResult = await runJob('codex-connections');
         const dashboardMcp = (connectionResult.assistant?.connections || []).find(item => item.name === 'personal-dashboard');
-        if (!dashboardMcp || dashboardMcp.runtimeStatus !== 'connected'
+        // Threadless discovery can return null runtimeStatus even with a live tool catalog.
+        if (!dashboardMcp || dashboardMcp.error
+            || (dashboardMcp.runtimeStatus != null && dashboardMcp.runtimeStatus !== 'connected')
             || !dashboardMcp.tools?.includes('list_calendar_events')) {
-          needsMcpRepair = true;
           const detail = dashboardMcp?.error ? ' (' + dashboardMcp.error + ')' : '';
           throw new Error('대시보드 MCP 일정 도구 연결에 실패했습니다. 도구 준비를 다시 실행해 주세요.' + detail);
         }
+        needsMcpRepair = false;
+        const modelResult = await runJob('codex-models');
+        renderModels(modelResult.assistant?.models);
         mcpReady = true;
-        const accountResult = await runJob('codex-account');
-        const authenticated = Boolean(accountResult.assistant?.authenticated);
-        accountStatus.textContent = authenticated ? '대시보드 기능에 연결됨' : 'Codex 로그인이 필요합니다';
-        loginButton.hidden = authenticated;
-        loginGuide.hidden = authenticated;
-        if (!authenticated) loginMessage.textContent = 'Codex 로그인을 시작하면 인증 주소와 일회용 코드를 여기에 표시합니다.';
-        setStatus(authenticated ? '개인 대시보드 기능 전용 · Codex 연결됨' : '대시보드 Codex 계정에 로그인해 주세요.');
+        accountStatus.textContent = '대시보드 기능에 연결됨';
+        setStatus('개인 대시보드 기능 전용 · Codex 연결됨');
         if (!refreshModels && !conversation.length && !threadId) renderConversation();
       } catch (error) {
         mcpReady = false;
@@ -391,12 +401,14 @@
   }
 
   async function login() {
+    if (busy || loading) return;
     loginButton.disabled = true;
     if (needsMcpRepair) {
       setStatus('대시보드 MCP 연결을 복구하고 있어요…');
       try {
         await runJob('setup', { refresh: true });
-        ready = false;
+        ready = true;
+        readyAt = Date.now();
         await load(true);
       } catch (error) {
         setStatus(error.message, 'error');

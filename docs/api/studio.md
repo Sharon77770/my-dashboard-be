@@ -12,7 +12,7 @@
 
 | action | args | result |
 | --- | --- | --- |
-| setup | refresh? | git, codex 버전. local 서버 Codex에서 refresh=true면 최신 stable 확인만 수행하고 MCP 설정은 유지 |
+| setup | refresh? | git, codex 버전. local 서버 Codex는 최신 stable 확인 후 MCP URL과 bearer 환경변수 등록을 갱신 |
 | list | path (기본 `.`) | root, path, entries: [{name,path,directory}] |
 | read | path | content, revision |
 | save | path, content, revision | revision |
@@ -56,7 +56,7 @@ HTTP 오류: 익명401, 권한/CSRF403, 미존재/다른 세션 작업404, 잘�
 | codex-review | threadId?, model?, mode? | 미커밋 변경 리뷰 후 thread/status/turnId |
 | codex-account | 없음 | authenticated, plan (계정 주소/토큰 제외) |
 | codex-skills | 없음 | skills: name/description/path/enabled |
-| codex-connections | 없음 | connections: name/status (CLI 등록 MCP 인증 상태) |
+| codex-connections | 없음 | connections: name/status (인증 방식), runtimeStatus (선택/null 가능), tools (도구 이름 배열), error (안전한 오류 안내, 정상 시 빈 문자열) |
 
 context는 최대 16개 {kind:file|selection|image|skill,path?,name?,content?,fromLine?,toLine?,dataUrl?}. file/selection 경로는 프로젝트 안에서만 허용한다. 파일은 서버에서 읽고 selection은 사용자가 선택한 UTF-8 스냅샷을 받는다. 텍스트 합계 128000자, selection당 32000자, image는 PNG/JPEG/WebP data URL 최대 3000000자. 요청 컨텍스트 content/dataUrl 전체는 4000000자 이하. skill은 CLI skills/list의 활성 항목과 이름·경로가 일치해야 한다.
 
@@ -72,9 +72,9 @@ codex-run/review/thread-compact의 실행 중 job에만 입력할 수 있다. �
 
 ## 대시보드 assistant API
 
-별도 `/api/v1/assistant/jobs` 경로는 OWNER와 생성한 HTTP 세션을 사용한다. 허용 action은 `setup`, `codex-models`, `codex-account`, `codex-login`, `codex-run`이다. `codex-run`은 prompt와 선택적인 threadId/model/effort만 받으며 프로젝트 파일, skill, mode 변경, Git, review, 임의 thread 관리 action을 거절한다. 다른 입력은 HTTP 400이다.
+별도 `/api/v1/assistant/jobs` 경로는 OWNER와 생성한 HTTP 세션을 사용한다. 도우미가 사용하는 action은 `setup`, `codex-models`, `codex-account`, `codex-connections`, `codex-login`, `codex-run`이다.
 
-assistant UI는 대시보드 요청에 맞는 `setup`, `codex-models`, `codex-account`, `codex-login`, `codex-run` 작업을 사용한다. API는 기존 assistant job의 OWNER/session 소유권, Codex 권한, 입력 처리와 취소 동작을 유지한다. UI만 IDE 패널과 분리하며 추가 action이나 실행 권한을 도입하지 않는다.
+`codex-connections`는 App Server의 MCP 목록을 모든 페이지에 걸쳐 조회한다. `status`는 인증 방식이며 연결 성공을 뜻하지 않는다. 브라우저는 오류 없이 일정 도구가 발견되고 `runtimeStatus`가 `connected` 또는 null/생략이면 준비 완료로 처리한다. 명시적인 비연결 상태와 빈 도구 목록은 실패다. 계정 미인증은 MCP 조회보다 먼저 로그인 안내로 처리한다. API의 OWNER/session 소유권, 입력 처리와 취소 동작은 유지한다.
 
 
 ## 장비 로그 작업

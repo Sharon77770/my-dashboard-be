@@ -35,3 +35,14 @@ MCP 요청은 `Authorization: Bearer` 인증을 사용한다. Compose에서 `DAS
 MCP 앱 동작은 현재 단일 OWNER 계정과 해당 계정의 개인 일정·노트 저장소를 사용한다. 대화 전 Codex App Server의 `personal-dashboard` 연결 상태를 조회하며, 연결이 없거나 준비되지 않으면 도우미 요청을 시작하지 않고 복구가 필요함을 표시한다. MCP navigation queue와 기본 난수 토큰은 서버 재시작 시 초기화된다. 외부 client에서 고정 bearer token을 운영하려면 `DASHBOARD_MCP_TOKEN`을 직접 제공한다.
 
 서버 assistant 준비는 매 setup에서 `personal-dashboard` MCP 서버를 Codex CLI에 다시 등록해 URL과 bearer 환경변수 연결을 복구한다. 등록 실패는 setup job 실패로 전달한다. 갱신 전용 setup도 CLI 업데이트 확인 후 MCP 등록을 다시 맞춘다.
+
+연결 확인은 Codex 계정 로그인 확인 뒤 `codex-connections`로 수행한다. Python helper에서 Java DTO와 브라우저까지 `runtimeStatus`, `tools`, `error`를 전달한다. 스레드 없는 조회에서 runtimeStatus가 null/생략되어도 오류 없이 `list_calendar_events` 도구가 발견되면 연결된 것으로 판단한다. 명시적인 실패 상태·도구 누락·도구 조회 오류는 연결 복구 버튼을 표시한다. `toolsError`는 문자열로 처리하고 인증 정보가 포함될 수 있는 원문은 노출하지 않는다. 복구는 setup 한 번과 계정·연결 재조회로 수행한다.
+
+## 연결 회귀 검증
+
+- `AssistantConnectionJsonTest`: 실제 Spring Jackson 설정으로 helper → Java DTO → HTTP 응답 변환 시 연결 정보 보존을 검사한다.
+- `src/test/python/test_codex_bridge.py`: MCP 목록 pagination, null 상태, 문자열 오류를 검사한다.
+- `tools/launcher/assistant-test.cjs`: jsdom으로 정상 연결, 실패 시 전송 차단, 단일 setup 복구, 로그인 안내를 검사한다. 기존 UI 테스트와 같은 `jsdom` 환경에서 실행한다.
+- `tools/deployment/check-mcp.py`: 새 Linux dashboard 이미지 안에서 임시 DB·홈·계정으로 서버를 띄우고, 실제 Codex로 도구 발견 → assistant HTTP job 응답 → 10월 일정 조회를 검사한다. 모델 turn은 실행하지 않는다. `/qa/codex`에 Linux Codex 바이너리, `/qa/studio`에 `src/main/resources/studio`, `/qa/check.py`에 이 스크립트를 읽기 전용 마운트하고 `--entrypoint python3 <image> /qa/check.py`로 실행한다. 운영 볼륨과 포트를 연결하지 않는다.
+
+App Server 호출은 [공식 Codex App Server 문서](https://learn.chatgpt.com/docs/app-server)의 `mcpServerStatus/list` 및 `mcpServer/tool/call` 계약을 따른다.
