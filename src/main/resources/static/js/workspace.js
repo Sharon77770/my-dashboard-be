@@ -96,6 +96,12 @@
     for (const runtime of runtimes.values()) runtime.element.hidden = true;
     renderTabs(); window.WorkspaceLauncher?.opened();
   }
+  window.addEventListener('assistant:navigate', event => {
+    const route=event.detail?.route;
+    if(appRegistry.get(route)?.route)showView(route);
+    const applicationId=event.detail?.applicationId;
+    if(applicationId&&state.applications.some(app=>app.id===applicationId))openResource('APP',applicationId).catch(error=>toast(error.message));
+  });
   function renderTabs() {
     const icon=name=>window.WorkspaceUI.icon(name);
     const home='<article class="os-task '+(!activeTab&&activeView==='home'?'active':'')+'"><button class="os-task-open" data-view="home"><span class="os-task-icon">'+icon('home')+'</span><b>홈</b><small>앱과 위젯</small></button></article>';
@@ -347,10 +353,14 @@
   window.WorkspaceLogs?.init({api,escape,toast});
   window.WorkspaceNotes?.init({api,escape,toast,editor,confirmAction});
   window.WorkspaceCloud?.init({api,escape,toast,editor,confirmAction});
-  window.WorkspaceNas?.init({api,escape,editor});
+  window.WorkspaceNas?.init({api,escape,editor,toast});
   window.WorkspaceTailscale?.init({api,confirmAction});
   window.addEventListener('DOMContentLoaded', () => window.WorkspaceStudio?.init({api,editor,escape,toast,confirmAction,openTerminal: id=>openResource('TERMINAL',id)}));
   window.WorkspaceLauncher.init({api,editor,toast,state:()=>state,showHome:()=>showView('home')});
+  window.WorkspaceAssistantRuntime={
+    api,editor,toast,
+    confirm(message){return new Promise(resolve=>{let accepted=false;const dialog=$('#editor-dialog');dialog.addEventListener('close',()=>resolve(accepted),{once:true});editor('Codex 확인',`<p>${escape(message)}</p>`,async()=>{accepted=true;},'확인');});}
+  };
   window.visualViewport?.addEventListener('resize',()=>{document.documentElement.style.setProperty('--viewport-height',window.visualViewport.height+'px');for(const runtime of runtimes.values()){runtime.fit?.fit();runtime.scale?.();}});
   render();refreshStatuses();setInterval(()=>{if(!document.hidden)refresh().catch(error=>toast(error.message));},60000);
 })();

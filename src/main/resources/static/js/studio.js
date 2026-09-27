@@ -69,6 +69,7 @@
   async function execute(action, args = {}, context = project) {
     if(busy) throw new Error('진행 중인 작업이 끝난 뒤 실행해 주세요.');
     if(!context) throw new Error('먼저 작업 폴더를 열어 주세요.');
+    if(action.startsWith('codex-')&&context.deviceId==='local') throw new Error('프로젝트 Codex는 SSH 원격 장비를 선택해 사용하세요. 서버 Codex assistant는 우측 하단의 ✦ 버튼에서 열 수 있습니다.');
     setBusy(true); $('#studio-diff').hidden=true; $('#studio-events').replaceChildren();$('#studio-job-status').classList.remove('form-error');
     let responseCard;
     if(action.startsWith('codex-')&&action!=='codex-status'){
@@ -113,7 +114,7 @@
     await execute('setup',{},context);
     const listing=await execute('list',{path:'.'},context);
     project={...context,root:listing.root};currentPath='.';documents.clear();directories.clear();expanded.clear();expanded.add('.');activeFile=null;authKnown=false;studioSummary={};publish({codex:'대기 중'});$('#studio-context').textContent=project.root;updateAuth(null);codex.reset();
-    $('.studio-connection').textContent=project.deviceId==='local'?'서버 자체 · 로컬 실행':'SSH · 원격 실행';
+    $('.studio-connection').textContent=project.deviceId==='local'?'서버 자체 · 로컬 편집':'SSH · 원격 실행';
     codeEditor.load('', '');renderTabs();
     $('.studio-workbench').hidden=false;$('#studio-start').hidden=true;$('.studio-project-menu').open=false;$('#studio-project-name').textContent=project.root.split('/').filter(Boolean).pop()||'/';$('#studio-project-name').title=project.root;renderFiles(listing);await refreshGit();
     try {localStorage.setItem('workspace-studio-project-v1',JSON.stringify(project));}catch{}publish({root:project.root});if(activePanel==='codex')await codex.load();

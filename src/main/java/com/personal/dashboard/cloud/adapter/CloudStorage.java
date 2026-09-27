@@ -5,7 +5,6 @@ import com.personal.dashboard.cloud.dto.CloudDto.*;
 import com.personal.dashboard.cloud.entity.TrashRecord;
 import com.personal.dashboard.files.service.FileDownload;
 import com.personal.dashboard.global.WorkspaceException;
-import com.personal.dashboard.nas.service.DavLocks;
 import java.io.*;
 import java.nio.charset.*;
 import java.nio.file.*;
@@ -17,24 +16,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-/** Private disk adapter. No symlinks or client absolute filesystem paths are followed. */
+/** Shared disk adapter. No symlinks or client absolute filesystem paths are followed. */
 @Component
 public class CloudStorage {
   private final Path root, files, trash, staging;
   private final ObjectMapper json;
-  private final DavLocks locks;
   private static final int MAX_ENTRIES = 10000;
-
-  public CloudStorage(String configured, ObjectMapper json) throws IOException {
-    this(configured, json, new DavLocks());
-  }
 
   @Autowired
   public CloudStorage(
-      @Value("${cloud.root:./data/cloud}") String configured, ObjectMapper json, DavLocks locks)
-      throws IOException {
+      @Value("${cloud.root:./data/cloud}") String configured, ObjectMapper json) throws IOException {
     this.json = json;
-    this.locks = locks;
     root = Path.of(configured).toAbsolutePath().normalize();
     Files.createDirectories(root);
     if (Files.isSymbolicLink(root)) throw new IOException("Cloud root is a symlink");
@@ -78,17 +70,7 @@ public class CloudStorage {
     if (path.equals(files)) throw new WorkspaceException(400, "드라이브 루트는 변경할 수 없습니다.");
   }
 
-  private void checkParent(Path path) {
-    if (path.getParent() != null && path.getParent().startsWith(files))
-      locks.check(virtual(path.getParent()), false);
-  }
-
   private void createParents(Path target) throws IOException {
-    Path parent = target.getParent();
-    while (!Files.exists(parent)) {
-      checkParent(parent);
-      parent = parent.getParent();
-    }
     Files.createDirectories(target.getParent());
   }
 
@@ -148,8 +130,6 @@ public class CloudStorage {
   public synchronized void create(String path, boolean directory) throws IOException {
     Path target = resolve(path);
     mutable(target);
-    locks.check(virtual(target), true);
-    checkParent(target);
     if (directory) Files.createDirectory(target);
     else Files.createFile(target);
   }
@@ -158,10 +138,8 @@ public class CloudStorage {
       throws IOException {
     Path target = resolve(path);
     mutable(target);
-    locks.check(virtual(target), true);
     if (Files.exists(target) && (!overwrite || Files.isDirectory(target)))
       throw new FileAlreadyExistsException(path);
-    if (!Files.exists(target)) checkParent(target);
     createParents(target);
     Path temporary = Files.createTempFile(staging, "upload-", ".tmp");
     try {
@@ -194,10 +172,6 @@ public class CloudStorage {
     Path from = resolve(source), to = resolve(target);
     mutable(from);
     mutable(to);
-    locks.check(virtual(to), true);
-    checkParent(to);
-    if (!copy) checkParent(from);
-    if (!copy) locks.check(virtual(from), true);
     if (to.startsWith(from)) throw new WorkspaceException(400, "자기 자신이나 하위 폴더로 옮길 수 없습니다.");
     if (Files.exists(to)) throw new FileAlreadyExistsException(target);
     if (!Files.isDirectory(to.getParent())) throw new NoSuchFileException(target);
@@ -223,8 +197,6 @@ public class CloudStorage {
   public synchronized String delete(String path) throws IOException {
     Path from = resolve(path);
     mutable(from);
-    locks.check(virtual(from), true);
-    checkParent(from);
     tree(from);
     Path container = trash.resolve(UUID.randomUUID().toString());
     Files.createDirectory(container);
@@ -274,7 +246,6 @@ public class CloudStorage {
     var record = json.readValue(container.resolve("record.json").toFile(), TrashRecord.class);
     Path target = resolve(record.path());
     mutable(target);
-    locks.check(virtual(target), true);
     if (Files.exists(target)) throw new FileAlreadyExistsException(record.path());
     createParents(target);
     Files.move(container.resolve("payload"), target);
@@ -394,31 +365,6 @@ public class CloudStorage {
     byte[] data = input.content().getBytes(StandardCharsets.UTF_8);
     if (data.length > 1024 * 1024) throw new WorkspaceException(413, "텍스트 저장은 1 MiB 이하여야 합니다.");
     upload(input.path(), new ByteArrayInputStream(data), true);
-  }
-
-  public synchronized String davPath(String path) throws IOException {
-    return virtual(resolve(path));
-  }
-
-  public synchronized String davCreated(String path) throws IOException {
-    return Files.readAttributes(resolve(path), BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS)
-        .creationTime()
-        .toInstant()
-        .toString();
-  }
-
-  public synchronized String davEtag(String path) throws IOException {
-    var attributes =
-        Files.readAttributes(resolve(path), BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-    return "\""
-        + digest(
-            (attributes.lastModifiedTime().toString()
-                    + ":"
-                    + attributes.size()
-                    + ":"
-                    + attributes.fileKey())
-                .getBytes(StandardCharsets.UTF_8))
-        + "\"";
   }
 
   public synchronized Text preview(String path) throws IOException {

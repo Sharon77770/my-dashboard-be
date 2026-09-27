@@ -15,13 +15,17 @@ TAILSCALE_HOSTNAME=personal-dashboard
 TAILSCALE_ACCEPT_DNS=true
 TAILSCALE_ACCEPT_ROUTES=false
 CLOUD_ROOT=/app/data/cloud
-NAS_ENABLED=true
-NAS_PUBLIC_URL=https://dashboard.example.com/dav/
+NAS_USERNAME=nasuser
+NAS_PASSWORD=replace-with-a-unique-password
+NAS_SMB_HOST=nas.example.lan
+NAS_SMB_BIND_ADDRESS=192.168.1.20
 ```
 
-아이디와 비밀번호는 필수다. 비밀번호는 UTF-8 72바이트 이하이며 `$`, `#` 등의 문자는 작은따옴표로 감싼다. 예시 도메인과 계정 값을 실제 값으로 바꾼다. `NAS_PUBLIC_URL`은 실제 연결 주소 안내·검증에 쓰며 DNS나 HTTPS를 자동 설정하지 않는다. NAS를 사용하지 않으면 `NAS_ENABLED=false`로 설정한다.
+대시보드 로그인과 SMB 계정은 별도다. Samba 사용자 이름은 영문/숫자/점/밑줄/하이픈 32자 이내로 설정한다. `NAS_SMB_BIND_ADDRESS`는 LAN 또는 VPN 전용 인터페이스 IP여야 하며 공인 주소나 `0.0.0.0`을 사용하지 않는다. Docker published port는 UFW/firewalld 일반 규칙을 우회할 수 있으므로 실제 Docker firewall backend에서 LAN/VPN CIDR만 허용하도록 제한한다. 자격증명은 Git에 추가하지 않는다.
 
-Compose의 호스트 포트는 `${DASHBOARD_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT}:8080`이며 dashboard가 소유한다. 서버 IP로 직접 접속하려면 DASHBOARD_BIND_ADDRESS=0.0.0.0을 설정한다. 같은 서버에서 실행하는 HTTPS 역방향 프록시가 `127.0.0.1:8080`으로 전달하도록 구성한다. 프록시에는 WebSocket Upgrade 지원(터미널·원격 화면), 파일 업로드 크기/시간 제한, WebDAV 메서드·Authorization·Destination·If·Lock-Token 전달이 필요하다. 다른 컨테이너에서 프록시를 실행하는 경우 그 컨테이너의 localhost는 이 서버가 아니므로 네트워크 연결을 별도로 구성한다. 도메인·인증서·프록시 설정은 이 Compose가 제공하지 않는다.
+Compose의 호스트 포트는 `${DASHBOARD_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT}:8080`이며 dashboard가 소유한다. 서버 IP로 직접 접속하려면 DASHBOARD_BIND_ADDRESS=0.0.0.0을 설정한다. 같은 서버에서 실행하는 HTTPS 역방향 프록시가 `127.0.0.1:8080`으로 전달하도록 구성한다. 프록시에는 WebSocket Upgrade 지원(터미널·원격 화면) 및 파일 업로드 크기/시간 제한이 필요하다. 다른 컨테이너에서 프록시를 실행하는 경우 그 컨테이너의 localhost는 이 서버가 아니므로 네트워크 연결을 별도로 구성한다. 도메인·인증서·프록시 설정은 이 Compose가 제공하지 않는다.
+
+NAS 전환 시 기존 `dashboard-data` Docker 볼륨을 유지하고 실제 cloud/files 경로와 owner/group/mode를 확인한다. UID/GID 10001과 다른 기존 파일 권한을 조사 없이 변경하지 않는다. 전환 및 클라이언트 확인 절차는 [NAS 안내](nas.md)에 있다. `docker compose down -v`를 사용하지 않는다.
 
 HTTP로 직접 접속할 때만 `SESSION_COOKIE_SECURE=false`를 사용한다. HTTP에서 true이면 로그인 쿠키가 전송되지 않아 로그인 유지가 안 된다. Tailscale HTTP 접속도 브라우저 기준으로 HTTP이므로 동일하다. 인터넷 공개 운영에는 HTTPS와 true를 사용한다. Tailscale은 웹 설정에서 로그인 시작 후 표시된 URL을 사용자 브라우저에서 직접 열어 인증한다. 서비스 시작 시 자동 인증을 하지 않으며 기존 TAILSCALE_AUTHKEY 값은 사용하지 않는다.
 

@@ -190,7 +190,7 @@ def install_github_cli():
             finally: tmp.unlink(missing_ok=True)
 
 
-def setup():
+def setup(device_id=None):
     emit(event='Codex CLI 확인 중')
     arch = os.uname().machine
     hashes = {'x86_64': 'd7e18b2597ae8f242f5f31ee9e90deef48dbc9edd634d9868fb6435d08c07f02',
@@ -234,6 +234,13 @@ def setup():
                             os.replace(tmp, destination)
                         finally: tmp.unlink(missing_ok=True)
         install_github_cli()
+    if device_id == 'local':
+        url = os.environ.get('DASHBOARD_MCP_URL', '')
+        token = os.environ.get('DASHBOARD_MCP_TOKEN', '')
+        if not url or len(token) < 32: raise Failure('대시보드 MCP 설정을 확인해 주세요.', 500)
+        run([str(destination), 'mcp', 'remove', 'personal-dashboard'], check=False)
+        run([str(destination), 'mcp', 'add', 'personal-dashboard', '--url', url,
+             '--bearer-token-env-var', 'DASHBOARD_MCP_TOKEN'])
     return dict(git=git(Path.home(), '--version')[1].decode().strip(),
                 codex=run([str(destination), '--version'])[1].decode().strip())
 
@@ -244,7 +251,7 @@ def setup():
 
 def handle(request):
     action, args = request['action'], request.get('args', {})
-    if action == 'setup': return setup()
+    if action == 'setup': return setup(request.get('deviceId'))
     base = Path(request['base']).resolve(strict=True)
     root = within(base, request['root']).resolve(strict=True)
     if not root.is_dir(): raise Failure('작업 폴더가 아닙니다.')

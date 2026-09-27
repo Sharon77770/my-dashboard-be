@@ -1,6 +1,6 @@
 # HTTP 엔드포인트 목록
 
-모든 `/api/v1` 및 `/ws` 경로는 OWNER 인증이 필요하다. 상태 변경 API는 CSRF가 필요하다.
+모든 `/api/v1` 및 `/ws` 경로는 OWNER 인증이 필요하다. 상태 변경 API는 CSRF가 필요하다. `/api/v1/mcp`만 전용 Bearer token을 사용한다.
 
 | Method | URL | Auth | 설명 |
 | --- | --- | --- | --- |
@@ -59,6 +59,12 @@
 POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로컬/SSH 파일·Git·Codex 작업. [계약](studio.md).
 
 | POST | /api/v1/studio/jobs/{id}/inputs | OWNER + 작업 소유 세션 + CSRF | Codex 승인·답변·추가 지시·중지 |
+| POST | /api/v1/assistant/jobs | OWNER + CSRF | 서버 Codex assistant job 시작 |
+| GET | /api/v1/assistant/jobs/{id} | OWNER + 작업 소유 세션 | assistant 상태·이벤트·결과 조회 |
+| POST | /api/v1/assistant/jobs/{id}/inputs | OWNER + 작업 소유 세션 + CSRF | assistant 승인·답변·추가 지시·중지 |
+| DELETE | /api/v1/assistant/jobs/{id} | OWNER + 작업 소유 세션 + CSRF | assistant job 취소 |
+| GET | /api/v1/assistant/events | OWNER | Codex가 요청한 브라우저 페이지 이동 확인 |
+| POST | /api/v1/mcp | Bearer token | Streamable HTTP MCP 초기화와 도구 호출 |
 
 | GET | /api/v1/tailscale | OWNER | 서버 Tailscale 연결 상태 조회 |
 | POST | /api/v1/tailscale/login | OWNER + CSRF | 서버 Tailscale 인증 링크 발급 시작 |
@@ -85,7 +91,6 @@ POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로
 ## NAS
 
 - GET /api/v1/cloud/nas: OWNER 세션으로 연결 설정 조회.
-- /dav/**: OWNER Basic 인증 WebDAV. [메서드·제약](../nas.md).
 
 ## 원격 자동 구성
 

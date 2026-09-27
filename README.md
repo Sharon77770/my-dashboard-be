@@ -74,6 +74,9 @@ Wake는 설정한 MAC/브로드캐스트 주소로 UDP 패킷을 보냅니다. D
 | SESSION_TIMEOUT | 30m | 로그인 비활성 만료 |
 | DASHBOARD_DB_PATH | ./data/dashboard.db | SQLite 파일, Compose에서 /app/data/dashboard.db |
 | WORKSPACE_ROOT | ./data/files | 서버 파일 루트, Compose에서 /app/data/files |
+| NAS_USERNAME / NAS_PASSWORD | 없음 | dashboard 계정과 분리된 Samba 계정 |
+| NAS_SMB_HOST | 없음 | 클라이언트가 접속할 LAN/VPN 이름 또는 IP |
+| NAS_SMB_BIND_ADDRESS | 없음 | TCP 445를 게시할 LAN/VPN 인터페이스 IP |
 | CREDENTIAL_KEY_PATH | ./data/credential.key | 영속 32바이트 암호화 키 파일 |
 | UPLOAD_MAX_SIZE | 1GB | 파일 및 요청 업로드 제한 |
 | GUACD_HOST / GUACD_PORT | localhost / 4822 | 원격 게이트웨이, Compose host는 127.0.0.1 |
@@ -159,6 +162,10 @@ dashboard 컨테이너를 새로 만들면 네트워크를 공유하는 guacd/br
 [Launcher 문서](docs/launcher.md)에서 홈 편집, 폴더, 위젯, Desktop/Mobile 동작과 앱 등록 방법을 확인하세요. 공통 디자인 시스템과 저장 모델, UI 검증 방법도 함께 설명합니다.
 
 운영 환경변수와 업데이트 명령은 [배포 안내](docs/deployment.md)를 참고하세요.
+
+## NAS 네트워크 저장소
+
+Samba SMB3가 기존 `dashboard-data` 볼륨의 `/app/data/cloud/files`를 공유합니다. NAS 설정, 데이터 보존 확인과 Windows/Linux/Android 연결 방법은 [NAS 운영 안내](docs/nas.md)를 참고하세요. TCP 445를 공용 인터넷에 게시하지 마십시오.
 
 ## 메모장
 앱 목록 → 메모장에서 조직/프로젝트 폴더를 만들고 Notion 방식 블록 편집기로 문서를 작성합니다. 이미지, 체크리스트, 표, Markdown과 자동 저장을 지원하며 빈 문서·할 일·업무 기록·가계부 등 8개 템플릿을 제공합니다. [사용법과 저장/백업 제한](docs/notes.md).

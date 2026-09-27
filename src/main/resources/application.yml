@@ -49,5 +49,5 @@ cloud:
   root: ${CLOUD_ROOT:./data/cloud}
 
 nas:
-  enabled: ${NAS_ENABLED:true}
-  public-url: ${NAS_PUBLIC_URL:}
+  smb-host: ${NAS_SMB_HOST:}
+  username: ${NAS_USERNAME:}

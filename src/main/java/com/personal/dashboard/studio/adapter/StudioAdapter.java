@@ -1,6 +1,7 @@
 package com.personal.dashboard.studio.adapter;
 
 import com.fasterxml.jackson.databind.*;
+import com.personal.dashboard.assistant.service.McpAccess;
 import com.personal.dashboard.catalog.entity.DeviceRecord;
 import com.personal.dashboard.global.WorkspaceException;
 import com.personal.dashboard.global.integration.SshAdapter;
@@ -34,12 +35,14 @@ public class StudioAdapter {
 
   private final SshAdapter ssh;
   private final ObjectMapper json;
+  private final McpAccess mcpAccess;
   private final String program;
   private final String bootstrap;
 
-  public StudioAdapter(SshAdapter ssh, ObjectMapper json) throws IOException {
+  public StudioAdapter(SshAdapter ssh, ObjectMapper json, McpAccess mcpAccess) throws IOException {
     this.ssh = ssh;
     this.json = json;
+    this.mcpAccess = mcpAccess;
     program =
         resource("remote.py")
             .replace("# CODEX_BRIDGE", resource("codex_bridge.py"))
@@ -115,6 +118,23 @@ public class StudioAdapter {
 
   public void execute(
       DeviceRecord device, Request request, Execution execution, Consumer<Message> output) {
+    if (device.id().equals("local") && request.action().startsWith("codex-"))
+      throw new WorkspaceException(
+          400, "프로젝트 Codex는 등록한 SSH 원격 장비에서 실행합니다.");
+    executeForDevice(device, request, execution, output);
+  }
+
+  /** Runs the separate server-hosted assistant CLI; project editor jobs cannot use this path. */
+  public void executeAssistant(
+      DeviceRecord device, Request request, Execution execution, Consumer<Message> output) {
+    if (!device.id().equals("local")
+        || !(request.action().equals("setup") || request.action().startsWith("codex-")))
+      throw new WorkspaceException(400, "서버 Codex는 assistant 전용 작업만 실행할 수 있습니다.");
+    executeForDevice(device, request, execution, output);
+  }
+
+  private void executeForDevice(
+      DeviceRecord device, Request request, Execution execution, Consumer<Message> output) {
     String encoded = Base64.getEncoder().encodeToString(program.getBytes(StandardCharsets.UTF_8));
     String python =
         "exec python3 -u -c 'import base64;exec(base64.b64decode(\"" + encoded + "\"))'";
@@ -154,7 +174,12 @@ public class StudioAdapter {
       builder
           .environment()
           .keySet()
-          .removeIf(key -> !Set.of("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR").contains(key));
+          .removeIf(
+              key ->
+                  !Set.of("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR")
+                      .contains(key));
+      builder.environment().put("DASHBOARD_MCP_TOKEN", mcpAccess.token());
+      builder.environment().put("DASHBOARD_MCP_URL", mcpAccess.url());
       var process = builder.start();
       execution.attach(process);
       exchange(
@@ -185,6 +210,7 @@ public class StudioAdapter {
       Consumer<Message> output)
       throws IOException {
     var input = json.createObjectNode();
+    input.put("deviceId", device.id());
     input.put("base", device.rootPath());
     input.put("root", request.root());
     input.put("action", request.action());

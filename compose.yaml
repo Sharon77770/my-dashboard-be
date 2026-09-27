@@ -34,15 +34,17 @@ services:
     restart: unless-stopped
     ports:
       - "${DASHBOARD_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT:-8080}:8080"
+      - "${NAS_SMB_BIND_ADDRESS:?Set NAS_SMB_BIND_ADDRESS to a LAN interface IP or 127.0.0.1}:445:445"
     environment:
       DASHBOARD_AUTH_ID: ${DASHBOARD_AUTH_ID:?Set DASHBOARD_AUTH_ID in .env}
       DASHBOARD_AUTH_PASSWORD: ${DASHBOARD_AUTH_PASSWORD:?Set DASHBOARD_AUTH_PASSWORD in .env}
+      DASHBOARD_MCP_TOKEN: ${DASHBOARD_MCP_TOKEN:-}
       DASHBOARD_DB_PATH: /app/data/dashboard.db
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
       SESSION_TIMEOUT: ${SESSION_TIMEOUT:-30m}
       WORKSPACE_ROOT: /app/data/files
-      NAS_ENABLED: ${NAS_ENABLED:-true}
-      NAS_PUBLIC_URL: ${NAS_PUBLIC_URL:-}
+      NAS_SMB_HOST: ${NAS_SMB_HOST:-}
+      NAS_USERNAME: ${NAS_USERNAME:-}
       CLOUD_ROOT: ${CLOUD_ROOT:-/app/data/cloud}
       CREDENTIAL_KEY_PATH: /app/data/credential.key
       GUACD_HOST: 127.0.0.1
@@ -55,6 +57,47 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+  nas-storage-init:
+    build: ./docker/nas-storage-init
+    restart: "no"
+    command: >-
+      if [ -L /app/data/cloud ] || [ -L /app/data/cloud/files ]; then echo 'NAS storage path cannot be a symbolic link' >&2; exit 1; fi;
+      if [ ! -d /app/data/cloud ]; then install -d -o 10001 -g 10001 /app/data/cloud; fi;
+      if [ ! -d /app/data/cloud/files ]; then install -d -o 10001 -g 10001 /app/data/cloud/files; fi
+    volumes:
+      - dashboard-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+  samba:
+    build: ./docker/samba
+    restart: unless-stopped
+    network_mode: service:dashboard
+    environment:
+      NAS_USERNAME: ${NAS_USERNAME:?Set NAS_USERNAME in .env}
+      NAS_PASSWORD: ${NAS_PASSWORD:?Set NAS_PASSWORD in .env}
+      NAS_UID: "10001"
+      NAS_GID: "10001"
+    volumes:
+      - type: volume
+        source: dashboard-data
+        target: /nas/files
+        volume:
+          subpath: cloud/files
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    depends_on:
+      nas-storage-init:
+        condition: service_completed_successfully
+      dashboard:
+        condition: service_started
+        restart: true
   guacd:
     image: guacamole/guacd:1.6.0
     restart: unless-stopped

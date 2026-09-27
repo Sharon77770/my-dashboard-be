@@ -8,7 +8,7 @@
 | GET | `/api/v1/studio/jobs/{id}` | 200 JobView; 상태/최근 이벤트/결과 |
 | DELETE | `/api/v1/studio/jobs/{id}` | 204; 멱등 취소, 완료된 변경 유지 |
 
-요청: `{deviceId, root, action, args}`. deviceId는 서버 자체를 뜻하는 `local` 또는 등록 SSH 장비 ID다. root는 해당 장비의 파일 루트 안에 있는 절대 작업 폴더다. `local`은 Linux 대시보드 프로세스에서 SSH 없이 실행하고 Docker 기본 루트는 `/app/data/files`다. args는 아래 명시된 필드만 사용한다. 길이 제한: 경로 4096, revision 64, content 1048576자(원격 UTF-8 기준 추가 1 MiB 제한), message 4000, branch/name/email 200, url 2048, prompt 32000, model 100, mode 30.
+요청: `{deviceId, root, action, args}`. deviceId는 서버 자체를 뜻하는 `local` 또는 등록 SSH 장비 ID다. root는 해당 장비의 파일 루트 안에 있는 절대 작업 폴더다. `local`은 Linux 대시보드 프로세스에서 SSH 없이 파일/Git 작업을 실행하고 Docker 기본 루트는 `/app/data/files`다. 프로젝트 편집기의 `codex-*` action은 등록 SSH 장비에서만 허용하며 Codex CLI와 인증은 해당 SSH 계정에서 사용한다. 서버 전역 채팅은 별도 `/api/v1/assistant/jobs`를 통해 server-local Codex를 사용한다. args는 아래 명시된 필드만 사용한다. 길이 제한: 경로 4096, revision 64, content 1048576자(원격 UTF-8 기준 추가 1 MiB 제한), message 4000, branch/name/email 200, url 2048, prompt 32000, model 100, mode 30.
 
 | action | args | result |
 | --- | --- | --- |

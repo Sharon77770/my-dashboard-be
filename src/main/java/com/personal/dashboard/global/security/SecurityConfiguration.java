@@ -41,6 +41,8 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(
                         new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
+                            "/api/v1/mcp"),
+                        new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
                             "/login"),
                         new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
                             "/css/**"),
@@ -49,6 +51,7 @@ public class SecurityConfiguration {
                     .permitAll()
                     .anyRequest()
                     .hasRole("OWNER"))
+        .csrf(csrf -> csrf.ignoringRequestMatchers("/api/v1/mcp"))
         .formLogin(
             login ->
                 login

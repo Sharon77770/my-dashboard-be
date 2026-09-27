@@ -5,6 +5,8 @@
 
 Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 
+- `assistant/controller`, `assistant/service`, `assistant/dto`: server-hosted Codex job, Streamable HTTP MCP, browser navigation events and allowlisted application tools.
+
 | 경로 | 책임 |
 | --- | --- |
 | `catalog/controller/CatalogController.java` | 리소스 HTTP 계약과 장비 작업 요청 |
@@ -31,16 +33,20 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 | `src/main/resources/templates/` | Thymeleaf 로그인·대시보드·오류 |
 | `src/main/resources/static/css/workspace.css` | 앱 콘텐츠와 실행 화면 레이아웃 (테마는 design-system.css) |
 | `src/main/resources/static/js/workspace.js` | UI 조작, API/WS 전송과 화면 상태 |
+| `src/main/resources/static/js/assistant.js`, `css/assistant.css` | 이동 가능한 서버 Codex floating chat shell |
 | `src/main/resources/static/vendor/` | 자체 제공 xterm/Guacamole JS와 라이선스 |
 | `src/test/java/` | 인증·메타데이터·파일·실행 세션 테스트 |
 | `docker/browser/` | Chromium+VNC 이미지 및 진입 스크립트 |
-| `Dockerfile`, `compose.yaml` | 서버 및 원격 실행 서비스 구성 |
+| `Dockerfile`, `compose.yaml` | 서버, 원격 실행, SMB NAS 서비스 구성 |
 | `pom.xml`, `mvnw*`, `.mvn/` | 재현 가능한 빌드·테스트·스타일 검사 |
 | `docs/features.md` | 참고 화면 기능 대조표 |
 
 `data/`, `target/`, `.tools/`, `.m2/`, `.env`는 Git에서 제외한다. 참고 자료에는 프로젝트 명세를 작성하지 않는다.
 
 - `docker/start.sh`: 기존/새 데이터 볼륨에 영속 셸 홈과 SSH 디렉토리를 준비한 뒤 Java 서버를 실행한다.
+
+- `docker/samba/`: SMB3 전용 Samba 이미지와 storage 공유 설정. `docker/nas-storage-init/`은 기존 dashboard-data 볼륨 안에 NAS 하위 경로가 없을 때만 생성한다.
+- `nas/{controller,service,dto}`: OWNER 전용 SMB 연결 설정 안내 API. 파일 전송은 Samba가 맡는다.
 
 - `catalog/controller/SshDeviceController.java`, `catalog/dto/SshDeviceRequest.java`: SSH 명령 형태의 장비 등록 API와 비밀번호 비노출 요청.
 - `catalog/service/SshDeviceService.java`: 명령 파싱, 최초 호스트 키 신뢰, 검증 후 장비 생성/갱신. SSH 및 홈 조회는 `global/integration/SshAdapter`에 위임한다.

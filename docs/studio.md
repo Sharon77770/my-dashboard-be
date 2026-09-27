@@ -10,7 +10,7 @@
 - 편집기: 여러 파일 탭, 변경 표시, Ctrl+S 저장, 구문 강조(JavaScript/TypeScript/JSX, Python, HTML, CSS, Java, JSON, Markdown), 줄 번호, 찾기/바꾸기, 실행 취소. CodeMirror 정적 번들은 같은 서버에서 제공한다.
 - Git: 초기화, HTTPS/SSH 저장소 복제, origin 주소 설정, 변경/스테이징 상태, diff, 파일별 stage/unstage와 전체 stage/unstage, 저장소별 작성자, 커밋, 브랜치 생성/전환, fetch, pull(--ff-only), push, 최근 커밋. 변경 검토는 충돌·커밋 예정·작업 폴더 변경을 별도 그룹으로 표시하며 상태와 파일별 diff를 함께 보여 준다. 새 브랜치의 첫 push는 origin/HEAD에 upstream을 설정한다. 저장소 최상위 폴더를 열어 사용한다. 복제 후 입력된 새 작업 폴더를 연다.
 - GitHub 로그인: 원격 `gh auth login --hostname github.com --git-protocol https --web`, 승인 후 `gh auth setup-git`. 기존 원격 Git credential helper/SSH 인증도 사용한다. 다른 Git 호스팅은 SSH 터미널에서 해당 CLI로 인증한다.
-- Codex: 원격 로그인 상태, 기기 코드 로그인/로그아웃, 새 세션·세션 검색/보관·이름 변경·분기·압축·되돌리기, 모델·추론 강도 선택, 현재 파일·선택 영역·경로·이미지·스킬 첨부, 읽기 전용 또는 작업 폴더 수정 권한, 승인·질문·추가 지시·중지로 실행한다. JSONL의 계획·응답·명령 실행·파일 변경·토큰 사용량을 안전한 텍스트/코드 블록으로 표시한다. 결과 확인 후 파일을 다시 읽고 Git diff로 검토한다.
+- Codex: 프로젝트 편집기에서는 등록 SSH 장비의 Codex CLI와 계정 세션을 사용한다. 우측 하단 플로팅 ✦ assistant는 서버 Codex로 동작하며 앱의 전역 페이지/캘린더/노트 MCP 도구를 이용한다. 모델·추론 강도·남은 컨텍스트 사용량을 볼 수 있다. 채팅 상세는 [Codex 패널](codex.md)을 참고한다.
 - 실행 중지: 진행 중인 원격 작업을 취소한다. 이미 저장된 파일이나 완료된 커밋은 되돌리지 않는다. 로그아웃/세션 만료 시에도 작업을 취소한다.
 
 ## 자동 설치와 실행 환경
@@ -19,7 +19,7 @@ Git/Python이 없는 서버는 `apt-get`, `dnf`, `apk`로 `git python3 ca-certif
 
 Codex 0.154.0 및 GitHub CLI 2.100.0은 Linux x86_64/aarch64의 공식 릴리스 파일을 다운로드하고 고정 SHA256을 검사하여 `~/.local/bin`에 설치한다. 해당 경로에 이미 있는 바이너리는 유지한다. 버전 갱신 시 `src/main/resources/studio/remote.py`의 버전·해시를 함께 변경한다. 서버가 GitHub 릴리스와 필요한 인증/API 주소에 접근할 수 있어야 한다. ARM 설치 해시는 제공하지만 실제 실행 검증은 x86_64에서 수행한다.
 
-서버 자체 모드는 대시보드가 실행되는 Linux 환경에서 같은 helper/CLI를 직접 실행한다. Docker 배포 시 실행 위치는 dashboard 컨테이너이며 기본 작업 루트는 `/app/data/files`다. Git·Python·CA 인증서는 이미지에 포함하고 Codex·GitHub CLI는 첫 도구 준비 때 `/app/data/home/.local/bin`에 설치한다. 인증과 CLI 설정도 `/app/data/home`에 보관하므로 기존 `/app/data` 볼륨으로 컨테이너 재생성 후 유지된다. 로컬 CLI에는 대시보드 로그인 비밀번호 등 서버 환경변수를 상속하지 않는다. PATH/HOME/LANG/LC_ALL/TMPDIR만 전달한다.
+서버 자체 파일/Git 작업은 대시보드가 실행되는 Linux 환경에서 같은 helper를 직접 실행한다. Docker 배포 시 실행 위치는 dashboard 컨테이너이며 기본 작업 루트는 `/app/data/files`다. Git·Python·CA 인증서는 이미지에 포함하고 Codex·GitHub CLI는 첫 도구 준비 때 `/app/data/home/.local/bin`에 설치한다. 인증과 CLI 설정도 `/app/data/home`에 보관하므로 기존 `/app/data` 볼륨으로 컨테이너 재생성 후 유지된다. 로컬 CLI에는 대시보드 로그인 비밀번호 등 서버 환경변수를 상속하지 않는다. server-local assistant에는 필요한 MCP bearer와 loopback URL만 전달한다. 최초 server-local setup은 `personal-dashboard` MCP 연결을 Codex CLI config에 등록한다.
 
 원격 모드는 계속 대상 SSH 계정에서 실행한다. 프로젝트 파일과 `.git`, CLI 인증/설정은 선택한 실행 환경에 남는다. 브라우저에는 현재 편집 버퍼만 있고 마지막 장비/폴더 선택만 localStorage에 기억한다. 대시보드 DB 스키마는 바뀌지 않는다. Docker 호스트의 다른 폴더를 편집하려면 해당 폴더를 작업 루트 아래로 명시적으로 마운트한다. Windows에서 JAR를 직접 실행하는 로컬 IDE는 지원하지 않으며 Docker의 Linux 환경을 사용한다.
 

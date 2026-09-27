@@ -65,7 +65,7 @@
       if(event.threadId&&!thread?.id){thread={id:event.threadId,turns:[]};remember();}
       if(event.kind==='item')renderItem(event.item);
       if(event.kind==='started')status('Codex 작업 중…');
-      if(event.kind==='usage'){const u=event.usage;$('#cx-usage').textContent=`컨텍스트 ${u.contextTokens?.toLocaleString()||'—'} / ${u.contextWindow?.toLocaleString()||'—'} · 총 ${u.totalTokens?.toLocaleString()||'—'} 토큰`;}
+      if(event.kind==='usage'){const u=event.usage,remaining=u.contextWindow!=null&&u.contextTokens!=null?Math.max(0,u.contextWindow-u.contextTokens):null;$('#cx-usage').textContent=`남은 컨텍스트 ${remaining?.toLocaleString()||'—'} / ${u.contextWindow?.toLocaleString()||'—'} · 총 ${u.totalTokens?.toLocaleString()||'—'} 토큰`;$('#cx-usage').title='현재 모델 컨텍스트 창 기준의 추정 잔여량';}
       if(['notice','plan','diff'].includes(event.kind))renderItem({id:event.kind,type:event.kind,text:event.text});
       if(event.kind==='answered')panel.querySelector(`[data-request="${CSS.escape(event.requestId)}"]`)?.remove();
       if(event.kind==='interaction'){
@@ -81,7 +81,7 @@
         $('#cx-interactions').append(box);status('입력을 기다리고 있습니다.');
       }
     }
-    async function load(){if(loaded||host.busy()||!host.project())return;const result=await run('codex-models');models=result.models||[];$('#studio-codex-model').innerHTML=models.map(m=>`<option value="${esc(m.id)}" ${m.defaultModel?'selected':''}>${esc(m.name)}</option>`).join('')||'<option value="">CLI 기본 모델</option>';effort();const auth=await run('codex-account');host.auth(auth.authenticated);loaded=true;let saved;try{saved=sessionStorage.getItem('studio-codex:'+JSON.stringify(host.project()));}catch{}if(saved&&!thread)try{await run('codex-thread-read',{threadId:saved});}catch{status('이전 세션을 불러오지 못했습니다. 목록에서 다시 선택하세요.');}}
+    async function load(){if(loaded||host.busy()||!host.project())return;await host.prepare?.();const result=await run('codex-models');models=result.models||[];$('#studio-codex-model').innerHTML=models.map(m=>`<option value="${esc(m.id)}" ${m.defaultModel?'selected':''}>${esc(m.name)}</option>`).join('')||'<option value="">CLI 기본 모델</option>';effort();const auth=await run('codex-account');host.auth(auth.authenticated);loaded=true;let saved;try{saved=sessionStorage.getItem('studio-codex:'+JSON.stringify(host.project()));}catch{}if(saved&&!thread)try{await run('codex-thread-read',{threadId:saved});}catch{status('이전 세션을 불러오지 못했습니다. 목록에서 다시 선택하세요.');}}
     async function history(more=false){$('#cx-history').hidden=false;const result=await run('codex-threads',{query:$('#cx-search input').value,archived,cursor:more?cursor:null});if(!more)$('#cx-sessions').replaceChildren();for(const t of result.threads||[]){const row=document.createElement('button');row.className='cx-session';row.textContent=(t.name||t.preview||'제목 없는 세션')+' · '+new Date(t.updatedAt*1000).toLocaleDateString();row.onclick=()=>guard(async()=>{if(archived)await run('codex-thread-unarchive',{threadId:t.id});await run('codex-thread-read',{threadId:t.id});$('#cx-history').hidden=true;});$('#cx-sessions').append(row);}cursor=result.nextCursor;$('[data-cx="more"]').hidden=!cursor;if(!$('#cx-sessions').children.length)$('#cx-sessions').textContent='저장된 세션이 없습니다.';}
     async function send(){
       const prompt=$('#studio-prompt').value.trim();if(!prompt)return;

@@ -28,6 +28,10 @@ Launcher UI → App/Widget Registry, HomeGrid, HomePersistence의 단방향 의�
 
 studio-codex.js는 세션/모델/컨텍스트 및 대화 표시를 소유하고 studio.js가 제공하는 프로젝트·작업 잠금·파일 선택 facade를 사용한다. AssistantDto는 외부 프로토콜의 안전한 HTTP 투영이다. codex_bridge.py만 JSON-RPC 메서드와 스킬·파일 경계를 처리한다.
 
+### 서버 Codex assistant
+
+assistant.js는 이동 가능한 floating chat, server-local project context와 assistant job API 호출만 소유한다. StudioCodex의 thread/model/approval UI를 재사용한다. AssistantController와 StudioService assistant 시작 메서드만 server-local Codex를 허용하고, 일반 StudioController의 프로젝트 Codex는 SSH 대상만 허용한다. McpController는 Streamable HTTP 요청·bearer 검증만 담당하고 AssistantMcpService는 고정 도구를 기존 Catalog/Planner/Notes service에 위임한다. AssistantEvents는 browser navigation event를 메모리에 보유하며 DB 모델을 추가하지 않는다.
+
 장비 로그 화면(device-logs.js)은 선택·표시·취소를 담당하고 StudioService가 작업 소유권·수명·보유 제한을 관리한다. logs.py는 고정 CLI 인자와 출력 읽기만 담당한다. StudioDto.LogTarget과 Event.sequence가 목록 및 중복 없는 출력 계약이며 파일 Entry나 Codex 이벤트 타입과 혼용하지 않는다.
 
 Tailscale UI는 상태 표시와 링크 열기만 담당하고 Controller → TailscaleService(OWNER) → TailscaleAdapter → sidecar bridge 경계를 따른다. HTTP 응답은 전용 TailscaleView이며 daemon 원본 peer/키 정보는 반환하지 않는다.

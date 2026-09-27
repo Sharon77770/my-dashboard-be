@@ -46,6 +46,42 @@ class StudioServiceTest {
   }
 
   @Test
+  void codexActionsRequireAnSshDevice() {
+    var catalog = mock(CatalogService.class);
+    when(catalog.requireDevice("local"))
+        .thenReturn(
+            new DeviceRecord(
+                "local",
+                "Dashboard",
+                "localhost",
+                22,
+                "",
+                "",
+                "",
+                "/app/data/files",
+                "NONE",
+                3389,
+                "",
+                "",
+                "",
+                "",
+                false));
+    var adapter = mock(StudioAdapter.class);
+    var service = new StudioService(catalog, adapter);
+    try {
+      assertThatThrownBy(
+              () ->
+                  service.start(
+                      "owner", new Request("local", "/app/data/files", "codex-models", null)))
+          .isInstanceOf(WorkspaceException.class)
+          .hasMessageContaining("SSH 원격 장비");
+      verifyNoInteractions(adapter);
+    } finally {
+      service.shutdown();
+    }
+  }
+
+  @Test
   void interactiveInputIsRestrictedToTheJobOwner() throws Exception {
     var adapter = mock(StudioAdapter.class);
     var release = new CountDownLatch(1);
