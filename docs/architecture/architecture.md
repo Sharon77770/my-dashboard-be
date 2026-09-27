@@ -70,7 +70,7 @@ StudioController → StudioService(OWNER/HTTP 세션·수명·크기 제한, Cod
 
 ### 서버 Codex assistant와 MCP
 
-AssistantController → StudioService의 assistant 전용 시작 경계 → StudioAdapter의 server-local Codex process → Codex App Server stdio. local assistant 작업에는 프로젝트 편집기 API를 재사용하지 않는다. Codex는 Streamable HTTP `/api/v1/mcp`에 Bearer token으로 연결하며 AssistantMcpService가 allowlisted route/app, 일정, 노트 도구를 기존 feature service로 전달한다. MCP 쓰기 호출은 역할 검증과 기존 서비스 검증을 통과한다. AssistantEvents는 MCP navigation 결과를 브라우저 polling queue로 전달한다. MCP token은 env 설정값 또는 프로세스 부팅 시 생성한 임시 값이며 SQLite에 저장하지 않는다.
+AssistantController → StudioService의 assistant job 경계 → StudioAdapter의 server-local Codex process → Codex App Server stdio. 앱 assistant UI는 IDE Codex UI를 재사용하지 않고 기존 API와 MCP 기능을 사용한다. AssistantMcpService가 allowlisted route/app, 일정, 노트 도구를 기존 feature service로 전달하며 대화 이벤트와 사용자 확인 요청은 브라우저에서 표시한다. AssistantEvents는 MCP navigation 결과를 브라우저 polling queue로 전달한다. MCP token은 env 설정값 또는 프로세스 부팅 시 생성한 임시 값이며 SQLite에 저장하지 않는다.
 
 장비의 NetworkMode는 DIRECT/TAILSCALE이다. SshAdapter와 RemoteAdapter는 주입된 DeviceNetworkAdapter를 사용하고, 원격 브라우저·단순 포트 상태 조회는 CatalogService.connectionHost를 통해 같은 adapter를 사용한다. 네트워크/DNS 처리는 controller나 UI에서 수행하지 않는다. TAILSCALE은 tailscale0에 tailnet 주소가 존재하는지 확인한 뒤 3초 이내 DNS 결과 중 tailnet 주소만 선택하여 숫자 IP로 접속한다. 일반 주소 fallback은 없다. 장비는 최대 5개의 등록 점프 장비 ID를 순서대로 저장할 수 있으며 SshAdapter가 각 홉에 SSH 인증·호스트 키 검증 후 Direct-TCPIP 채널로 다음 홉을 연결한다. 점프 장비의 점프 체인 중첩은 차단한다. CLI 로그인 상태 저장이나 LocalAPI 노출은 추가하지 않는다.
 

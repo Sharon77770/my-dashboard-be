@@ -17,9 +17,9 @@
 
 Git/Python이 없는 서버는 `apt-get`, `dnf`, `apk`로 `git python3 ca-certificates`를 설치한다. 패키지 설치에는 root 또는 `sudo -n` 권한이 필요하다. 권한이 없으면 오류에 필요한 패키지를 안내하고 중단하며 sudo 비밀번호를 웹에서 수집하지 않는다. 패키지가 이미 있으면 관리자 권한이 필요 없다.
 
-Codex 0.154.0 및 GitHub CLI 2.100.0은 Linux x86_64/aarch64의 공식 릴리스 파일을 다운로드하고 고정 SHA256을 검사하여 `~/.local/bin`에 설치한다. 해당 경로에 이미 있는 바이너리는 유지한다. 버전 갱신 시 `src/main/resources/studio/remote.py`의 버전·해시를 함께 변경한다. 서버가 GitHub 릴리스와 필요한 인증/API 주소에 접근할 수 있어야 한다. ARM 설치 해시는 제공하지만 실제 실행 검증은 x86_64에서 수행한다.
+Codex는 Linux x86_64/aarch64의 공식 릴리스 파일을 SHA256 검증 후 `~/.local/bin`에 설치한다. 대시보드 서버 자체 assistant의 도구 준비 때 GitHub 최신 stable 릴리스를 확인하며, 릴리스 정보는 10분간 캐시한다. 설치 파일은 GitHub 릴리스 메타데이터에 공개된 SHA256과 대조한다. 최신 버전 확인이나 다운로드에 실패하면 설치된 CLI를 유지하고, 최초 설치라면 검증된 기본 버전으로 진행한다. 따라서 새 모델과 reasoning effort는 서버 CLI/App Server 업데이트 후 다음 모델 목록 조회에서 반영된다. 원격 SSH Codex는 기존처럼 최초 도구 준비 때 설치한 버전을 유지하며 자동 갱신하지 않는다. GitHub CLI 2.100.0 역시 고정 버전이며 자동 갱신하지 않는다. 서버와 원격 장비가 GitHub 릴리스/API에 접근할 수 있어야 한다. ARM 설치 파일 경로도 지원하지만 실제 실행 검증은 x86_64에서 수행한다.
 
-서버 자체 파일/Git 작업은 대시보드가 실행되는 Linux 환경에서 같은 helper를 직접 실행한다. Docker 배포 시 실행 위치는 dashboard 컨테이너이며 기본 작업 루트는 `/app/data/files`다. Git·Python·CA 인증서는 이미지에 포함하고 Codex·GitHub CLI는 첫 도구 준비 때 `/app/data/home/.local/bin`에 설치한다. 인증과 CLI 설정도 `/app/data/home`에 보관하므로 기존 `/app/data` 볼륨으로 컨테이너 재생성 후 유지된다. 로컬 CLI에는 대시보드 로그인 비밀번호 등 서버 환경변수를 상속하지 않는다. server-local assistant에는 필요한 MCP bearer와 loopback URL만 전달한다. 최초 server-local setup은 `personal-dashboard` MCP 연결을 Codex CLI config에 등록한다.
+서버 자체 파일/Git 작업은 대시보드가 실행되는 Linux 환경에서 같은 helper를 직접 실행한다. Docker 배포 시 실행 위치는 dashboard 컨테이너이며 기본 작업 루트는 `/app/data/files`다. Git·Python·CA 인증서는 이미지에 포함한다. Codex·GitHub CLI와 인증/CLI 설정은 `/app/data/home` 아래에 보관하므로 기존 `/app/data` 볼륨으로 컨테이너 재생성 후 유지된다. 로컬 CLI에는 대시보드 로그인 비밀번호 등 서버 환경변수를 상속하지 않는다. server-local assistant에는 필요한 MCP bearer와 loopback URL만 전달한다. 최초 server-local setup은 `personal-dashboard` MCP 연결을 Codex CLI config에 등록한다.
 
 원격 모드는 계속 대상 SSH 계정에서 실행한다. 프로젝트 파일과 `.git`, CLI 인증/설정은 선택한 실행 환경에 남는다. 브라우저에는 현재 편집 버퍼만 있고 마지막 장비/폴더 선택만 localStorage에 기억한다. 대시보드 DB 스키마는 바뀌지 않는다. Docker 호스트의 다른 폴더를 편집하려면 해당 폴더를 작업 루트 아래로 명시적으로 마운트한다. Windows에서 JAR를 직접 실행하는 로컬 IDE는 지원하지 않으며 Docker의 Linux 환경을 사용한다.
 

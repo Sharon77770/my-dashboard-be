@@ -38,11 +38,19 @@
 <dialog id="widget-picker" class="dialog launcher-dialog"><header class="dialog-head"><h2>위젯 추가</h2><button data-launcher="close" aria-label="닫기">×</button></header><div id="widget-options"></div></dialog>
 <dialog id="app-switcher" class="dialog"><header class="dialog-head"><h2>실행 중인 앱</h2><button data-action="dialog-close" aria-label="닫기">×</button></header><div id="switcher-apps"></div></dialog>
 <aside id="assistant-float" class="assistant-float" aria-label="Codex assistant">
-  <section id="assistant-window" class="assistant-window" aria-label="Codex 채팅" hidden>
-    <header class="assistant-window-head"><div><strong>Codex</strong><span id="assistant-account-status">서버 Codex 연결 중</span></div><button id="assistant-close" aria-label="채팅 닫기">×</button></header>
-    <div id="assistant-codex"></div>
+  <section id="assistant-window" class="assistant-window" aria-label="대시보드 도우미" hidden>
+    <header class="assistant-window-head">
+      <div class="assistant-brand"><span class="assistant-mark">✦</span><div><strong>대시보드 도우미</strong><span id="assistant-account-status">서버 Codex 준비 중</span></div></div>
+      <div class="assistant-window-actions"><button id="assistant-new" title="새 대화">＋</button><button id="assistant-close" aria-label="닫기">×</button></div>
+    </header>
+    <div class="assistant-model-bar"><label><span class="assistant-sr-only">모델</span><select id="assistant-model" aria-label="모델"><option value="">모델 불러오는 중</option></select></label><label><span class="assistant-sr-only">추론 강도</span><select id="assistant-effort" aria-label="추론 강도"><option value="">기본</option></select></label></div>
+    <div id="assistant-status" class="assistant-status" role="status" aria-live="polite"><span id="assistant-status-text"></span><button id="assistant-login" type="button" hidden>Codex 로그인</button></div>
+    <div id="assistant-messages" class="assistant-messages" role="log" aria-live="polite">
+      <div class="assistant-welcome"><span class="assistant-welcome-mark">✦</span><h2>대시보드에서 무엇을 도와드릴까요?</h2><p>일정과 노트를 찾고, 대시보드 화면이나 등록한 앱을 열 수 있어요.</p><div class="assistant-suggestions"><button type="button" data-assistant-prompt="오늘 일정 보여줘">오늘 일정 보기</button><button type="button" data-assistant-prompt="등록된 앱을 보여줘">등록 앱 확인</button><button type="button" data-assistant-prompt="최근 노트를 찾아줘">노트 찾기</button></div></div>
+    </div>
+    <form id="assistant-form" class="assistant-composer"><textarea id="assistant-prompt" maxlength="32000" rows="2" placeholder="대시보드 기능을 요청하세요" aria-label="대시보드 요청"></textarea><div class="assistant-composer-footer"><small>대시보드 기능 전용</small><button id="assistant-stop" type="button" hidden>중지</button><button id="assistant-send" type="submit" aria-label="전송">↑</button></div></form>
   </section>
-  <button id="assistant-launcher" class="assistant-launcher" aria-label="Codex 채팅 열기" aria-expanded="false" title="Codex · 드래그해 이동">✦</button>
+  <button id="assistant-launcher" class="assistant-launcher" aria-label="대시보드 도우미 열기" aria-expanded="false" title="대시보드 도우미 · 드래그해 이동">✦</button>
 </aside>
 <div id="toast" role="status" aria-live="polite"></div>
 <noscript><p>터미널·원격 화면과 대시보드 조작을 위해 JavaScript를 활성화해 주세요.</p></noscript>

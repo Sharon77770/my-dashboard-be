@@ -8,11 +8,11 @@
 | GET | `/api/v1/studio/jobs/{id}` | 200 JobView; 상태/최근 이벤트/결과 |
 | DELETE | `/api/v1/studio/jobs/{id}` | 204; 멱등 취소, 완료된 변경 유지 |
 
-요청: `{deviceId, root, action, args}`. deviceId는 서버 자체를 뜻하는 `local` 또는 등록 SSH 장비 ID다. root는 해당 장비의 파일 루트 안에 있는 절대 작업 폴더다. `local`은 Linux 대시보드 프로세스에서 SSH 없이 파일/Git 작업을 실행하고 Docker 기본 루트는 `/app/data/files`다. 프로젝트 편집기의 `codex-*` action은 등록 SSH 장비에서만 허용하며 Codex CLI와 인증은 해당 SSH 계정에서 사용한다. 서버 전역 채팅은 별도 `/api/v1/assistant/jobs`를 통해 server-local Codex를 사용한다. args는 아래 명시된 필드만 사용한다. 길이 제한: 경로 4096, revision 64, content 1048576자(원격 UTF-8 기준 추가 1 MiB 제한), message 4000, branch/name/email 200, url 2048, prompt 32000, model 100, mode 30.
+요청: `{deviceId, root, action, args}`. deviceId는 서버 자체를 뜻하는 `local` 또는 등록 SSH 장비 ID다. root는 해당 장비의 파일 루트 안에 있는 절대 작업 폴더다. `local`은 Linux 대시보드 프로세스에서 SSH 없이 파일/Git 작업을 실행하고 Docker 기본 루트는 `/app/data/files`다. 프로젝트 편집기의 `codex-*` action은 등록 SSH 장비에서만 허용하며 Codex CLI와 인증은 해당 SSH 계정에서 사용한다. 앱 자체 assistant는 별도 `/api/v1/assistant/jobs` 경로를 사용하고, 요청 root 대신 서버가 고정한 전용 폴더를 사용한다. args는 아래 명시된 필드만 사용한다. 길이 제한: 경로 4096, revision 64, content 1048576자(원격 UTF-8 기준 추가 1 MiB 제한), message 4000, branch/name/email 200, url 2048, prompt 32000, model 100, mode 30.
 
 | action | args | result |
 | --- | --- | --- |
-| setup | 없음 | git, codex 버전 |
+| setup | refresh? | git, codex 버전. local 서버 Codex에서 refresh=true면 최신 stable 확인만 수행하고 MCP 설정은 유지 |
 | list | path (기본 `.`) | root, path, entries: [{name,path,directory}] |
 | read | path | content, revision |
 | save | path, content, revision | revision |
@@ -69,6 +69,12 @@ POST /api/v1/studio/jobs/{id}/inputs body:
 - 정상 중단: {type:interrupt}
 
 codex-run/review/thread-compact의 실행 중 job에만 입력할 수 있다. 보류 중 요청 ID/종류를 remote adapter가 재검증한다. 지원하지 않는 MCP elicitation/권한 요청은 명시적으로 거절한다. DELETE 작업은 강제 종료 경로이며 이미 적용한 파일 변경은 유지한다.
+
+## 대시보드 assistant API
+
+별도 `/api/v1/assistant/jobs` 경로는 OWNER와 생성한 HTTP 세션을 사용한다. 허용 action은 `setup`, `codex-models`, `codex-account`, `codex-login`, `codex-run`이다. `codex-run`은 prompt와 선택적인 threadId/model/effort만 받으며 프로젝트 파일, skill, mode 변경, Git, review, 임의 thread 관리 action을 거절한다. 다른 입력은 HTTP 400이다.
+
+assistant UI는 대시보드 요청에 맞는 `setup`, `codex-models`, `codex-account`, `codex-login`, `codex-run` 작업을 사용한다. API는 기존 assistant job의 OWNER/session 소유권, Codex 권한, 입력 처리와 취소 동작을 유지한다. UI만 IDE 패널과 분리하며 추가 action이나 실행 권한을 도입하지 않는다.
 
 
 ## 장비 로그 작업

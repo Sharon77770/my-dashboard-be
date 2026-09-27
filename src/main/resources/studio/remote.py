@@ -12,6 +12,7 @@ import sys
 import tarfile
 import tempfile
 import threading
+import time
 import urllib.request
 import urllib.parse
 
@@ -190,7 +191,98 @@ def install_github_cli():
             finally: tmp.unlink(missing_ok=True)
 
 
-def setup(device_id=None):
+def install_codex_artifact(destination, arch, url, expected_digest):
+    name = 'codex-' + arch + '-unknown-linux-musl'
+    if not url.startswith('https://github.com/openai/codex/releases/download/'):
+        raise Failure('Codex 릴리스 다운로드 주소가 올바르지 않습니다.', 502)
+    digest_match = re.fullmatch(r'sha256:([a-f0-9]{64})', expected_digest)
+    if not digest_match: raise Failure('Codex 릴리스 체크섬을 확인할 수 없습니다.', 502)
+    digest = hashlib.sha256()
+    with urllib.request.urlopen(url, timeout=60) as response, tempfile.TemporaryFile() as archive:
+        total = 0
+        while True:
+            chunk = response.read(65536)
+            if not chunk: break
+            total += len(chunk)
+            if total > 300 * LIMIT: raise Failure('Codex 설치 파일 크기 제한을 초과했습니다.', 502)
+            archive.write(chunk)
+            digest.update(chunk)
+        if digest.hexdigest() != digest_match.group(1): raise Failure('Codex 설치 파일 무결성 검증에 실패했습니다.', 502)
+        archive.seek(0)
+        with tarfile.open(fileobj=archive, mode='r:gz') as tar:
+            member = tar.getmember(name)
+            if not member.isfile() or member.size > 500 * LIMIT: raise Failure('잘못된 Codex 설치 파일입니다.', 502)
+            with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as out:
+                tmp = Path(out.name)
+                try:
+                    source = tar.extractfile(member)
+                    while True:
+                        chunk = source.read(65536)
+                        if not chunk: break
+                        out.write(chunk)
+                    out.flush()
+                    os.fchmod(out.fileno(), 0o755)
+                    os.replace(tmp, destination)
+                finally: tmp.unlink(missing_ok=True)
+
+
+def latest_codex_release(cache, arch):
+    now = time.time()
+    try:
+        cached = json.loads(cache.read_text())
+        cached_age = now - float(cached['checkedAt'])
+        if (isinstance(cached, dict) and 0 <= cached_age < 600
+                and re.fullmatch(r'\d+\.\d+\.\d+', cached.get('version', ''))
+                and cached.get('url', '').startswith('https://github.com/openai/codex/releases/download/')
+                and re.fullmatch(r'sha256:[a-f0-9]{64}', cached.get('digest', ''))): return cached
+    except (OSError, ValueError, KeyError, TypeError, AttributeError): pass
+    request = urllib.request.Request(
+        'https://api.github.com/repos/openai/codex/releases/latest',
+        headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'personal-dashboard-codex-updater'})
+    with urllib.request.urlopen(request, timeout=15) as response:
+        payload = response.read(LIMIT + 1)
+    if len(payload) > LIMIT: raise Failure('Codex 릴리스 정보가 너무 큽니다.', 502)
+    release = json.loads(payload)
+    tag = release.get('tag_name', '')
+    version = re.fullmatch(r'rust-v(\d+\.\d+\.\d+)', tag)
+    asset_name = 'codex-' + arch + '-unknown-linux-musl.tar.gz'
+    asset = next((item for item in release.get('assets', []) if item.get('name') == asset_name), None)
+    if not version or not asset: raise Failure('최신 Codex stable 릴리스에 지원되는 Linux 바이너리가 없습니다.', 502)
+    result = dict(version=version.group(1), url=asset.get('browser_download_url', ''),
+                  digest=asset.get('digest', ''), checkedAt=now)
+    if not result['url'].startswith('https://github.com/openai/codex/releases/download/'):
+        raise Failure('Codex 릴리스 다운로드 주소가 올바르지 않습니다.', 502)
+    if not re.fullmatch(r'sha256:[a-f0-9]{64}', result['digest']):
+        raise Failure('최신 Codex 릴리스 체크섬을 확인할 수 없습니다.', 502)
+    cache.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=cache.parent, delete=False) as output:
+        tmp = Path(output.name)
+        try:
+            os.fchmod(output.fileno(), 0o600)
+            json.dump(result, output)
+            output.flush()
+            os.replace(tmp, cache)
+        finally: tmp.unlink(missing_ok=True)
+    return result
+
+
+def ensure_server_codex(destination, arch, cache):
+    if arch not in ('x86_64', 'aarch64'): raise Failure('Codex 자동 설치는 Linux x86_64 / aarch64를 지원합니다.')
+    release = latest_codex_release(cache, arch)
+    installed = ''
+    if destination.exists():
+        try:
+            output = run([str(destination), '--version'])[1].decode('utf-8', errors='replace')
+            match = re.search(r'\b(\d+\.\d+\.\d+)\b', output)
+            if match: installed = match.group(1)
+        except Exception: pass
+    def version_tuple(value): return tuple(int(part) for part in value.split('.'))
+    if installed and version_tuple(installed) >= version_tuple(release['version']): return
+    emit(event='Codex 최신 버전 ' + release['version'] + ' 확인, 다운로드 및 SHA256 검증 중')
+    install_codex_artifact(destination, arch, release['url'], release['digest'])
+
+
+def setup(device_id=None, refresh=False):
     emit(event='Codex CLI 확인 중')
     arch = os.uname().machine
     hashes = {'x86_64': 'd7e18b2597ae8f242f5f31ee9e90deef48dbc9edd634d9868fb6435d08c07f02',
@@ -202,39 +294,28 @@ def setup(device_id=None):
     lockdir.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (lockdir / 'install.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        if not destination.exists():
+        if device_id == 'local':
+            try:
+                ensure_server_codex(destination, arch, lockdir / 'codex-release.json')
+            except Exception:
+                if not destination.exists():
+                    emit(event='최신 Codex 확인에 실패해 검증된 기본 버전을 설치합니다')
+                    name = 'codex-' + arch + '-unknown-linux-musl'
+                    install_codex_artifact(
+                        destination, arch,
+                        'https://github.com/openai/codex/releases/download/rust-v0.154.0/' + name + '.tar.gz',
+                        'sha256:' + hashes[arch])
+                else:
+                    emit(event='최신 Codex를 확인할 수 없어 설치된 버전으로 계속합니다')
+        elif not destination.exists():
             emit(event='공식 Codex 0.154.0 다운로드 및 SHA256 검증 중')
             name = 'codex-' + arch + '-unknown-linux-musl'
-            url = 'https://github.com/openai/codex/releases/download/rust-v0.154.0/' + name + '.tar.gz'
-            with urllib.request.urlopen(url, timeout=60) as response, tempfile.TemporaryFile() as archive:
-                digest = hashlib.sha256()
-                total = 0
-                while True:
-                    chunk = response.read(65536)
-                    if not chunk: break
-                    total += len(chunk)
-                    if total > 300 * LIMIT: raise Failure('설치 파일 크기 제한을 초과했습니다.', 502)
-                    archive.write(chunk)
-                    digest.update(chunk)
-                if digest.hexdigest() != hashes[arch]: raise Failure('Codex 설치 파일 무결성 검증에 실패했습니다.', 502)
-                archive.seek(0)
-                with tarfile.open(fileobj=archive, mode='r:gz') as tar:
-                    member = tar.getmember(name)
-                    if not member.isfile() or member.size > 500 * LIMIT: raise Failure('잘못된 설치 파일입니다.', 502)
-                    with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as out:
-                        tmp = Path(out.name)
-                        try:
-                            source = tar.extractfile(member)
-                            while True:
-                                chunk = source.read(65536)
-                                if not chunk: break
-                                out.write(chunk)
-                            out.flush()
-                            os.fchmod(out.fileno(), 0o755)
-                            os.replace(tmp, destination)
-                        finally: tmp.unlink(missing_ok=True)
+            install_codex_artifact(
+                destination, arch,
+                'https://github.com/openai/codex/releases/download/rust-v0.154.0/' + name + '.tar.gz',
+                'sha256:' + hashes[arch])
         install_github_cli()
-    if device_id == 'local':
+    if device_id == 'local' and not refresh:
         url = os.environ.get('DASHBOARD_MCP_URL', '')
         token = os.environ.get('DASHBOARD_MCP_TOKEN', '')
         if not url or len(token) < 32: raise Failure('대시보드 MCP 설정을 확인해 주세요.', 500)
@@ -251,7 +332,7 @@ def setup(device_id=None):
 
 def handle(request):
     action, args = request['action'], request.get('args', {})
-    if action == 'setup': return setup(request.get('deviceId'))
+    if action == 'setup': return setup(request.get('deviceId'), args.get('refresh') is True)
     base = Path(request['base']).resolve(strict=True)
     root = within(base, request['root']).resolve(strict=True)
     if not root.is_dir(): raise Failure('작업 폴더가 아닙니다.')

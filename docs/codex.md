@@ -10,13 +10,15 @@
 - 결과: 응답, 실행 명령과 출력, 파일 diff, 계획, 토큰 사용량을 표시한다. 코드 블록을 복사할 수 있다. 변경 사항 리뷰는 CLI review/start로 미커밋 변경을 검사한다. 모델 응답 HTML은 실행하지 않는다.
 - `/help`, `/new`, `/history`, `/compact` 명령을 지원한다. 메뉴에서 CLI에 등록된 MCP 연결 인증 상태를 확인할 수 있다.
 
-전역 assistant는 MCP를 사용해 대시보드 페이지와 등록 앱을 열고 캘린더 조회/일정 생성, 노트 목록/조회/폴더·문서 생성/문서 이어 쓰기를 수행한다. 모델과 추론 강도는 입력창 아래에서 바꿀 수 있다. 사용량 안내는 현재 컨텍스트 창의 추정 잔여 토큰과 총 토큰을 표시한다. MCP 도구에는 일정·노트 삭제나 서버 파일/셸 조작을 노출하지 않는다. [서버 assistant와 MCP 도구](assistant.md).
+대시보드 자체 Codex는 IDE 패널과 별도의 반응형 대화 창을 사용한다. 페이지·등록 앱 열기, 일정과 노트 조회/작성만 다루며 파일·스킬 컨텍스트와 IDE 프로젝트 도구를 제공하지 않는다. 대시보드 데이터 변경 도구의 확인 질문은 대화 안에서 답한다. 모델과 추론 강도는 대시보드 assistant 전용 화면에서 선택한다. [대시보드 도우미와 MCP 도구](assistant.md).
+
+서버 assistant의 도구 준비는 Codex CLI 최신 stable 릴리스를 자동 확인한다. 확인 결과는 10분간 캐시하고, 업데이트가 적용되면 이어지는 model/list 조회에 새 모델과 지원 reasoning effort가 표시된다. GitHub 릴리스 확인이 실패하면 현재 설치 버전을 계속 쓴다. 이 자동 업데이트는 대시보드 서버에만 적용되며 프로젝트 편집기의 SSH Codex는 대상 서버에 설치된 버전을 유지한다.
 
 새 세션은 첫 메시지 전에는 화면의 draft다. 첫 turn부터 선택한 SSH 계정의 Codex 저장소에 저장한다. 화면에는 최근 50 turn을 표시한다. 마지막 대화 되돌리기는 thread/rollback으로 마지막 turn의 기록을 제거하며 파일을 되돌리지 않는다.
 
 ## 구현 범위와 차이
 
-공식 [IDE 기능](https://learn.chatgpt.com/docs/codex/ide)과 [App Server](https://learn.chatgpt.com/docs/app-server)를 참고한 독립 웹 클라이언트다. VS Code 확장 바이너리/화면을 그대로 임베드한 것은 아니다. 설치된 Codex 0.154.0의 생성 JSON Schema와 실제 stdio 응답을 기준으로 연동한다.
+공식 [IDE 기능](https://learn.chatgpt.com/docs/codex/ide)과 [App Server](https://learn.chatgpt.com/docs/app-server)를 참고한 독립 웹 클라이언트다. VS Code 확장 바이너리/화면을 그대로 임베드한 것은 아니다. 현재 설치된 Codex App Server의 model/list 응답을 사용하며 고정 모델 이름과 추론 강도 목록을 두지 않는다.
 
 VS Code 전용 명령, OpenAI 클라우드 작업 위임, 확장 전용 UI 설정, 네이티브 Plan collaboration mode, 마켓플레이스 설치·OAuth 관리, 임의 permission/MCP elicitation UI는 포함하지 않는다. 마지막 종류의 미지원 서버 요청은 승인하지 않고 오류 응답으로 종료한다. reasoning은 공개 summary만 표시하며 내부 content는 보내지 않는다. API 키 직접 입력 UI와 전체 권한 우회는 제공하지 않는다.
 

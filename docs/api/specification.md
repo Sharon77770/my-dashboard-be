@@ -402,7 +402,7 @@ Block 배열은 BlockNote 0.54.2의 JSON 문서다. 전체 UTF-8 직렬화 2 MiB
 
 ## 서버 Codex assistant와 MCP
 
-서버 assistant job은 기존 Studio job 수명·이벤트·취소 DTO를 사용하되 별도 경로에서 local Codex만 허용한다. OWNER 로그인 세션 소유권과 변경 요청 CSRF를 검사한다.
+서버 assistant job은 기존 Studio job 수명·이벤트·취소 DTO와 Codex 권한을 사용하며 별도 경로에서 OWNER 로그인 세션 소유권과 변경 요청 CSRF를 검사한다. 앱 assistant UI는 IDE Codex 화면과 분리되어 대시보드 기능에 맞는 요청만 표시한다.
 
 | Method / URL | Auth | Request | Response |
 | --- | --- | --- | --- |
