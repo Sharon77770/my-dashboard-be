@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.personal.dashboard.assistant.service.McpAccess;
 import com.personal.dashboard.catalog.entity.DeviceRecord;
 import com.personal.dashboard.global.integration.SshAdapter;
 import com.personal.dashboard.studio.adapter.StudioAdapter;
@@ -21,6 +22,7 @@ class StudioLocalAdapterTest {
   @TempDir Path directory;
   private final ObjectMapper json = new ObjectMapper();
   private final SshAdapter ssh = mock(SshAdapter.class);
+  private final McpAccess mcpAccess = mock(McpAccess.class);
 
   private StudioAdapter.Message execute(String action, Map<String, Object> args) throws Exception {
     var device =
@@ -43,7 +45,7 @@ class StudioLocalAdapterTest {
     var input =
         new Request("local", directory.toString(), action, json.convertValue(args, Args.class));
     var messages = new ArrayList<StudioAdapter.Message>();
-    new StudioAdapter(ssh, json)
+    new StudioAdapter(ssh, json, mcpAccess)
         .execute(device, input, new StudioAdapter.Execution(), messages::add);
     verifyNoInteractions(ssh);
     assertThat(messages).isNotEmpty();
