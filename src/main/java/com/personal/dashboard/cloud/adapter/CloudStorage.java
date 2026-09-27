@@ -24,8 +24,8 @@ public class CloudStorage {
   private static final int MAX_ENTRIES = 10000;
 
   @Autowired
-  public CloudStorage(
-      @Value("${cloud.root:./data/cloud}") String configured, ObjectMapper json) throws IOException {
+  public CloudStorage(@Value("${cloud.root:./data/cloud}") String configured, ObjectMapper json)
+      throws IOException {
     this.json = json;
     root = Path.of(configured).toAbsolutePath().normalize();
     Files.createDirectories(root);

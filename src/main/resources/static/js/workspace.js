@@ -90,6 +90,7 @@
     $('#palette-dialog').close();$('#app-switcher').close();
     window.WorkspacePlanner?.open(id).catch(error=>toast(error.message));
     window.WorkspaceStudio?.open(id).catch(error=>toast(error.message));
+    window.WorkspaceTelemetry?.open(id);
     activeTab = null;
     $('#runtime-host').hidden = true;
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active',view.id === id));

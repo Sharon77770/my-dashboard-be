@@ -2,12 +2,45 @@
 
 ## 공통
 
+Telemetry 수집 경로는 아래 OWNER 세션 공통 규칙 대신 service API Key Bearer 인증을 사용한다. OWNER의 로그인 인증과 분리하며 CSRF가 없다. service 관리 경로는 OWNER 인증과 기존 CSRF를 그대로 적용한다.
+
 별도 명시가 없으면 `/api/v1/*`는 OWNER 인증이 필요하고 JSON 요청/응답은 UTF-8 `application/json`이다.
 POST/PUT/PATCH/DELETE는 로그인 HTML의 `csrf-token`과 `csrf-header` meta를 사용한 헤더가 필수다. 세션 쿠키도 함께 전송한다.
 각 경로의 `{id}` 또는 `{device}`는 필수 non-null String ID다. ID는 서버 생성 UUID이며 기본 장비만 `local`이다.
 아래 표에 없는 query/path/body는 사용하지 않는다. 빈 response body인 201/202/204는 Content-Type을 보장하지 않는다.
 JSON 필드는 아래에 별도 optional/null 표기가 없으면 응답에서 필수·null 불가다. 빈 배열은 허용한다. boolean/int 요청 필드는 생략 시 Java 기본값(false/0)이 적용되며 최소값 제약을 검사한다.
 에러는 가능한 경우 `{message: String}`를 반환한다. 인증/CSRF 등 보안 필터와 프레임워크 기본 오류는 이 JSON 형식을 보장하지 않는다.
+
+## Service Telemetry
+
+### OWNER service management
+
+Base path: `/api/v1/telemetry/services`. All routes below require OWNER session authentication; state-changing routes require the dashboard CSRF token.
+
+| Method and path | Request | Success |
+| --- | --- | --- |
+| GET `/` | none | `200 Summary[]`; request/user totals, status, nullable latency and latest custom gauges |
+| POST `/` | `{name: string(1..100), description?: string(0..500), serviceType: Backend API\|Web\|Discord Bot\|Worker\|Custom}` | `201 ServiceView`; includes `apiKey` once |
+| GET `/{id}` | none | `200 ServiceView`; `apiKey` omitted |
+| DELETE `/{id}` | none | `204`; disable service and retain samples |
+| PUT `/{id}/enabled` | `{enabled: boolean}` | `200 ServiceView` |
+| POST `/{id}/key` | empty or omitted body | `200 ServiceView`; newly generated `apiKey` once, prior key invalidated |
+| DELETE `/{id}/key` | none | `204`; current key invalidated |
+| GET `/{id}/analytics?range=1h\|24h\|7d\|30d` | `range` defaults to `24h` | `200 Analytics`; timeline, endpoint counts/error rates, methods, statuses, percentile latencies and user/gauge summary |
+
+`ServiceView` fields: `serviceId`, `serviceName`, `description`, `serviceType`, `createdAt` (epoch ms), `enabled`, nullable `lastUsedAt`, `status` (`Receiving data`, `Idle`, `No recent telemetry`, `Disabled`), and `apiKey` only on create/regenerate. Summary additionally includes selected-range `requests`, rolling `requestsLastMinute`, `requestsLastHour`, `requestsToday`, error/latency values, unique users, DAU/WAU/MAU, peak concurrent users when `active_users` or `concurrent_users` gauges exist, and latest gauge map.
+
+### External service ingestion
+
+These endpoints use `Authorization: Bearer dash_sk_<32 base64url characters>`, with no OWNER cookie and no CSRF. A revoked, replaced, disabled, malformed or unknown key returns `401`. Accepted timestamps must be within the last 30 days and no more than five minutes in the future. Body limit is 64 KiB; limit is 120 requests per service per minute.
+
+| Method and path | Request fields | Success |
+| --- | --- | --- |
+| POST `/api/v1/telemetry/events` | `type` required (1..40 chars), optional ISO-8601 `timestamp`, optional `anonymousUserId` (1..128 chars, only for `user_activity`), optional `properties` with at most 24 scalar fields and 4 KiB serialized | `200 {events: 1, gauges: 0}` |
+| POST `/api/v1/telemetry/gauges` | `name` required (1..64 chars matching `[A-Za-z][A-Za-z0-9_.-]*`), `value` required finite number 0..1e12, optional ISO-8601 `timestamp` | `200 {events: 0, gauges: 1}` |
+| POST `/api/v1/telemetry/batch` | `events?` and `gauges?`, each max 100 entries; at least one total entry | `200 {events: number, gauges: number}` |
+
+For type `request`, the recommended properties are `endpoint`, `method`, `status` (100..599), and `latencyMs` (non-negative). Request statuses 400..599 count as errors. Type `error` increments error totals. Arbitrary service event types and gauge names are accepted within these bounds. Invalid body/timestamp returns `400`, oversized body returns `413`, and the per-service rate limit returns `429`. Missing measurements are `null`, never zero.
 
 | HTTP | 분류 | 발생 조건/안내 |
 | --- | --- | --- |
@@ -16,7 +49,8 @@ JSON 필드는 아래에 별도 optional/null 표기가 없으면 응답에서 �
 | 403 | FORBIDDEN | OWNER 권한 없음, CSRF/같은 origin 실패, 파일 루트 탈출 |
 | 404 | NOT_FOUND | 장비/앱/실행 핸들 없음 또는 다른 로그인에 속한 핸들 |
 | 409 | CONFLICT | 파일 누락/권한/중복/비어 있지 않은 폴더, 실행 제한/중복 attach |
-| 413 | UPLOAD_TOO_LARGE | multipart 크기 제한 초과 |
+| 413 | PAYLOAD_TOO_LARGE | multipart 또는 Telemetry body 크기 제한 초과 |
+| 429 | RATE_LIMITED | 서비스별 Telemetry 분당 요청 한도 초과 |
 | 500 | INTERNAL_ERROR | 키 복호화, DB, 예상하지 못한 처리 오류. 상세 인증정보/예외는 반환하지 않음 |
 | 502 | CONNECTION_FAILED | SSH/guacd/Chromium/UDP 등 연결·실행 실패 |
 | 504 | TIMEOUT | 서버 명령 10초 제한 초과 |

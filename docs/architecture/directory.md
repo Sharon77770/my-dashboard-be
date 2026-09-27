@@ -120,3 +120,6 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 
 - `tools/ui/`: Tailwind CSS 빌드 진입점과 잠금 파일. 생성물은 `static/vendor/workspace-ui.css`이며 홈·로그인·오류 템플릿에서 공통 사용한다.
 - `static/js/drawers.js`: 모바일 모달 사이드바의 열기·닫기, 패널 상태와 포커스 복원 담당.
+- `telemetry/{controller,service,repository,dto}`: OWNER service management/analytics와 별도 service-key ingestion, SQLite raw/hourly aggregates.
+- `static/js/telemetry.js`, `static/css/telemetry.css`: Telemetry 앱과 Integration 화면, 반응형 분석 카드.
+- `db/migrations/V6__telemetry.sql`: 서비스/API key hash/event/gauge/hourly aggregate schema.

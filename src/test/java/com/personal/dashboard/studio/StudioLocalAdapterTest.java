@@ -12,6 +12,7 @@ import com.personal.dashboard.studio.dto.StudioDto.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.*;
 import org.junit.jupiter.api.io.TempDir;
@@ -23,6 +24,12 @@ class StudioLocalAdapterTest {
   private final ObjectMapper json = new ObjectMapper();
   private final SshAdapter ssh = mock(SshAdapter.class);
   private final McpAccess mcpAccess = mock(McpAccess.class);
+
+  @BeforeEach
+  void configureMcpAccess() {
+    when(mcpAccess.token()).thenReturn("test-token");
+    when(mcpAccess.url()).thenReturn("http://127.0.0.1:8080/api/v1/mcp");
+  }
 
   private StudioAdapter.Message execute(String action, Map<String, Object> args) throws Exception {
     var device =
@@ -91,7 +98,10 @@ class StudioLocalAdapterTest {
   void cancellationClosesStdinAndStopsChildProcessGroups() throws Exception {
     Path pid = directory.resolve("child.pid");
     String program =
-        "import os,sys,subprocess,threading,signal; p=subprocess.Popen(['sleep','60'],start_new_session=True); open(sys.argv[1],'w').write(str(p.pid)); os.read(0,1); os.killpg(p.pid,signal.SIGKILL); p.wait()";
+        "import os,sys,subprocess,threading,signal;"
+            + " p=subprocess.Popen(['sleep','60'],start_new_session=True);"
+            + " open(sys.argv[1],'w').write(str(p.pid)); os.read(0,1);"
+            + " os.killpg(p.pid,signal.SIGKILL); p.wait()";
     var process = new ProcessBuilder("python3", "-u", "-c", program, pid.toString()).start();
     var execution = new StudioAdapter.Execution();
     execution.attach(process);

@@ -1,6 +1,7 @@
 # HTTP 엔드포인트 목록
 
-모든 `/api/v1` 및 `/ws` 경로는 OWNER 인증이 필요하다. 상태 변경 API는 CSRF가 필요하다. `/api/v1/mcp`만 전용 Bearer token을 사용한다.
+별도 표시가 없는 `/api/v1` 및 `/ws` 경로는 OWNER 인증이 필요하다. OWNER 세션 변경 API는 CSRF가 필요하다. MCP와 Telemetry ingestion만 각각 분리된 Bearer 인증을 사용한다.
+예외: `/api/v1/telemetry/events`, `/gauges`, `/batch`는 service API Key Bearer 인증을 쓰며 dashboard session/CSRF 없이 수집한다. `/api/v1/telemetry/services/**`는 OWNER 전용이다.
 
 | Method | URL | Auth | 설명 |
 | --- | --- | --- | --- |
@@ -9,6 +10,17 @@
 | GET | / | OWNER | 대시보드 |
 | POST | /logout | CSRF | 세션 종료 |
 | GET | /health | public | 프로세스 liveness |
+| GET | /api/v1/telemetry/services | OWNER | 서비스 요약 목록 |
+| POST | /api/v1/telemetry/services | OWNER + CSRF | 서비스 생성, API Key는 응답에서 1회 노출 |
+| GET | /api/v1/telemetry/services/{id} | OWNER | 서비스 설정 |
+| DELETE | /api/v1/telemetry/services/{id} | OWNER + CSRF | 서비스 비활성화, 데이터 보존 |
+| PUT | /api/v1/telemetry/services/{id}/enabled | OWNER + CSRF | 수집 활성화 상태 변경 |
+| POST | /api/v1/telemetry/services/{id}/key | OWNER + CSRF | key 교체, 신규 원문 1회 노출 |
+| DELETE | /api/v1/telemetry/services/{id}/key | OWNER + CSRF | key 폐기 |
+| GET | /api/v1/telemetry/services/{id}/analytics?range=1h\|24h\|7d\|30d | OWNER | 기간별 집계와 분포 조회 |
+| POST | /api/v1/telemetry/events | Service API Key | event 수집 |
+| POST | /api/v1/telemetry/gauges | Service API Key | gauge sample 수집 |
+| POST | /api/v1/telemetry/batch | Service API Key | 최대 100 events + 100 gauges 수집 |
 | GET | /api/v1/calendar/events | OWNER | 날짜 범위의 일정 조회 |
 | POST | /api/v1/calendar/events | OWNER | 일정 생성 |
 | PUT | /api/v1/calendar/events/{id} | OWNER | 일정 수정 |

@@ -38,8 +38,7 @@ public class McpController {
     if (!sameOrigin(request)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     if (accept != null
         && !accept.contains(MediaType.APPLICATION_JSON_VALUE)
-        && !accept.contains("*/*"))
-      return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
+        && !accept.contains("*/*")) return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
     JsonNode id = input.get("id");
     String method = input.path("method").asText();
     if (method.isBlank() || !input.path("jsonrpc").asText().equals("2.0"))
@@ -59,11 +58,15 @@ public class McpController {
     var reply =
         json.valueToTree(
             java.util.Map.of(
-                "protocolVersion", version,
-                "capabilities", java.util.Map.of("tools", java.util.Map.of("listChanged", false)),
-                "serverInfo", java.util.Map.of("name", "personal-dashboard", "version", "1.0.0"),
+                "protocolVersion",
+                version,
+                "capabilities",
+                java.util.Map.of("tools", java.util.Map.of("listChanged", false)),
+                "serverInfo",
+                java.util.Map.of("name", "personal-dashboard", "version", "1.0.0"),
                 "instructions",
-                    "Use dashboard tools to open app pages, manage calendar events and write notebook notes. Confirm ambiguous dates before creating events."));
+                "Use dashboard tools to open app pages, manage calendar events and write notebook"
+                    + " notes. Confirm ambiguous dates before creating events."));
     return result(id, reply);
   }
 
@@ -72,19 +75,23 @@ public class McpController {
     var context = SecurityContextHolder.createEmptyContext();
     context.setAuthentication(
         UsernamePasswordAuthenticationToken.authenticated(
-            "dashboard-mcp",
-            null,
-            List.of(new SimpleGrantedAuthority("ROLE_OWNER"))));
+            "dashboard-mcp", null, List.of(new SimpleGrantedAuthority("ROLE_OWNER"))));
     SecurityContextHolder.setContext(context);
     try {
       String name = params.path("name").asText();
       var value = service.call(name, params.path("arguments"));
       var response = json.createObjectNode();
-      response.putArray("content").addObject().put("type", "text").put("text", json.writeValueAsString(value));
+      response
+          .putArray("content")
+          .addObject()
+          .put("type", "text")
+          .put("text", json.writeValueAsString(value));
       response.set("structuredContent", json.valueToTree(value));
       response.put("isError", false);
       return result(id, response);
-    } catch (WorkspaceException | IllegalArgumentException | java.time.DateTimeException exception) {
+    } catch (WorkspaceException
+        | IllegalArgumentException
+        | java.time.DateTimeException exception) {
       return toolError(id, exception.getMessage());
     } catch (Exception exception) {
       return toolError(id, "도구를 실행하지 못했습니다. 입력값과 대시보드 상태를 확인해 주세요.");
@@ -110,7 +117,8 @@ public class McpController {
     if (origin == null || origin.isBlank()) return true;
     try {
       URI value = URI.create(origin);
-      int originPort = value.getPort() < 0 ? (value.getScheme().equals("https") ? 443 : 80) : value.getPort();
+      int originPort =
+          value.getPort() < 0 ? (value.getScheme().equals("https") ? 443 : 80) : value.getPort();
       int requestPort = request.getServerPort();
       return value.getScheme().equalsIgnoreCase(request.getScheme())
           && value.getHost().equalsIgnoreCase(request.getServerName())

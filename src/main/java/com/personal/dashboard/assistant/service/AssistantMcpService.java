@@ -15,13 +15,27 @@ import java.time.LocalDateTime;
 import java.util.*;
 import org.springframework.stereotype.Service;
 
-/** Exposes a narrow, validated subset of dashboard use cases through Model Context Protocol tools. */
+/**
+ * Exposes a narrow, validated subset of dashboard use cases through Model Context Protocol tools.
+ */
 @Service
 public class AssistantMcpService {
   private static final Set<String> ROUTES =
       Set.of(
-          "home", "calendar", "timetable", "notes", "cloud", "files", "devices", "apps",
-          "logs", "terminal", "remote", "studio", "recent", "clipboard");
+          "home",
+          "calendar",
+          "timetable",
+          "notes",
+          "cloud",
+          "files",
+          "devices",
+          "apps",
+          "logs",
+          "terminal",
+          "remote",
+          "studio",
+          "recent",
+          "clipboard");
   private final PlannerService planner;
   private final CatalogService catalog;
   private final NoteService notes;
@@ -51,7 +65,11 @@ public class AssistantMcpService {
             "Open a dashboard page in the user's browser.",
             schema(List.of("route"), Map.of("route", enumeration(ROUTES))),
             false),
-        tool("list_apps", "List the user's registered external applications.", schema(List.of(), Map.of()), true),
+        tool(
+            "list_apps",
+            "List the user's registered external applications.",
+            schema(List.of(), Map.of()),
+            true),
         tool(
             "open_app",
             "Open a registered external application using the user's browser settings.",
@@ -64,7 +82,8 @@ public class AssistantMcpService {
             true),
         tool(
             "create_calendar_event",
-            "Create a calendar event. start and end are local ISO date-times; use midnight boundaries for all-day events.",
+            "Create a calendar event. start and end are local ISO date-times; use midnight"
+                + " boundaries for all-day events.",
             schema(
                 List.of("title", "start", "end"),
                 Map.of(
@@ -96,7 +115,8 @@ public class AssistantMcpService {
             "Create a notebook document with plain text content under the selected parent folder.",
             schema(
                 List.of("title", "text"),
-                Map.of("title", string(200), "text", string(100000), "parentId", nullableString(36))),
+                Map.of(
+                    "title", string(200), "text", string(100000), "parentId", nullableString(36))),
             false),
         tool(
             "append_note",
@@ -108,7 +128,8 @@ public class AssistantMcpService {
   }
 
   public Map<String, Object> call(String name, JsonNode args) {
-    if (args == null || !args.isObject()) throw new WorkspaceException(400, "MCP 도구 입력은 JSON 객체여야 합니다.");
+    if (args == null || !args.isObject())
+      throw new WorkspaceException(400, "MCP 도구 입력은 JSON 객체여야 합니다.");
     return switch (name) {
       case "open_page" -> openPage(args);
       case "list_apps" -> Map.of("applications", catalog.applications());
@@ -143,7 +164,17 @@ public class AssistantMcpService {
     String id = requiredText(args, "id", 36);
     var app = catalog.requireApplication(id);
     var event = events.openApplication(id);
-    return Map.of("id", app.id(), "name", app.name(), "url", app.url(), "opened", true, "sequence", event.sequence());
+    return Map.of(
+        "id",
+        app.id(),
+        "name",
+        app.name(),
+        "url",
+        app.url(),
+        "opened",
+        true,
+        "sequence",
+        event.sequence());
   }
 
   private Map<String, Object> createEvent(JsonNode args) {
@@ -194,7 +225,8 @@ public class AssistantMcpService {
     if (args.path("revision").asLong() != document.entry().revision())
       throw new WorkspaceException(409, "메모가 다른 곳에서 변경되었습니다. 최신 내용을 다시 읽어 주세요.");
     var combined = json.createArrayNode();
-    if (document.blocks().isArray()) document.blocks().forEach(block -> combined.add(block.deepCopy()));
+    if (document.blocks().isArray())
+      document.blocks().forEach(block -> combined.add(block.deepCopy()));
     combined.add(paragraph(requiredText(args, "text", 100000)));
     var saved = notes.save(id, new NoteDto.Content(combined, document.entry().revision()));
     return Map.of("entry", saved, "appended", true);
@@ -215,12 +247,16 @@ public class AssistantMcpService {
   private <T> void validate(T input) {
     var violations = validator.validate(input);
     if (!violations.isEmpty())
-      throw new WorkspaceException(400, "입력값을 확인해 주세요: " + violations.iterator().next().getPropertyPath());
+      throw new WorkspaceException(
+          400, "입력값을 확인해 주세요: " + violations.iterator().next().getPropertyPath());
   }
 
   private String requiredText(JsonNode args, String name, int limit) {
     JsonNode value = args.get(name);
-    if (value == null || !value.isTextual() || value.asText().isBlank() || value.asText().length() > limit)
+    if (value == null
+        || !value.isTextual()
+        || value.asText().isBlank()
+        || value.asText().length() > limit)
       throw new WorkspaceException(400, "입력값을 확인해 주세요: " + name);
     return value.asText();
   }
@@ -241,14 +277,26 @@ public class AssistantMcpService {
         "inputSchema", schema,
         "annotations",
             Map.of(
-                "title", name.replace('_', ' '),
-                "readOnlyHint", readOnly,
-                "destructiveHint", false,
-                "openWorldHint", false));
+                "title",
+                name.replace('_', ' '),
+                "readOnlyHint",
+                readOnly,
+                "destructiveHint",
+                false,
+                "openWorldHint",
+                false));
   }
 
   private Map<String, Object> schema(List<String> required, Map<String, Object> properties) {
-    return Map.of("type", "object", "properties", properties, "required", required, "additionalProperties", false);
+    return Map.of(
+        "type",
+        "object",
+        "properties",
+        properties,
+        "required",
+        required,
+        "additionalProperties",
+        false);
   }
 
   private Map<String, Object> string(int max) {

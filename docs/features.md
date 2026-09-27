@@ -72,3 +72,9 @@ Samba SMB3 공유를 기존 영구 클라우드 파일 디렉터리에 제공하
 
 ## 메모장
 앱 목록의 메모장에서 조직/프로젝트 폴더와 문서를 관리한다. Notion 방식 한국어 블록 편집기, 이미지, Markdown, 자동 저장과 충돌 보호를 제공한다. 빈 문서·할 일·업무 기록·가계부·프로젝트 개요·회의록·주간 회고·아이디어의 8개 템플릿을 제공한다. [사용법과 제한](notes.md).
+# Service Telemetry
+
+- Telemetry 앱은 외부 서비스 관리, 1회 표시 API Key, Integration 예제와 기간별 analytics를 제공한다.
+- Service API Key 수집은 OWNER dashboard session과 분리되어 있으며 services 관리와 analytics는 OWNER 전용이다.
+- Home grid에는 Telemetry 앱이 포함되고 Service Analytics widget은 위젯 추가 메뉴에서 선택할 수 있다.
+- 상세한 event, gauge, privacy, authentication, database and limit contracts: [Service Telemetry](telemetry.md).

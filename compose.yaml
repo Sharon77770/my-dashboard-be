@@ -60,10 +60,18 @@ services:
   nas-storage-init:
     build: ./docker/nas-storage-init
     restart: "no"
-    command: >-
-      if [ -L /app/data/cloud ] || [ -L /app/data/cloud/files ]; then echo 'NAS storage path cannot be a symbolic link' >&2; exit 1; fi;
-      if [ ! -d /app/data/cloud ]; then install -d -o 10001 -g 10001 /app/data/cloud; fi;
-      if [ ! -d /app/data/cloud/files ]; then install -d -o 10001 -g 10001 /app/data/cloud/files; fi
+    command:
+      - >-
+        if [ -L /app/data/cloud ] || [ -L /app/data/cloud/files ]; then
+          echo 'NAS storage path cannot be a symbolic link' >&2;
+          exit 1;
+        fi;
+        if [ ! -d /app/data/cloud ]; then
+          install -d -o 10001 -g 10001 /app/data/cloud;
+        fi;
+        if [ ! -d /app/data/cloud/files ]; then
+          install -d -o 10001 -g 10001 /app/data/cloud/files;
+        fi
     volumes:
       - dashboard-data:/app/data
     security_opt:

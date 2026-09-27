@@ -119,8 +119,7 @@ public class StudioAdapter {
   public void execute(
       DeviceRecord device, Request request, Execution execution, Consumer<Message> output) {
     if (device.id().equals("local") && request.action().startsWith("codex-"))
-      throw new WorkspaceException(
-          400, "프로젝트 Codex는 등록한 SSH 원격 장비에서 실행합니다.");
+      throw new WorkspaceException(400, "프로젝트 Codex는 등록한 SSH 원격 장비에서 실행합니다.");
     executeForDevice(device, request, execution, output);
   }
 
@@ -174,10 +173,7 @@ public class StudioAdapter {
       builder
           .environment()
           .keySet()
-          .removeIf(
-              key ->
-                  !Set.of("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR")
-                      .contains(key));
+          .removeIf(key -> !Set.of("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR").contains(key));
       builder.environment().put("DASHBOARD_MCP_TOKEN", mcpAccess.token());
       builder.environment().put("DASHBOARD_MCP_URL", mcpAccess.url());
       var process = builder.start();
