@@ -110,7 +110,7 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 
 ## 메모장
 - `notes/controller/NoteController.java`: 문서/폴더/이미지 HTTP 리소스.
-- `notes/service/NoteService.java`, `NoteContentValidator.java`: OWNER, 계층/버전/콘텐츠/첨부 검증.
+- `notes/service/NoteService.java`, `NoteContentValidator.java`, `NoteMarkdownConverter.java`: OWNER, 계층/버전/콘텐츠/첨부 검증과 MCP Markdown 블록 변환.
 - `notes/repository/NoteRepository.java`, `notes/entity/NoteRecord.java`: SQLite 저장과 내부 record.
 - `notes/domain/NoteKind.java`, `notes/dto/NoteDto.java`: 종류 enum과 HTTP 계약.
 - `db/migrations/V4__notes.sql`: 비파괴 테이블/인덱스 추가.

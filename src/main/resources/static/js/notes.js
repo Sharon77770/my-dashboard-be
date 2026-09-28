@@ -52,7 +52,7 @@ window.WorkspaceNotes=(()=>{
    await save();const entry=entries.find(item=>item.id===id);if(!entry)return;
    if(entry.kind==='FOLDER'){destroyEditor();folder=id;expanded.add(id);showFolder();return;}
    const document=await ui.api('/notes/'+id);
-   destroyEditor();current=document.entry;folder=current.parentId;
+   destroyEditor();current=document.entry;entries=entries.map(item=>item.id===current.id?current:item);folder=current.parentId;
    let ancestor=folder;while(ancestor){expanded.add(ancestor);ancestor=entries.find(item=>item.id===ancestor)?.parentId;}
    $('[data-notes-path]').textContent=pathOf(current);$('[data-notes-document-actions]').hidden=false;
    $('[data-notes-page]').innerHTML=`<div class="notes-document"><span class="notes-page-icon">${esc(current.icon||'📄')}</span><input class="notes-title" data-notes-title aria-label="문서 제목" maxlength="200" placeholder="제목 없음"><p class="notes-editor-hint">/ 로 블록 추가 · 블록 옆 핸들로 이동 · 텍스트를 선택해 서식 변경</p><div data-notes-editor></div></div>`;

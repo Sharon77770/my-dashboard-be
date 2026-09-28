@@ -11,7 +11,7 @@ const {audio,video,file,...blockSpecs}=defaultBlockSpecs;
 const schema=BlockNoteSchema.create({blockSpecs});
 function create(blocks,upload){
  return BlockNoteEditor.create({schema,dictionary:ko,initialContent:blocks.length?blocks:undefined,
-  uploadFile:upload,resolveFileUrl:url=>url,
+  uploadFile:upload,resolveFileUrl:async url=>url,
  });
 }
 window.NotesBlockEditor={

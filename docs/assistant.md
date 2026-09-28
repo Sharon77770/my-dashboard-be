@@ -20,7 +20,7 @@
 | `list_apps`, `open_app` | 등록 앱 조회 및 기존 브라우저 설정으로 앱 열기 |
 | `list_calendar_events`, `create_calendar_event` | 일정 조회 및 생성 |
 | `list_notes`, `read_note` | 노트 목록 및 문서 읽기 |
-| `create_note_folder`, `create_note`, `append_note` | 폴더·문서 생성 및 문서에 이어 쓰기 |
+| `create_note_folder`, `create_note`, `append_note` | 폴더·문서 생성 및 Markdown 본문을 편집 가능한 블록으로 이어 쓰기 |
 
 일정이나 노트처럼 대시보드 데이터를 변경하는 도구가 확인을 요청하면 대화 안에서 내용을 확인하고 계속 진행할 수 있다. 도구에는 삭제, IDE 파일 편집, 임의 명령 실행 기능을 제공하지 않는다. 페이지 이동 요청은 서버 이벤트로 기록하고 브라우저가 polling하여 기존 화면 전환 함수를 호출한다.
 

@@ -198,6 +198,8 @@ SQLite 테이블/마이그레이션 추가 없음. cloud 모듈 소유 CLOUD_ROO
 | created_at | INTEGER | 예 | 없음 | 없음 | 서버 생성 epoch ms |
 | updated_at | INTEGER | 예 | 없음 | 없음 | 마지막 메타데이터/본문 저장 epoch ms |
 
+이전 MCP 도구가 남긴 Markdown 원문 문단은 문서 조회 시 형태와 서식을 확인한 뒤 `content`에 조건부 저장한다. 성공하면 `revision`과 `updated_at`이 증가한다. 테이블·인덱스 변경은 없다.
+
 ## note_images (owner: notes)
 
 문서별 첨부 이미지. soft delete 없음. 문서 1:N 이미지, document_id FK → note_entries.id ON DELETE CASCADE. DOCUMENT만 서비스에서 허용한다. 이미지 블록 제거/업로드 후 취소 시 파일은 남고 문서 삭제 시 함께 제거된다.

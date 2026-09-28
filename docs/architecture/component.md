@@ -42,4 +42,4 @@ CloudStorage는 파일 경로·특수 파일 방어와 IO를 전담한다. Cloud
 
 DesktopSetupService는 기존 CatalogService 프로필과 RemoteAdapter 연결 검증을 조합한다. DesktopSetupAdapter의 내부 Managed 모델은 암호화된 비밀번호와 장비 식별 해시를 보존하며 HTTP DTO와 분리한다. [경계](../remote-desktop.md).
 
-메모장은 NoteController → NoteService → NoteRepository 경계를 따른다. NoteRecord는 저장용이며 HTTP에는 NoteDto.Entry/Document만 반환한다. NoteContentValidator는 블록/링크/크기 검증을 맡는다. notes.js는 폴더 탐색·폼·저장 버전·오류를 관리하고 BlockNote 브리지는 편집·Markdown 변환·이미지 업로드 콜백만 맡는다. 템플릿은 notes-templates.js의 독립 블록 복사본이다.
+메모장은 NoteController → NoteService → NoteRepository 경계를 따른다. NoteRecord는 저장용이며 HTTP에는 NoteDto.Entry/Document만 반환한다. NoteContentValidator는 블록/링크/크기 검증을 맡는다. NoteMarkdownConverter는 MCP 입력과 이전 MCP 문단의 Markdown을 편집 가능한 블록으로 변환하며, NoteService가 조회 시 조건부 저장한다. notes.js는 폴더 탐색·폼·저장 버전·오류를 관리하고 BlockNote 브리지는 편집·브라우저 Markdown 변환·이미지 업로드 콜백만 맡는다. 템플릿은 notes-templates.js의 독립 블록 복사본이다.

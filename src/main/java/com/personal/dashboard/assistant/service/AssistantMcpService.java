@@ -6,6 +6,7 @@ import com.personal.dashboard.catalog.service.CatalogService;
 import com.personal.dashboard.global.WorkspaceException;
 import com.personal.dashboard.notes.domain.NoteKind;
 import com.personal.dashboard.notes.dto.NoteDto;
+import com.personal.dashboard.notes.service.NoteMarkdownConverter;
 import com.personal.dashboard.notes.service.NoteService;
 import com.personal.dashboard.planner.dto.PlannerDto.EventRequest;
 import com.personal.dashboard.planner.service.PlannerService;
@@ -39,6 +40,7 @@ public class AssistantMcpService {
   private final PlannerService planner;
   private final CatalogService catalog;
   private final NoteService notes;
+  private final NoteMarkdownConverter markdown;
   private final AssistantEvents events;
   private final Validator validator;
   private final ObjectMapper json;
@@ -47,12 +49,14 @@ public class AssistantMcpService {
       PlannerService planner,
       CatalogService catalog,
       NoteService notes,
+      NoteMarkdownConverter markdown,
       AssistantEvents events,
       Validator validator,
       ObjectMapper json) {
     this.planner = planner;
     this.catalog = catalog;
     this.notes = notes;
+    this.markdown = markdown;
     this.events = events;
     this.validator = validator;
     this.json = json;
@@ -116,7 +120,7 @@ public class AssistantMcpService {
             false),
         tool(
             "create_note",
-            "Create a notebook document with plain text content under the selected parent folder.",
+            "Create a notebook document from Markdown under the selected parent folder.",
             schema(
                 List.of("title", "text"),
                 Map.of(
@@ -124,7 +128,7 @@ public class AssistantMcpService {
             false),
         tool(
             "append_note",
-            "Append plain text to an existing notebook document using its current revision.",
+            "Append Markdown blocks to an existing notebook document using its current revision.",
             schema(
                 List.of("id", "text"),
                 Map.of("id", string(36), "text", string(100000), "revision", integer())),
@@ -215,7 +219,7 @@ public class AssistantMcpService {
             optionalText(args, "parentId", 36),
             requiredText(args, "title", 200),
             "📝",
-            blocks(requiredText(args, "text", 100000)));
+            markdown.blocks(requiredText(args, "text", 100000)));
     validate(input);
     var created = notes.create(input);
     return Map.of("entry", created.entry(), "blocks", created.blocks());
@@ -231,21 +235,11 @@ public class AssistantMcpService {
     var combined = json.createArrayNode();
     if (document.blocks().isArray())
       document.blocks().forEach(block -> combined.add(block.deepCopy()));
-    combined.add(paragraph(requiredText(args, "text", 100000)));
+    markdown
+        .blocks(requiredText(args, "text", 100000))
+        .forEach(block -> combined.add(block.deepCopy()));
     var saved = notes.save(id, new NoteDto.Content(combined, document.entry().revision()));
     return Map.of("entry", saved, "appended", true);
-  }
-
-  private JsonNode blocks(String text) {
-    var blocks = json.createArrayNode();
-    blocks.add(paragraph(text));
-    return blocks;
-  }
-
-  private JsonNode paragraph(String text) {
-    var paragraph = json.createObjectNode().put("type", "paragraph");
-    paragraph.putArray("content").addObject().put("type", "text").put("text", text);
-    return paragraph;
   }
 
   private <T> void validate(T input) {

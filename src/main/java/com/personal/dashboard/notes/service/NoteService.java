@@ -19,11 +19,17 @@ import org.springframework.web.multipart.MultipartFile;
 public class NoteService {
   private final NoteRepository repository;
   private final NoteContentValidator validator;
+  private final NoteMarkdownConverter markdown;
   private final ObjectMapper json;
 
-  public NoteService(NoteRepository repository, NoteContentValidator validator, ObjectMapper json) {
+  public NoteService(
+      NoteRepository repository,
+      NoteContentValidator validator,
+      NoteMarkdownConverter markdown,
+      ObjectMapper json) {
     this.repository = repository;
     this.validator = validator;
+    this.markdown = markdown;
     this.json = json;
   }
 
@@ -34,7 +40,24 @@ public class NoteService {
   public Document document(String id) {
     NoteRecord note = require(id);
     try {
-      return new Document(view(note), json.readTree(note.content()));
+      var blocks = json.readTree(note.content());
+      if (note.kind() == NoteKind.DOCUMENT) {
+        var migrated = markdown.migrateLegacyBlocks(blocks);
+        if (migrated.isPresent()) {
+          String content;
+          try {
+            content = validator.validate(id, migrated.get());
+          } catch (WorkspaceException invalidLegacyContent) {
+            // Unsupported old Markdown remains editable as its original text.
+            return new Document(view(note), blocks);
+          }
+          // A concurrent edit wins. Never overwrite it with a migration based on a stale revision.
+          repository.content(id, content, note.revision(), System.currentTimeMillis());
+          note = require(id);
+          blocks = json.readTree(note.content());
+        }
+      }
+      return new Document(view(note), blocks);
     } catch (IOException error) {
       throw new WorkspaceException(500, "문서를 읽지 못했습니다.");
     }

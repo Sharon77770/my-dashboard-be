@@ -6,6 +6,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.*;
+import com.personal.dashboard.assistant.service.AssistantMcpService;
+import com.personal.dashboard.notes.domain.NoteKind;
+import com.personal.dashboard.notes.entity.NoteRecord;
+import com.personal.dashboard.notes.repository.NoteRepository;
 import java.util.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +17,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.*;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /** Exercises notebook hierarchy, revision protection, private images and content validation. */
@@ -28,6 +33,115 @@ import org.springframework.test.web.servlet.MockMvc;
 class NotesIntegrationTest {
   @Autowired MockMvc mvc;
   @Autowired ObjectMapper json;
+  @Autowired AssistantMcpService mcp;
+  @Autowired NoteRepository noteRepository;
+
+  @Test
+  void legacyMcpMarkdownMigratesOnceWhenDocumentIsRead() throws Exception {
+    String id = UUID.randomUUID().toString();
+    var oldBlocks =
+        List.of(
+            Map.of(
+                "type",
+                "paragraph",
+                "content",
+                List.of(Map.of("type", "text", "text", "# 기록\n\n- 항목"))),
+            Map.of(
+                "type", "paragraph", "content", List.of(Map.of("type", "text", "text", "일반 문장"))),
+            Map.of(
+                "type", "paragraph", "content", List.of(Map.of("type", "text", "text", "**강조**"))),
+            Map.of(
+                "type",
+                "paragraph",
+                "content",
+                List.of(Map.of("type", "text", "text", "# 사용자가 쓴 원문", "styles", Map.of()))));
+    noteRepository.insert(
+        new NoteRecord(
+            id,
+            null,
+            NoteKind.DOCUMENT,
+            "옛 MCP 메모",
+            "📝",
+            json.writeValueAsString(oldBlocks),
+            0,
+            1,
+            1));
+
+    JsonNode first = request("GET", "/" + id, null, 200);
+    assertThat(first.path("entry").path("revision").asLong()).isEqualTo(1);
+    assertThat(first.path("blocks").get(0).path("type").asText()).isEqualTo("heading");
+    assertThat(first.path("blocks").get(1).path("type").asText()).isEqualTo("bulletListItem");
+    assertThat(first.path("blocks").get(2).path("content").get(0).path("text").asText())
+        .isEqualTo("일반 문장");
+    assertThat(
+            first
+                .path("blocks")
+                .get(3)
+                .path("content")
+                .get(0)
+                .path("styles")
+                .path("bold")
+                .asBoolean())
+        .isTrue();
+    assertThat(first.path("blocks").get(4).path("content").get(0).path("text").asText())
+        .isEqualTo("# 사용자가 쓴 원문");
+    assertThat(request("GET", "/" + id, null, 200).path("entry").path("revision").asLong())
+        .isEqualTo(1);
+    request("PUT", "/" + id + "/content", Map.of("blocks", List.of(), "revision", 0), 409);
+  }
+
+  @Test
+  void invalidLegacyMarkdownStaysReadable() throws Exception {
+    String id = UUID.randomUUID().toString();
+    var oldBlocks =
+        List.of(
+            Map.of(
+                "type",
+                "paragraph",
+                "content",
+                List.of(Map.of("type", "text", "text", "# 제목\n\n[bad](javascript:alert(1))"))));
+    noteRepository.insert(
+        new NoteRecord(
+            id,
+            null,
+            NoteKind.DOCUMENT,
+            "검증 불가",
+            "📝",
+            json.writeValueAsString(oldBlocks),
+            0,
+            1,
+            1));
+
+    JsonNode document = request("GET", "/" + id, null, 200);
+    assertThat(document.path("entry").path("revision").asLong()).isZero();
+    assertThat(document.path("blocks").get(0).path("content").get(0).path("text").asText())
+        .contains("javascript:");
+  }
+
+  @Test
+  @WithMockUser(username = "notes-test", roles = "OWNER")
+  void mcpMarkdownIsStoredAsEditableBlocks() {
+    var created =
+        mcp.call(
+            "create_note",
+            json.valueToTree(Map.of("title", "MCP Markdown", "text", "# 제목\n\n**굵게** 쓰기\n\n- 항목")));
+    var entry = json.valueToTree(created.get("entry"));
+    String id = entry.path("id").asText();
+    var saved =
+        json.valueToTree(mcp.call("read_note", json.valueToTree(Map.of("id", id))).get("blocks"));
+    assertThat(saved.get(0).path("type").asText()).isEqualTo("heading");
+    assertThat(saved.get(1).path("content").toString()).contains("\"bold\":true");
+    assertThat(saved.get(2).path("type").asText()).isEqualTo("bulletListItem");
+
+    mcp.call(
+        "append_note",
+        json.valueToTree(
+            Map.of("id", id, "revision", entry.path("revision").asLong(), "text", "## 이어 쓰기")));
+    var appended =
+        json.valueToTree(mcp.call("read_note", json.valueToTree(Map.of("id", id))).get("blocks"));
+    assertThat(appended.get(3).path("type").asText()).isEqualTo("heading");
+    assertThat(appended.get(3).path("props").path("level").asInt()).isEqualTo(2);
+  }
 
   private JsonNode request(String method, String path, Object body, int status) throws Exception {
     var request =

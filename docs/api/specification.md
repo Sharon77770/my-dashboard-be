@@ -400,6 +400,8 @@ Block 배열은 BlockNote 0.54.2의 JSON 문서다. 전체 UTF-8 직렬화 2 MiB
 
 명시적 revision 비교와 조건부 UPDATE/DELETE로 오래된 쓰기를 거부한다. 자동 덮어쓰기·서버 측 재시도는 없다. API에 사용자별 ownerId를 받지 않으며 기존 단일 OWNER 계정의 비공개 저장소다.
 
+GET `/api/v1/notes/{id}`가 이전 MCP 문단 형태의 Markdown을 처음 읽으면, 검증된 블록 변환을 조건부 저장하고 증가된 revision을 반환할 수 있다. 일반 문장·이미 편집된 블록·검증 불가 원문은 유지한다. 다른 쓰기가 먼저 반영되면 그 최신 문서를 반환한다.
+
 ## 서버 Codex assistant와 MCP
 
 서버 assistant job은 기존 Studio job 수명·이벤트·취소 DTO와 Codex 권한을 사용하며 별도 경로에서 OWNER 로그인 세션 소유권과 변경 요청 CSRF를 검사한다. 앱 assistant UI는 IDE Codex 화면과 분리되어 대시보드 기능에 맞는 요청만 표시한다.
@@ -427,9 +429,9 @@ MCP tool 목록과 입력 계약:
 | `list_calendar_events` | `from`, `to`: ISO date; `to`는 배타 | 1~366일의 일정 목록 |
 | `create_calendar_event` | `title` ≤120, `start`, `end`: local ISO date-time | `allDay` boolean=false, `location` ≤200, `notes` ≤4000, `color` `#RRGGBB` 기본 `#6b8afd`; 기존 일정 검증 적용 |
 | `list_notes` | 없음 | 메모 Entry 목록, 본문 제외 |
-| `read_note` | `id`: string ≤36 | Entry와 검증된 블록 본문 |
+| `read_note` | `id`: string ≤36 | Entry와 검증된 블록 본문; 이전 MCP Markdown의 첫 조회 변환 시 revision 증가 가능 |
 | `create_note_folder` | `title` ≤200 | `parentId`: null 또는 string ≤36; 빈 폴더 생성 |
-| `create_note` | `title` ≤200, `text` ≤100000 | `parentId`: null 또는 string ≤36; 한 paragraph text block으로 생성 |
-| `append_note` | `id` ≤36, `text` ≤100000, `revision`: 0 이상 정수 | 현재 revision과 일치할 때 paragraph block 추가, 불일치 409 |
+| `create_note` | `title` ≤200, `text` ≤100000 | `parentId`: null 또는 string ≤36; Markdown을 편집 가능한 메모 블록으로 변환해 생성 |
+| `append_note` | `id` ≤36, `text` ≤100000, `revision`: 0 이상 정수 | 현재 revision과 일치할 때 Markdown 블록을 이어 붙임, 불일치 409 |
 
 Tool 오류는 MCP `CallToolResult.isError=true` 및 text content로 반환한다. 도구는 WorkspaceException의 검증 오류를 안전하게 전달하고 예상하지 못한 예외 세부 내용은 숨긴다. `open_page` navigation 이벤트는 owner 세션 browser만 GET으로 polling한다. MCP tool 자체는 삭제·임의 파일·셸 작업을 제공하지 않는다.

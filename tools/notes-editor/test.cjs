@@ -24,6 +24,16 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,80));
  }
  const first=w.WorkspaceNoteTemplates.create('todo');first.blocks[0].content[0].text='modified';assert.notEqual(w.WorkspaceNoteTemplates.create('todo').blocks[0].content[0].text,'modified');
  assert.equal(w.WorkspaceNoteTemplates.create('blank').blocks.length,0);
- console.log('PASS real BlockNote: eight templates, editable rendering, table, Markdown import/export, change events, safe text, disposal');
+ const mcpBlocks=[
+  {type:'heading',props:{level:1},content:[{type:'text',text:'MCP 제목',styles:{}}]},
+  {type:'paragraph',content:[{type:'text',text:'굵게',styles:{bold:true}},{type:'text',text:' 쓰기',styles:{}}]},
+  {type:'checkListItem',props:{checked:true},content:[{type:'text',text:'완료',styles:{}}]},
+  {type:'codeBlock',props:{language:'java'},content:[{type:'text',text:'int x = 1;',styles:{}}]},
+  {type:'table',content:{type:'tableContent',rows:[{cells:[[{type:'text',text:'항목',styles:{}}]]}]}},
+  {type:'image',props:{url:'https://example.com/image.png',name:'',caption:'화면'}},
+ ];
+ const fromMcp=w.NotesBlockEditor.mount(w.document.querySelector('#editor'),{blocks:mcpBlocks,onChange:()=>{},upload:async()=>'',onError:error=>{throw error;}});
+ await tick();assert.equal(fromMcp.blocks()[0].type,'heading');assert.ok(w.document.querySelector('#editor h1'));assert.ok(w.document.querySelector('#editor strong'));fromMcp.destroy();await tick();
+ console.log('PASS real BlockNote: templates, MCP blocks, editable rendering, table, Markdown import/export, change events, safe text, disposal');
  dom.window.close();
 })().catch(error=>{console.error(error.stack?.slice(0,2500)||error);dom.window.close();process.exitCode=1;});

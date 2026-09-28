@@ -41,11 +41,15 @@
 
 Markdown 가져오기는 현재 본문 교체를 확인한 뒤 실행한다. Markdown은 색상·복잡한 표·접기 상태 등 모든 블록 속성을 보존하는 백업 형식이 아니다. 내보낸 첨부 URL은 로그인된 원래 대시보드에서만 접근할 수 있으며 이미지 바이너리를 `.md`에 포함하지 않는다.
 
+MCP의 `create_note`와 `append_note`에 전달한 `text`는 Markdown으로 해석해 메모 블록으로 저장한다. 제목·문단·목록·체크리스트·인용·코드·구분선·표·HTTPS 이미지와 굵게·기울임·취소선·링크를 편집 가능한 형태로 변환한다. 일반 텍스트는 문단으로 저장하며 HTML 태그는 실행하지 않고 텍스트로 취급한다.
+
+이전 MCP 도구가 Markdown 원문을 일반 문단으로 저장한 문서는 처음 열거나 MCP로 읽을 때 필요한 블록만 자동 변환한다. 이전 도구가 만든 정확한 문단 JSON 형태와 실제 Markdown 서식이 모두 확인된 부분만 대상이며, 일반 문장과 이미 편집된 블록은 보존한다. 성공한 변환은 revision을 한 번 증가시키며 조건부 저장으로 동시에 수정한 내용을 덮어쓰지 않는다. 검증에 실패한 원문은 그대로 열 수 있다. 별도 DB schema 변경은 없다.
+
 ## 구현과 검증
 
 `notes/controller → notes/service → notes/repository → SQLite` 구조다. `NoteContentValidator`가 문서 크기·블록 종류·URL을 검증한다. 폴더 관계·순환 이동·revision·이미지 형식은 `NoteService`가 검증한다. 프런트 `notes.js`는 탐색/폼/저장 흐름, `notes-templates.js`는 초기 블록, `tools/notes-editor/editor.jsx`는 BlockNote 브리지를 담당한다.
 
-- `NotesIntegrationTest`: 계층·권한·CSRF·충돌·첨부 검증.
+- `NotesIntegrationTest`: 계층·권한·CSRF·충돌·첨부·이전 MCP Markdown의 조회 시 변환 검증.
 - `node tools/launcher/notes-test.cjs`: UI 폴더 탐색·템플릿·비동기 저장 보호.
 - `cd tools/notes-editor && npm ci --ignore-scripts && npm run build && npm test`: 실제 BlockNote 렌더링·템플릿·Markdown 테스트.
 - 기존 launcher/theme/responsive 검사 및 Maven `verify`.
