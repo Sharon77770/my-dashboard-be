@@ -52,6 +52,8 @@ Docker에 공식 Tailscale을 기본 포함한다. 최초 로그인 후 Tailscal
 
 ## Launcher 구조
 
+GitHub 내장 앱은 서버 계정의 `gh` 기기 코드 로그인, 내 저장소와 열린 PR·이슈 목록을 제공한다. 같은 읽기 기능은 대시보드 도우미 MCP 도구에서도 사용할 수 있다. [GitHub 사용 안내](github.md).
+
 [Launcher 계약](launcher.md)에 따라 앱/폴더/위젯/페이지/Dock/App Drawer를 제공한다. 이전 홈의 최근 작업과 클립보드는 앱으로 이동했으며 장비 상태는 위젯과 장비 앱에서 제공한다. Home 배치는 계정별 브라우저 저장이고 업무 데이터의 SQLite 저장은 그대로다.
 
 장비 등록·수정 및 SSH 명령어 연결에서 기본 네트워크/Tailscale을 선택할 수 있다. 선택은 장비에 저장되고 SSH·SFTP·터미널·IDE·계측·Docker/GPU·RDP/VNC·원격 브라우저 서버 접속에 공통 적용된다. [사용법](tailscale.md).

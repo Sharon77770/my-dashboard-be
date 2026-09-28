@@ -402,6 +402,19 @@ Block 배열은 BlockNote 0.54.2의 JSON 문서다. 전체 UTF-8 직렬화 2 MiB
 
 GET `/api/v1/notes/{id}`가 이전 MCP 문단 형태의 Markdown을 처음 읽으면, 검증된 블록 변환을 조건부 저장하고 증가된 revision을 반환할 수 있다. 일반 문장·이미 편집된 블록·검증 불가 원문은 유지한다. 다른 쓰기가 먼저 반영되면 그 최신 문서를 반환한다.
 
+## GitHub 조회 API
+
+아래 네 경로는 모두 OWNER 세션이 필요하며 요청 body는 없다. 미인증 세션은 401, 권한이 없는 세션은 403이다. 서버의 `gh` 계정과 홈을 사용한다. 조회 실패 원문과 token은 응답에 포함하지 않는다.
+
+| Method / URL | Query | 200 response | 오류 |
+| --- | --- | --- | --- |
+| GET `/api/v1/github/status` | 없음 | `authenticated`: 필수 boolean; 서버 `gh` 인증 유효 여부 | CLI 실행 환경 오류 502/503, 시간 초과 504 |
+| GET `/api/v1/github/repositories` | 없음 | 배열 최대 50개: `nameWithOwner`, `description`(nullable), `url`, `isPrivate`, `updatedAt` | 미인증 409, CLI 오류 502/503, 시간 초과 504 |
+| GET `/api/v1/github/pull-requests` | `repository`: 필수 `owner/name` 문자열, 각 segment 최대 100자 | 배열 최대 50개: `number`, `title`, `state`, `url`, `updatedAt`, `isDraft` | 잘못된 값 400, 미인증 409, CLI 오류 502/503, 시간 초과 504 |
+| GET `/api/v1/github/issues` | `repository`: 필수 `owner/name` 문자열, 각 segment 최대 100자 | 배열 최대 50개: `number`, `title`, `state`, `url`, `updatedAt` | 잘못된 값 400, 미인증 409, CLI 오류 502/503, 시간 초과 504 |
+
+목록의 문자열·숫자·boolean 필드는 `gh --json`에서 제공하며 null 허용 표기 외 필드는 필수다. `description`만 null일 수 있다. 목록은 기본 열린 상태이고 다른 소유자의 저장소 목록은 포함하지 않는다. 로그인 시작·polling·취소는 기존 `/api/v1/studio/jobs` 계약의 `github-login` action과 `local` 장비를 사용한다.
+
 ## 서버 Codex assistant와 MCP
 
 서버 assistant job은 기존 Studio job 수명·이벤트·취소 DTO와 Codex 권한을 사용하며 별도 경로에서 OWNER 로그인 세션 소유권과 변경 요청 CSRF를 검사한다. 앱 assistant UI는 IDE Codex 화면과 분리되어 대시보드 기능에 맞는 요청만 표시한다.
@@ -416,6 +429,8 @@ GET `/api/v1/notes/{id}`가 이전 MCP 문단 형태의 Markdown을 처음 읽�
 | POST `/api/v1/mcp` | `Authorization: Bearer DASHBOARD_MCP_TOKEN`; CSRF 제외 | MCP JSON-RPC 2.0 body | JSON-RPC `initialize`, `ping`, `tools/list`, `tools/call`; 알림은 202 |
 
 `codex-rate-limits` action은 Codex App Server의 `account/rateLimits/read`를 호출한다. 성공 시 `JobView.result.assistant.rateLimits`는 기간별 항목 배열이며 각 항목은 `name`(문자열, 필수), `windowDurationMins`(정수 또는 null), `usedPercent`(숫자 또는 null), `resetsAt`(Unix 초 정수 또는 null)을 포함한다. 계정에 사용량 정보가 없으면 빈 배열이다. 조회 실패는 job FAILED로 반환하며 도우미 대화 요청에는 영향을 주지 않는다. 인증되지 않은 요청은 기존 OWNER 경계에서 거절한다.
+
+도우미는 동일한 job 경로에서 `codex-threads`(선택 `query`, `cursor`; 응답 `assistant.threads[]`, `nextCursor`), `codex-thread-read`(필수 `threadId`; 응답 `assistant.thread`), `codex-thread-rename`(필수 `threadId`, `name` ≤200), `codex-thread-archive`(필수 `threadId`), `codex-login`, `codex-logout`을 사용한다. 각 job은 세션 소유권·CSRF 검사를 그대로 적용하고 완료 전에는 RUNNING 상태를 반환한다. `codex-run`의 `args.context`는 최대 16개이고 새 `upload` 항목은 `kind="upload"`, `name`(허용 텍스트 확장자, ≤200자), `content`(비어 있지 않은 UTF-8 텍스트, ≤64,000자)를 받는다. Python helper는 이름·크기·본문 합계 128,000자를 다시 검증한다. `image` 항목은 PNG/JPEG/WebP data URL ≤3,000,000자다. 전체 context 입력 크기는 4 MB 이하이며 초과 시 413, 형식 오류는 FAILED job의 400/413으로 전달한다. 파일 본문과 data URL은 응답·DB·브라우저 저장소에 보관하지 않는다.
 
 `DASHBOARD_MCP_TOKEN`은 환경변수로 제공할 때 32자 이상이어야 한다. 비어 있으면 부팅마다 난수 256-bit 값이 만들어져 server Codex child process에만 전달되며 외부 client에서는 사용할 수 없다. 외부 client는 설정한 값을 사용하고 HTTPS reverse proxy 또는 VPN을 거쳐 연결한다. authorization 누락/불일치는 401, Origin이 Host와 다른 요청은 403, Accept에 JSON이 없으면 406, JSON-RPC 입력 오류는 400이다. 응답은 `application/json`, protocolVersion은 요청이 지원되는 경우 `2025-03-26`, `2025-06-18`, `2025-11-25` 중 요청값을 반환하고 그 외에는 `2025-03-26`을 반환한다. 고정 세션 ID를 만들지 않는 stateless HTTP transport다.
 
@@ -433,5 +448,9 @@ MCP tool 목록과 입력 계약:
 | `create_note_folder` | `title` ≤200 | `parentId`: null 또는 string ≤36; 빈 폴더 생성 |
 | `create_note` | `title` ≤200, `text` ≤100000 | `parentId`: null 또는 string ≤36; Markdown을 편집 가능한 메모 블록으로 변환해 생성 |
 | `append_note` | `id` ≤36, `text` ≤100000, `revision`: 0 이상 정수 | 현재 revision과 일치할 때 Markdown 블록을 이어 붙임, 불일치 409 |
+| `github_status` | 없음 | `{authenticated: boolean}` |
+| `list_github_repositories` | 없음 | `{repositories: array}`; 최대 50개 |
+| `list_github_pull_requests` | `repository`: owner/name 문자열 ≤201 | `{pullRequests: array}`; 최대 50개 열린 PR |
+| `list_github_issues` | `repository`: owner/name 문자열 ≤201 | `{issues: array}`; 최대 50개 열린 이슈 |
 
 Tool 오류는 MCP `CallToolResult.isError=true` 및 text content로 반환한다. 도구는 WorkspaceException의 검증 오류를 안전하게 전달하고 예상하지 못한 예외 세부 내용은 숨긴다. `open_page` navigation 이벤트는 owner 세션 browser만 GET으로 polling한다. MCP tool 자체는 삭제·임의 파일·셸 작업을 제공하지 않는다.

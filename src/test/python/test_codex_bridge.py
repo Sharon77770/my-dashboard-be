@@ -170,5 +170,17 @@ class CodexBridgeTest(unittest.TestCase):
         with self.assertRaises(remote.Failure):
             remote.codex_input(self.root, dict(prompt='test', context=[dict(kind='image', dataUrl='https://remote/image.png')]))
 
+    def test_uploaded_text_context_is_validated_without_server_file_access(self):
+        inputs = remote.codex_input(self.root, dict(prompt='summarize', context=[
+            dict(kind='upload', name='meeting.md', content='Agenda and decisions')]))
+        self.assertIn('Attached text file: meeting.md', inputs[1]['text'])
+        self.assertIn('Agenda and decisions', inputs[1]['text'])
+        with self.assertRaises(remote.Failure):
+            remote.codex_input(self.root, dict(prompt='test', context=[
+                dict(kind='upload', name='../secret.md', content='ignored')]))
+        with self.assertRaises(remote.Failure):
+            remote.codex_input(self.root, dict(prompt='test', context=[
+                dict(kind='upload', name='large.txt', content='a' * 64001)]))
+
 
 if __name__ == '__main__': unittest.main()

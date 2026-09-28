@@ -3,6 +3,7 @@ package com.personal.dashboard.assistant.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.personal.dashboard.catalog.service.CatalogService;
+import com.personal.dashboard.github.service.GithubService;
 import com.personal.dashboard.global.WorkspaceException;
 import com.personal.dashboard.notes.domain.NoteKind;
 import com.personal.dashboard.notes.dto.NoteDto;
@@ -35,6 +36,7 @@ public class AssistantMcpService {
           "terminal",
           "remote",
           "studio",
+          "github",
           "recent",
           "clipboard");
   private final PlannerService planner;
@@ -44,6 +46,7 @@ public class AssistantMcpService {
   private final AssistantEvents events;
   private final Validator validator;
   private final ObjectMapper json;
+  private final GithubService github;
 
   public AssistantMcpService(
       PlannerService planner,
@@ -52,7 +55,8 @@ public class AssistantMcpService {
       NoteMarkdownConverter markdown,
       AssistantEvents events,
       Validator validator,
-      ObjectMapper json) {
+      ObjectMapper json,
+      GithubService github) {
     this.planner = planner;
     this.catalog = catalog;
     this.notes = notes;
@@ -60,10 +64,31 @@ public class AssistantMcpService {
     this.events = events;
     this.validator = validator;
     this.json = json;
+    this.github = github;
   }
 
   public List<Map<String, Object>> tools() {
     return List.of(
+        tool(
+            "github_status",
+            "Check whether the dashboard server gh CLI is authenticated.",
+            schema(List.of(), Map.of()),
+            true),
+        tool(
+            "list_github_repositories",
+            "List up to 50 repositories owned by the authenticated GitHub user.",
+            schema(List.of(), Map.of()),
+            true),
+        tool(
+            "list_github_pull_requests",
+            "List up to 50 open pull requests in a GitHub repository.",
+            schema(List.of("repository"), Map.of("repository", string(201))),
+            true),
+        tool(
+            "list_github_issues",
+            "List up to 50 open issues in a GitHub repository.",
+            schema(List.of("repository"), Map.of("repository", string(201))),
+            true),
         tool(
             "open_page",
             "Open a dashboard page in the user's browser.",
@@ -140,6 +165,12 @@ public class AssistantMcpService {
       throw new WorkspaceException(400, "MCP 도구 입력은 JSON 객체여야 합니다.");
     return switch (name) {
       case "open_page" -> openPage(args);
+      case "github_status" -> Map.of("authenticated", github.status().authenticated());
+      case "list_github_repositories" -> Map.of("repositories", github.repositories());
+      case "list_github_pull_requests" ->
+          Map.of("pullRequests", github.pullRequests(requiredText(args, "repository", 201)));
+      case "list_github_issues" ->
+          Map.of("issues", github.issues(requiredText(args, "repository", 201)));
       case "list_apps" -> Map.of("applications", catalog.applications());
       case "open_app" -> openApplication(args);
       case "list_calendar_events" ->

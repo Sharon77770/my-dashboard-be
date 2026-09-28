@@ -5,8 +5,8 @@
 | 서비스 | 현재 실행/인증 방법 | 인증 상태 저장 |
 | --- | --- | --- |
 | Tailscale | 웹 Tailscale 설정에서 로그인 시작 → 발급 URL을 사용자 브라우저에서 직접 승인 → 연결 상태 자동 반영 | `tailscale-state` 볼륨, Java 앱에 키 전달 안 함 |
-| GitHub / Git | 코드 에디터의 GitHub 로그인 → 원격 gh 기기 코드 인증 → Git credential helper 연결. 다른 호스팅은 원격 Git 인증 설정 재사용 | 선택한 서버 계정(로컬/SSH)의 GitHub CLI/credential helper 저장소 |
-| Codex | 코드 에디터의 기기 코드 로그인 → 원격 `codex login --device-auth`. 원격 CLI 환경변수/API 키 방식도 사용 가능 | 선택한 서버 계정(로컬/SSH)의 Codex 인증 저장소. Java/SQLite에 복사하지 않음 |
+| GitHub / Git | GitHub 앱의 로그인 → 대시보드 서버 `gh` 기기 코드 인증. 코드 에디터의 로그인은 선택한 로컬/SSH 장비에서 별도로 동작한다. 다른 호스팅은 원격 Git 인증 설정 재사용 | 각 실행 계정의 GitHub CLI/credential helper 저장소. 대시보드 DB에 토큰을 복사하지 않음 |
+| Codex | 코드 에디터 또는 대시보드 도우미 설정의 기기 코드 로그인 → 해당 실행 계정의 `codex login --device-auth`. 도우미 설정의 로그아웃은 서버 `codex logout` 실행. 원격 CLI 환경변수/API 키 방식도 사용 가능 | 선택한 서버 계정(로컬/SSH)의 Codex 인증 저장소. Java/SQLite에 복사하지 않음 |
 
 
 Tailscale 신규 인증은 사용자가 로그인 시작을 누른 경우에만 URL을 발급한다. 서버는 승인 대기와 상태 확인만 수행하며 계정 로그인은 사용자가 자신의 브라우저에서 완료한다. 시작 스크립트의 tailscale up 및 인증 키 주입을 제거했으며 저장된 인증 상태만 재사용한다.

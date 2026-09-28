@@ -20,6 +20,17 @@
   const copyCodeButton = document.querySelector('#assistant-copy-code');
   const stopButton = document.querySelector('#assistant-stop');
   const sendButton = document.querySelector('#assistant-send');
+  const shell = document.querySelector('.assistant-shell');
+  const sessions = document.querySelector('#assistant-sessions');
+  const search = document.querySelector('#assistant-search');
+  const moreButton = document.querySelector('#assistant-more');
+  const settings = document.querySelector('#assistant-settings');
+  const closeSettings = () => { if (typeof settings.close === 'function' && settings.open) settings.close(); else settings.removeAttribute('open'); };
+  const settingsLogin = document.querySelector('#assistant-settings-login');
+  const settingsLogout = document.querySelector('#assistant-settings-logout');
+  const settingsAccount = document.querySelector('#assistant-settings-account');
+  const fileInput = document.querySelector('#assistant-file');
+  const attachmentList = document.querySelector('#assistant-attachments');
   const runtime = window.WorkspaceAssistantRuntime;
   const localDevice = window.workspaceInitial?.devices?.find(device => device.id === 'local');
   if (!panel || !runtime || !localDevice?.rootPath) return;
@@ -39,6 +50,11 @@
   let threadId = '';
   let conversation = [];
   let models = [];
+  let threads = [];
+  let threadCursor = null;
+  let currentThreadTitle = '';
+  let attachments = [];
+  let firstHistoryLoad = false;
   const renderedInteractionIds = new Set();
 
   function setStatus(text, kind = '') {
@@ -75,7 +91,7 @@
     if (!conversation.length) {
       const welcome = document.createElement('div');
       welcome.className = 'assistant-welcome';
-      welcome.innerHTML = '<span class="assistant-welcome-mark">✦</span><h2>대시보드에서 무엇을 도와드릴까요?</h2><p>일정과 노트를 찾고, 대시보드 화면이나 등록한 앱을 열 수 있어요.</p><div class="assistant-suggestions"><button type="button" data-assistant-prompt="오늘 일정 보여줘">오늘 일정 보기</button><button type="button" data-assistant-prompt="등록된 앱을 보여줘">등록 앱 확인</button><button type="button" data-assistant-prompt="최근 노트를 찾아줘">노트 찾기</button></div>';
+      welcome.innerHTML = '<span class="assistant-welcome-mark">✦</span><h2>대시보드에서 무엇을 도와드릴까요?</h2><p>일정과 노트, 서버 GitHub 저장소를 확인하고 대시보드 화면을 열 수 있어요.</p><div class="assistant-suggestions"><button type="button" data-assistant-prompt="오늘 일정 보여줘">오늘 일정 보기</button><button type="button" data-assistant-prompt="내 GitHub 저장소를 보여줘">GitHub 저장소</button><button type="button" data-assistant-prompt="최근 노트를 찾아줘">노트 찾기</button></div>';
       messages.append(welcome);
       messages.append(...interactionCards);
       return;
@@ -111,6 +127,12 @@
         body.textContent = entry.text;
       }
       article.append(label, body);
+      if (entry.role === 'user' && Array.isArray(entry.attachments) && entry.attachments.length) {
+        const files = document.createElement('small');
+        files.className = 'assistant-message-files';
+        files.textContent = entry.attachments.join(' · ');
+        article.append(files);
+      }
       messages.append(article);
     }
     messages.append(...interactionCards);
@@ -122,7 +144,91 @@
     panel.toggleAttribute('aria-busy', value);
     sendButton.disabled = value;
     stopButton.hidden = !value;
+    fileInput.disabled = value;
+    document.querySelectorAll('#assistant-sessions button, #assistant-new, #assistant-header-new, #assistant-more, #assistant-settings-logout, #assistant-archive, #assistant-rename').forEach(button => { button.disabled = value; });
+    if (!value) renderThreads();
     if (value) setStatus('대시보드 기능을 확인하고 있어요…');
+  }
+
+  function renderAttachments() {
+    attachmentList.replaceChildren();
+    attachments.forEach((item, index) => {
+      const chip = document.createElement('span'); chip.className = 'assistant-attachment';
+      const name = document.createElement('span'); name.textContent = item.name;
+      const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = '×';
+      remove.setAttribute('aria-label', item.name + ' 첨부 제거');
+      remove.dataset.attachmentIndex = String(index);
+      chip.append(name, remove); attachmentList.append(chip);
+    });
+  }
+
+  function setSidebar(open) {
+    shell.dataset.sidebarOpen = String(open);
+    document.querySelector('#assistant-sidebar-backdrop').hidden = !open;
+    document.querySelector('#assistant-sidebar-open').setAttribute('aria-expanded', String(open));
+  }
+
+  function renderThreads() {
+    sessions.replaceChildren();
+    const unique = new Map(threads.filter(item => item?.id).map(item => [item.id, item]));
+    const visible = [...unique.values()];
+    if (!visible.length) {
+      const empty = document.createElement('p'); empty.className = 'assistant-session-empty';
+      empty.textContent = '저장된 대화가 없습니다.'; sessions.append(empty);
+    }
+    for (const item of visible) {
+      const row = document.createElement('button'); row.type = 'button'; row.className = 'assistant-session';
+      row.dataset.threadId = item.id; row.setAttribute('aria-current', String(item.id === threadId));
+      row.disabled = busy;
+      const title = document.createElement('span'); title.textContent = item.name || item.preview || '제목 없는 대화';
+      const date = document.createElement('small');
+      date.textContent = item.updatedAt ? new Date(item.updatedAt * 1000).toLocaleDateString('ko-KR') : '저장된 대화';
+      row.append(title, date); sessions.append(row);
+    }
+    moreButton.hidden = !threadCursor;
+    const current = unique.get(threadId);
+    document.querySelector('#assistant-chat-title').textContent = current?.name || current?.preview || currentThreadTitle || '새 채팅';
+    document.querySelector('#assistant-rename').disabled = busy || !threadId;
+    document.querySelector('#assistant-archive').disabled = busy || !threadId;
+  }
+
+  async function refreshThreads(more = false) {
+    if (busy) return;
+    const result = await runJob('codex-threads', {
+      query: search.value.trim() || undefined,
+      cursor: more ? threadCursor || undefined : undefined
+    });
+    const page = result.assistant || {};
+    threads = more ? [...threads, ...(page.threads || [])] : page.threads || [];
+    threadCursor = page.nextCursor || null;
+    renderThreads();
+  }
+
+  function conversationFromThread(thread) {
+    const entries = [];
+    for (const turn of thread.turns || []) {
+      for (const item of turn.items || []) {
+        if ((item.type === 'userMessage' || item.type === 'agentMessage') && item.text) {
+          entries.push({ role: item.type === 'userMessage' ? 'user' : 'assistant', text: item.text });
+        }
+      }
+      if (turn.error) entries.push({ role: 'assistant', text: turn.error });
+    }
+    return entries.slice(-60);
+  }
+
+  async function selectThread(id) {
+    if (busy || !id || id === threadId) return;
+    const result = await runJob('codex-thread-read', { threadId: id });
+    const thread = result.assistant?.thread;
+    if (!thread || thread.id !== id) throw new Error('대화를 불러오지 못했습니다.');
+    threadId = id;
+    currentThreadTitle = thread.name || thread.preview || '제목 없는 대화';
+    conversation = conversationFromThread(thread);
+    attachments = []; renderAttachments();
+    renderedInteractionIds.clear(); messages.querySelectorAll('.assistant-interaction').forEach(card => card.remove());
+    saveConversation(); renderConversation(); renderThreads(); setSidebar(false);
+    setStatus('저장된 대화를 불러왔습니다.'); prompt.focus();
   }
 
   async function runJob(action, args = {}, onEvent = () => {}) {
@@ -274,11 +380,18 @@
         await prepareServerCodex();
         const accountResult = await runJob('codex-account');
         const authenticated = Boolean(accountResult.assistant?.authenticated);
+        settingsAccount.textContent = authenticated ? '서버 Codex 계정에 로그인됨' : '서버 Codex 로그인이 필요합니다.';
+        document.querySelector('#assistant-sidebar-account').textContent = settingsAccount.textContent;
+        settingsLogin.hidden = authenticated;
+        settingsLogout.hidden = !authenticated;
         limitsRefresh.disabled = !authenticated;
         loginButton.hidden = authenticated;
         loginButton.textContent = 'Codex 로그인';
         loginGuide.hidden = authenticated;
         if (!authenticated) {
+          threadId = ''; currentThreadTitle = ''; conversation = []; attachments = [];
+          threads = []; threadCursor = null;
+          saveConversation(); renderConversation(); renderThreads(); renderAttachments();
           limitsText.textContent = '로그인 후 잔여 사용량을 확인할 수 있습니다';
           accountStatus.textContent = 'Codex 로그인이 필요합니다';
           loginMessage.textContent = 'Codex 로그인을 시작하면 인증 주소와 일회용 코드를 여기에 표시합니다.';
@@ -300,6 +413,7 @@
         renderModels(modelResult.assistant?.models);
         mcpReady = true;
         await refreshRateLimits();
+        try { await refreshThreads(); } catch { sessions.textContent = '대화 목록을 불러오지 못했습니다. 새로고침해 주세요.'; }
         accountStatus.textContent = '대시보드 기능에 연결됨';
         setStatus('개인 대시보드 기능 전용 · Codex 연결됨');
         if (!refreshModels && !conversation.length && !threadId) renderConversation();
@@ -440,13 +554,14 @@
 
   async function sendMessage(value = prompt.value) {
     const text = String(value || '').trim();
-    if (!text || busy) return;
+    if ((!text && !attachments.length) || busy) return;
     if (!mcpReady) {
       setStatus('대시보드 MCP 연결을 먼저 복구해 주세요.', 'error');
       return;
     }
     prompt.value = '';
-    conversation.push({ role: 'user', text }, { role: 'assistant', text: '', pending: true, phase: 'preparing' });
+    const selectedAttachments = [...attachments];
+    conversation.push({ role: 'user', text: text || '첨부 파일을 확인해 주세요.', attachments: selectedAttachments.map(item => item.name) }, { role: 'assistant', text: '', pending: true, phase: 'preparing' });
     conversation = conversation.slice(-60);
     const responseIndex = conversation.length - 1;
     saveConversation();
@@ -454,14 +569,18 @@
     try {
       await prepareServerCodex();
       const result = await runJob('codex-run', {
-        prompt: text,
+        prompt: text || '첨부 파일을 확인해 주세요.',
+        context: selectedAttachments.map(item => item.context),
         threadId: threadId || undefined,
         model: modelSelect.value || undefined,
         effort: effortSelect.value || undefined,
         mode: 'read-only'
       }, (event, jobId) => receiveEvent(event, responseIndex, jobId));
       const answer = result.assistant || {};
-      if (answer.thread?.id) threadId = answer.thread.id;
+      if (answer.thread?.id) {
+        threadId = answer.thread.id;
+        currentThreadTitle = answer.thread.name || answer.thread.preview || text.slice(0, 60) || '첨부 대화';
+      }
       const message = conversation[responseIndex];
       message.pending = false;
       if (!message.text) {
@@ -471,11 +590,14 @@
         message.text = finalMessage?.text || '';
       }
       if (!message.text) message.text = '요청을 처리했지만 표시할 답변이 없습니다.';
+      attachments = []; renderAttachments();
       saveConversation();
       renderConversation();
+      try { await refreshThreads(); } catch { /* The answer remains usable when history refresh fails. */ }
       await refreshRateLimits();
       setStatus('대시보드 요청을 완료했습니다.');
     } catch (error) {
+      prompt.value = text;
       const message = conversation[responseIndex];
       if (error.status === 401) {
         mcpReady = false;
@@ -530,6 +652,61 @@
     }
   }
 
+  async function logout() {
+    if (busy || loading) return;
+    settingsLogout.disabled = true;
+    try {
+      await runJob('codex-logout');
+      threadId = ''; currentThreadTitle = ''; conversation = []; threads = []; threadCursor = null; attachments = [];
+      saveConversation(); renderConversation(); renderThreads(); renderAttachments();
+      mcpReady = false; ready = false;
+      closeSettings();
+      await load(true);
+      setStatus('서버 Codex 계정에서 로그아웃했습니다.');
+    } catch (error) { setStatus(error.message, 'error'); }
+    finally { settingsLogout.disabled = false; }
+  }
+
+  async function addFiles(files) {
+    if (busy) return;
+    for (const file of files) {
+      if (attachments.length >= 16) throw new Error('첨부 파일은 최대 16개입니다.');
+      if (file.name.length > 200) throw new Error('파일 이름은 200자 이하여야 합니다.');
+      let context;
+      if (['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        if (file.size > 2000000) throw new Error('이미지는 파일당 2 MB 이하여야 합니다.');
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        context = { kind: 'image', name: file.name, dataUrl };
+      } else {
+        if (!/\.(txt|md|markdown|json|csv|tsv|js|ts|jsx|tsx|py|java|html|css|xml|yaml|yml|sql|sh|log)$/i.test(file.name))
+          throw new Error('텍스트·코드 파일 또는 PNG, JPEG, WebP 이미지만 첨부할 수 있습니다.');
+        if (file.size > 64000) throw new Error('텍스트 파일은 파일당 64 KB 이하여야 합니다.');
+        const content = await file.text();
+        if (content.includes('\0') || content.includes('\uFFFD')) throw new Error('UTF-8 텍스트 파일만 첨부할 수 있습니다.');
+        const textSize = attachments.filter(item => item.context.kind === 'upload').reduce((size, item) => size + item.context.content.length, 0) + content.length;
+        if (textSize > 128000) throw new Error('첨부 텍스트 전체는 128,000자 이하여야 합니다.');
+        context = { kind: 'upload', name: file.name, content };
+      }
+      const total = attachments.reduce((size, item) => size + JSON.stringify(item.context).length, 0) + JSON.stringify(context).length;
+      if (total > 3500000) throw new Error('첨부 파일 전체 크기는 3.5 MB 이하여야 합니다.');
+      attachments.push({ name: file.name, context });
+    }
+    renderAttachments();
+  }
+
+  function newChat() {
+    if (busy) return;
+    threadId = ''; currentThreadTitle = ''; conversation = []; attachments = [];
+    messages.querySelectorAll('.assistant-interaction').forEach(card => card.remove());
+    renderedInteractionIds.clear();
+    saveConversation(); renderConversation(); renderThreads(); renderAttachments();
+    setSidebar(false); closeSettings(); prompt.focus();
+    setStatus('새 대화를 시작합니다.');
+  }
+
   copyCodeButton.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(loginCode.textContent);
@@ -546,6 +723,19 @@
     if (firstOpen) restoreConversation();
     renderConversation();
     await load(!firstOpen);
+    if (!firstHistoryLoad && mcpReady && threadId) {
+      firstHistoryLoad = true;
+      const savedId = threadId;
+      try {
+        threadId = '';
+        await selectThread(savedId);
+      } catch (error) {
+        threadId = '';
+        conversation = [];
+        saveConversation(); renderConversation(); renderThreads();
+        setStatus('이전 대화를 불러오지 못했습니다. 목록에서 다시 선택해 주세요.', 'error');
+      }
+    }
     prompt.focus();
   }
 
@@ -565,16 +755,51 @@
   window.addEventListener('workspace:view', event => {
     if (event.detail?.id === 'assistant') open().catch(error => runtime.toast(error.message));
   });
-  document.querySelector('#assistant-new').addEventListener('click', () => {
-    if (busy) return;
-    threadId = '';
-    conversation = [];
-    messages.querySelectorAll('.assistant-interaction').forEach(card => card.remove());
-    renderedInteractionIds.clear();
-    saveConversation();
-    renderConversation();
-    prompt.focus();
-    setStatus('새 대화를 시작합니다.');
+  document.querySelector('#assistant-new').addEventListener('click', newChat);
+  document.querySelector('#assistant-header-new').addEventListener('click', newChat);
+  document.querySelector('#assistant-sidebar-open').addEventListener('click', () => setSidebar(true));
+  document.querySelector('#assistant-sidebar-close').addEventListener('click', () => setSidebar(false));
+  document.querySelector('#assistant-sidebar-backdrop').addEventListener('click', () => setSidebar(false));
+  const openSettings = () => { setSidebar(false); if (typeof settings.showModal === 'function') settings.showModal(); else settings.setAttribute('open', ''); };
+  document.querySelector('#assistant-settings-open').addEventListener('click', openSettings);
+  document.querySelector('#assistant-header-settings').addEventListener('click', openSettings);
+  document.querySelector('#assistant-settings-close').addEventListener('click', closeSettings);
+  settingsLogin.addEventListener('click', () => { closeSettings(); login(); });
+  settingsLogout.addEventListener('click', logout);
+  document.querySelector('#assistant-history-refresh').addEventListener('click', () => refreshThreads().catch(error => setStatus(error.message, 'error')));
+  moreButton.addEventListener('click', () => refreshThreads(true).catch(error => setStatus(error.message, 'error')));
+  let searchTimer;
+  search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => refreshThreads().catch(error => setStatus(error.message, 'error')), 280); });
+  sessions.addEventListener('click', event => {
+    const selected = event.target.closest('[data-thread-id]');
+    if (selected) selectThread(selected.dataset.threadId).catch(error => setStatus(error.message, 'error'));
+  });
+  document.querySelector('#assistant-rename').addEventListener('click', async () => {
+    if (!threadId || busy) return;
+    const name = window.prompt('대화 이름', document.querySelector('#assistant-chat-title').textContent)?.trim();
+    if (!name) return;
+    if (name.length > 200) { setStatus('대화 이름은 200자 이하여야 합니다.', 'error'); return; }
+    try { await runJob('codex-thread-rename', { threadId, name }); await refreshThreads(); closeSettings(); }
+    catch (error) { setStatus(error.message, 'error'); }
+  });
+  document.querySelector('#assistant-archive').addEventListener('click', async () => {
+    if (!threadId || busy || !window.confirm('이 대화를 보관할까요?')) return;
+    try { await runJob('codex-thread-archive', { threadId }); newChat(); await refreshThreads(); }
+    catch (error) { setStatus(error.message, 'error'); }
+  });
+  document.querySelector('#assistant-attach').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    addFiles([...fileInput.files]).catch(error => setStatus(error.message, 'error')).finally(() => { fileInput.value = ''; });
+  });
+  attachmentList.addEventListener('click', event => {
+    const button = event.target.closest('[data-attachment-index]');
+    if (!button || busy) return;
+    attachments.splice(Number(button.dataset.attachmentIndex), 1); renderAttachments();
+  });
+  form.addEventListener('dragover', event => { if (event.dataTransfer?.types.includes('Files')) event.preventDefault(); });
+  form.addEventListener('drop', event => {
+    if (!event.dataTransfer?.files.length) return;
+    event.preventDefault(); addFiles([...event.dataTransfer.files]).catch(error => setStatus(error.message, 'error'));
   });
   loginButton.addEventListener('click', login);
   limitsRefresh.addEventListener('click', () => refreshRateLimits());

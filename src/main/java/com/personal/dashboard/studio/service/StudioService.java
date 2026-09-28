@@ -85,6 +85,13 @@ public class StudioService {
     if (!ACTIONS.contains(input.action()) && !AUTH_ACTIONS.contains(input.action()))
       throw new WorkspaceException(400, "지원하지 않는 작업 또는 입력 크기입니다.");
     if (input.args() != null && input.args().context() != null) {
+      if (assistant
+          && (!input.action().equals("codex-run")
+              || input.args().context().stream()
+                  .anyMatch(
+                      context ->
+                          context == null || !Set.of("image", "upload").contains(context.kind()))))
+        throw new WorkspaceException(400, "도우미에는 이미지와 텍스트 파일만 첨부할 수 있습니다.");
       long contextSize =
           input.args().context().stream()
               .filter(Objects::nonNull)

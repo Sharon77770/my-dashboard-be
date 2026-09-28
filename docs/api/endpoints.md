@@ -34,6 +34,10 @@
 | PUT | /api/v1/timetables/{termId}/courses/{id} | OWNER | 수업 수정 |
 | DELETE | /api/v1/timetables/{termId}/courses/{id} | OWNER | 수업 삭제 |
 | GET | /api/v1/workspace | OWNER | 작업 공간 전체 상태 |
+| GET | /api/v1/github/status | OWNER | 서버 GitHub CLI 인증 상태 |
+| GET | /api/v1/github/repositories | OWNER | 내 GitHub 저장소 목록 |
+| GET | /api/v1/github/pull-requests?repository={owner/name} | OWNER | 저장소의 열린 PR 목록 |
+| GET | /api/v1/github/issues?repository={owner/name} | OWNER | 저장소의 열린 이슈 목록 |
 | GET | /api/v1/search | OWNER | 장비·앱·즐겨찾기 검색 |
 | POST | /api/v1/devices | OWNER | 장비 생성(최대 5단계 점프 프록시 설정 포함) |
 | POST | /api/v1/devices/ssh | OWNER + CSRF | SSH 명령과 비밀번호로 검증 후 장비 생성/갱신(점프 프록시 포함) |

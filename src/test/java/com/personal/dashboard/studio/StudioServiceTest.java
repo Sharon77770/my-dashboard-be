@@ -82,6 +82,47 @@ class StudioServiceTest {
   }
 
   @Test
+  void serverAssistantRejectsProjectFileContext() throws Exception {
+    var catalog = mock(CatalogService.class);
+    when(catalog.requireDevice("local"))
+        .thenReturn(
+            new DeviceRecord(
+                "local",
+                "Dashboard",
+                "localhost",
+                22,
+                "",
+                "",
+                "",
+                "/app/data/files",
+                "NONE",
+                3389,
+                "",
+                "",
+                "",
+                "",
+                false));
+    var adapter = mock(StudioAdapter.class);
+    var service = new StudioService(catalog, adapter);
+    try {
+      var request =
+          new ObjectMapper()
+              .readValue(
+                  """
+                  {"deviceId":"local","root":"/app/data/files","action":"codex-run",
+                   "args":{"prompt":"read","context":[{"kind":"file","path":"secret.txt"}]}}
+                  """,
+                  Request.class);
+      assertThatThrownBy(() -> service.startAssistant("owner", request))
+          .isInstanceOf(WorkspaceException.class)
+          .hasMessageContaining("이미지와 텍스트 파일");
+      verifyNoInteractions(adapter);
+    } finally {
+      service.shutdown();
+    }
+  }
+
+  @Test
   void interactiveInputIsRestrictedToTheJobOwner() throws Exception {
     var adapter = mock(StudioAdapter.class);
     var release = new CountDownLatch(1);

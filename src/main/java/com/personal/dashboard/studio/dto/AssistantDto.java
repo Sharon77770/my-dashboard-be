@@ -10,10 +10,10 @@ public final class AssistantDto {
   private AssistantDto() {}
 
   public record Context(
-      @NotBlank @Pattern(regexp = "file|selection|image|skill") String kind,
+      @NotBlank @Pattern(regexp = "file|selection|image|skill|upload") String kind,
       @Size(max = 4096) String path,
       @Size(max = 200) String name,
-      @Size(max = 32000) String content,
+      @Size(max = 64000) String content,
       @Min(1) Integer fromLine,
       @Min(1) Integer toLine,
       @Size(max = 3000000) String dataUrl) {}

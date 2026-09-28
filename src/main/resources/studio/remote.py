@@ -394,6 +394,7 @@ def handle(request):
             rc, unused = run(['gh', 'auth', 'status', '--hostname', 'github.com'], check=False)
             return dict(authenticated=rc == 0)
         if action == 'github-login':
+            install_github_cli()
             run(['gh', 'auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web'], data='\n', stream=True, auth=True)
             run(['gh', 'auth', 'setup-git', '--hostname', 'github.com'])
             return dict(authenticated=True)

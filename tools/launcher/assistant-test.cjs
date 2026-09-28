@@ -9,8 +9,8 @@ const connected = { name: 'personal-dashboard', status: 'bearerToken', runtimeSt
 
 async function fixture(connection, authenticated = true, connectionFailure = false, thinking = false) {
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost' });
-  const w = dom.window, d = w.document, calls = [];
-  const state = { connection, authenticated, connectionFailure, thinking };
+  const w = dom.window, d = w.document, calls = [], requests = [];
+  const state = { connection, authenticated, connectionFailure, thinking, threads: [] };
   w.workspaceInitial = { devices: [{ id: 'local', rootPath: '/tmp/fixture' }] };
   w.setInterval = () => 0;
   w.WorkspaceAssistantRuntime = { toast() {}, async api(path, method, body) {
@@ -20,7 +20,9 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     ], result: { assistant: { thread: { id: 'fixture', turns: [] } } } };
     assert.equal(method, 'POST');
     calls.push(body.action);
+    requests.push(body);
     if (body.action === 'codex-run' && state.expired) return { id: 'expired', state: 'FAILED', errorStatus: 401, error: 'Codex 로그인이 만료되었습니다.' };
+    if (body.action === 'codex-logout') state.authenticated = false;
     if (body.action === 'codex-connections' && state.connectionFailure) throw Error('MCP unavailable');
     if (body.action === 'codex-run' && state.thinking) return { id: 'thinking', state: 'RUNNING', events: [
       { assistant: { kind: 'started' } },
@@ -29,6 +31,10 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     const result = body.action === 'codex-account' ? { assistant: { authenticated: state.authenticated } }
       : body.action === 'codex-rate-limits' ? { assistant: { rateLimits: [{ name: 'Codex', windowDurationMins: 300, usedPercent: 25, resetsAt: 1730947200 }] } }
       : body.action === 'codex-connections' ? { assistant: { connections: state.connection ? [state.connection] : [] } }
+      : body.action === 'codex-threads' ? { assistant: { threads: state.threads, nextCursor: null } }
+      : body.action === 'codex-thread-read' ? { assistant: { thread: { id: body.args.threadId, turns: [{ items: [
+        { type: 'userMessage', text: '10월 일정 설명해줘' }, { type: 'agentMessage', text: 'fixture answer' }
+      ] }] } } }
       : body.action === 'codex-run' ? { assistant: { thread: { id: 'fixture', turns: [{ items: [{ type: 'agentMessage', text: 'fixture answer' }] }] } } }
       : {};
     return { id: String(calls.length), state: 'SUCCEEDED', result };
@@ -38,7 +44,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
   d.querySelector('#assistant').classList.add('active');
   w.dispatchEvent(new w.CustomEvent('workspace:view', { detail: { id: 'assistant' } }));
   await tick();
-  return { dom, w, d, calls, state };
+  return { dom, w, d, calls, requests, state };
 }
 
 (async () => {
@@ -109,5 +115,38 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
   const unavailable = await fixture(null, true, true);
   try { assert.equal(unavailable.d.querySelector('#assistant-login').textContent, 'MCP 연결 복구'); }
   finally { unavailable.dom.window.close(); }
-  console.log('PASS assistant: connection recovery, login, thinking progress, and completed answer');
+  const history = await fixture(connected);
+  try {
+    history.state.threads = [{ id: 'older', name: '지난 대화', preview: '지난 대화', updatedAt: 1730947200 }];
+    history.d.querySelector('#assistant-history-refresh').click();
+    await tick();
+    assert.match(history.d.querySelector('#assistant-sessions').textContent, /지난 대화/);
+    history.d.querySelector('[data-thread-id="older"]').click();
+    await tick();
+    assert.match(history.d.querySelector('#assistant-messages').textContent, /fixture answer/);
+    assert.equal(history.d.querySelector('#assistant-chat-title').textContent, '지난 대화');
+    history.d.querySelector('#assistant-header-settings').click();
+    assert.equal(history.d.querySelector('#assistant-settings').hasAttribute('open'), true);
+    history.d.querySelector('#assistant-settings-logout').click();
+    await tick();
+    assert.ok(history.calls.includes('codex-logout'));
+    assert.equal(history.d.querySelector('#assistant-settings-login').hidden, false);
+    assert.equal(history.d.querySelector('#assistant-messages .assistant-welcome') !== null, true);
+  } finally { history.dom.window.close(); }
+  const attached = await fixture(connected);
+  try {
+    const file = new attached.w.File(['image'], 'photo.png', { type: 'image/png' });
+    const input = attached.d.querySelector('#assistant-file');
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+    input.dispatchEvent(new attached.w.Event('change'));
+    await tick();
+    assert.match(attached.d.querySelector('#assistant-attachments').textContent, /photo.png/);
+    attached.d.querySelector('#assistant-form').dispatchEvent(new attached.w.Event('submit', { cancelable: true }));
+    await tick();
+    const request = attached.requests.find(item => item.action === 'codex-run');
+    assert.equal(request.args.context[0].kind, 'image');
+    assert.match(request.args.context[0].dataUrl, /^data:image\/png;base64,/);
+    assert.equal(attached.d.querySelector('#assistant-attachments').textContent, '');
+  } finally { attached.dom.window.close(); }
+  console.log('PASS assistant: connection, history, settings logout, attachment, and answer');
 })().catch(error => { console.error(error); process.exitCode = 1; });
