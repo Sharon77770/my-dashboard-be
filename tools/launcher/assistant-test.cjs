@@ -39,6 +39,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       : {};
     return { id: String(calls.length), state: 'SUCCEEDED', result };
   } };
+  w.eval(fs.readFileSync('src/main/resources/static/js/ui.js', 'utf8'));
   w.eval(script);
   assert.equal(d.querySelector('#assistant-launcher'), null);
   d.querySelector('#assistant').classList.add('active');
@@ -52,7 +53,9 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     const f = await fixture({ ...connected, runtimeStatus });
     try {
       assert.match(f.d.querySelector('#assistant-account-status').textContent, /연결됨/);
-      assert.match(f.d.querySelector('#assistant-limits-text').textContent, /5시간 잔여 75%/);
+      assert.match(f.d.querySelector('#assistant-limits-text').textContent, /5시간/);
+      assert.match(f.d.querySelector('#assistant-limits-text').textContent, /75%/);
+      assert.equal(f.d.querySelector('#assistant-limits-text [role="progressbar"]').getAttribute('aria-valuenow'), '75');
       f.d.querySelector('#assistant-prompt').value = '10월 일정 설명해줘';
       f.d.querySelector('#assistant-form').dispatchEvent(new f.w.Event('submit', { cancelable: true }));
       await tick();

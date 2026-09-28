@@ -402,18 +402,70 @@ Block 배열은 BlockNote 0.54.2의 JSON 문서다. 전체 UTF-8 직렬화 2 MiB
 
 GET `/api/v1/notes/{id}`가 이전 MCP 문단 형태의 Markdown을 처음 읽으면, 검증된 블록 변환을 조건부 저장하고 증가된 revision을 반환할 수 있다. 일반 문장·이미 편집된 블록·검증 불가 원문은 유지한다. 다른 쓰기가 먼저 반영되면 그 최신 문서를 반환한다.
 
-## GitHub 조회 API
+## GitHub API
 
-아래 네 경로는 모두 OWNER 세션이 필요하며 요청 body는 없다. 미인증 세션은 401, 권한이 없는 세션은 403이다. 서버의 `gh` 계정과 홈을 사용한다. 조회 실패 원문과 token은 응답에 포함하지 않는다.
+모든 경로는 OWNER 세션이 필요하다. POST는 CSRF도 필요하다. 미인증 401, 권한 부족 403, 잘못된 입력 400, 서버 `gh` 미인증 409, upstream/CLI 실패 502 또는 503, 30초 초과 504이다. CLI 원문 오류·토큰은 반환하지 않는다. `repository` query는 필수 `owner/name`(segment당 1~100자), `owner` path는 1~39자 GitHub login, `number`/`runId`는 양의 정수다. 모든 GET의 body는 없다. 선택 필드는 아래 표에서 `?`로 표시하고 없으면 null이다. 목록은 첫 페이지 상한이며 전체 개수로 해석하지 않는다.
 
-| Method / URL | Query | 200 response | 오류 |
-| --- | --- | --- | --- |
-| GET `/api/v1/github/status` | 없음 | `authenticated`: 필수 boolean; 서버 `gh` 인증 유효 여부 | CLI 실행 환경 오류 502/503, 시간 초과 504 |
-| GET `/api/v1/github/repositories` | 없음 | 배열 최대 50개: `nameWithOwner`, `description`(nullable), `url`, `isPrivate`, `updatedAt` | 미인증 409, CLI 오류 502/503, 시간 초과 504 |
-| GET `/api/v1/github/pull-requests` | `repository`: 필수 `owner/name` 문자열, 각 segment 최대 100자 | 배열 최대 50개: `number`, `title`, `state`, `url`, `updatedAt`, `isDraft` | 잘못된 값 400, 미인증 409, CLI 오류 502/503, 시간 초과 504 |
-| GET `/api/v1/github/issues` | `repository`: 필수 `owner/name` 문자열, 각 segment 최대 100자 | 배열 최대 50개: `number`, `title`, `state`, `url`, `updatedAt` | 잘못된 값 400, 미인증 409, CLI 오류 502/503, 시간 초과 504 |
+| Method / path (모두 `/api/v1/github` 아래) | 추가 입력 | 성공 응답 |
+| --- | --- | --- |
+| GET `/status` | 없음 | 200 `{authenticated: boolean}` |
+| GET `/repositories` | 없음 | 200 `Repository[]` 최대 50, 기존 개인 저장소 경로 |
+| GET `/issues`, `/pull-requests` | `repository` query | 200 `Issue[]` 또는 `PullRequest[]` 최대 50, 열린 항목 |
+| GET `/owners`, `/organizations` | 없음 | 200 `Owner[]`; 전자는 USER와 ORGANIZATION, 후자는 ORGANIZATION만 |
+| GET `/organizations/{owner}` | 없음 | 200 `Organization` |
+| GET `/organizations/{owner}/members`, `/teams` | 없음 | 200 `Member[]` 또는 `Team[]`, 첫 100개 |
+| GET `/owners/{owner}/repositories` | 없음 | 200 `Repository[]` 최대 100 |
+| POST `/owners/{owner}/repositories` | `{name: string(1..100), description?: string(≤1000), isPrivate: boolean}` | 201 `RepositoryDetail` |
+| GET `/owners/{owner}/overview` | 없음 | 200 `OwnerOverview` |
+| GET `/owners/{owner}/activity` | 없음 | 200 `Activity[]` 최근 최대 30개 |
+| GET `/owners/{owner}/issues` | `state`: open/closed/all 기본 open, `role`: all/assigned/created/mentioned 기본 all, `repository?`: 해당 Owner의 owner/name, `label?`: ≤100자 | 200 `Issue[]`, Search 첫 100개 |
+| GET `/owners/{owner}/pull-requests` | `state`: open/closed/all 기본 open, `repository?`: 해당 Owner의 owner/name | 200 `PullRequest[]`, Search 첫 100개 |
+| GET `/owners/{owner}/my-work` | 없음 | 200 `MyWork` |
+| GET `/owners/{owner}/search` | `query`: 필수 1~100자, 따옴표·역슬래시 불가 | 200 `SearchResult` |
+| GET `/repositories/detail` | `repository` | 200 `RepositoryDetail` |
+| PATCH `/repositories` | `repository`; `{description?: string(≤1000), homepage?: http(s) URL(≤2000), topics?: string[](≤20)}` 최소 한 필드 | 200 `RepositoryDetail` |
+| GET `/repositories/branches`, `/tags`, `/contributors` | `repository` | 200 `Branch[]`/`Tag[]`/`Contributor[]`, 첫 100개 |
+| GET `/repositories/languages` | `repository` | 200 `{언어명: int 바이트}` |
+| GET `/repositories/tree` | `repository`, `ref`: 필수 브랜치/태그/커밋 1~200자 | 200 `FileEntry[]`; 응답 1 MiB 초과는 502 |
+| GET `/repositories/file` | `repository`, `path`: 필수 상대 경로 ≤500자, `ref` | 200 `FileContent`; 본문 최대 512 KiB |
+| GET `/repositories/commits` | `repository` | 200 `Commit[]` 최근 30개 |
+| GET `/repositories/commits/{sha}` | `repository`; `sha`: 7~40자리 16진수 | 200 `Commit` |
+| GET `/repositories/commits/{sha}/files` | `repository`, `sha` | 200 `ChangedFile[]` |
+| GET `/repositories/context` | `repository` | 200 `DevelopmentContext` |
+| GET `/issues/detail` | `repository`, `number` | 200 `IssueDetail` |
+| POST `/issues` | `repository`; `{title: string(1..256), body?: string(≤60000)}` | 201 `IssueDetail` |
+| PATCH `/issues/{number}` | `repository`; `{title?: string(1..256), body?: string(≤60000), state?: open\|closed, labels?: string[](≤20), assignees?: string[](≤20), milestone?: int(≥1)}`; 최소 한 필드 | 200 `IssueDetail` |
+| POST `/issues/{number}/comments` | `repository`; `{body: string(1..60000)}` | 201 `IssueDetail` |
+| GET `/pull-requests/detail` | `repository`, `number` | 200 `PullRequestDetail` |
+| GET `/pull-requests/files` | `repository`, `number` | 200 `ChangedFile[]` 최대 100 |
+| GET `/pull-requests/context` | `repository`, `number` | 200 `PullRequestContext` |
+| POST `/pull-requests` | `repository`; `{title: string(1..256), base: string(1..200), head: string(1..200), body?: string(≤60000), draft: boolean}` | 201 `PullRequestDetail` |
+| PATCH `/pull-requests/{number}` | `repository`; `{title?: string(1..256), body?: string(≤60000), state?: open\|closed, base?: string(1..200)}`; 최소 한 필드 | 200 `PullRequestDetail` |
+| POST `/pull-requests/{number}/reviews` | `repository`; `{event: COMMENT\|APPROVE\|REQUEST_CHANGES, body?: string(≤60000)}` | 201 `PullRequestDetail` |
+| GET `/actions/workflows`, `/actions/runs` | `repository` | 200 `Workflow[]` 최대 100 또는 `WorkflowRun[]` 최근 30 |
+| GET `/actions/runs/{runId}` | `repository` | 200 `WorkflowRun` |
+| GET `/actions/runs/{runId}/jobs` | `repository` | 200 `WorkflowJob[]` 최대 100, 각 Job의 Steps 포함 |
+| GET `/actions/runs/{runId}/artifacts` | `repository` | 200 `WorkflowArtifact[]` 최대 100개 metadata |
+| GET `/actions/runs/{runId}/logs` | `repository` | 200 `{failedLogs: string}`; 실패 단계 로그 최대 1 MiB |
+| GET `/actions/runs/{runId}/analysis` | `repository` | 200 `WorkflowAnalysis` |
+| POST `/actions/runs/{runId}/rerun` | `repository`; body 없음 | 204 |
+| POST `/actions/runs/{runId}/cancel` | `repository`; body 없음 | 202 |
+| POST `/actions/workflows/{workflowId}/dispatches` | `repository`; `{ref: string(1..200), inputs?: object<string,string(≤1000)>}` 최대 25개 | 202 |
+| GET `/releases` | `repository` | 200 `Release[]` 최근 30 |
+| GET `/releases/{releaseId}` | `repository` | 200 `Release` 및 assets |
+| POST `/releases` | `repository`; `{tag: string(1..100), name?: string(≤256), body?: string(≤60000), draft: boolean, prerelease: boolean, generateNotes: boolean}` | 201 `Release` |
+| GET `/approvals` | 없음 | 200 승인 전 `Approval[]` |
+| POST `/approvals/{id}` | body 없음; 만료 전 승인 ID | 200 `Approval`; ID 없음/만료 404 |
 
-목록의 문자열·숫자·boolean 필드는 `gh --json`에서 제공하며 null 허용 표기 외 필드는 필수다. `description`만 null일 수 있다. 목록은 기본 열린 상태이고 다른 소유자의 저장소 목록은 포함하지 않는다. 로그인 시작·polling·취소는 기존 `/api/v1/studio/jobs` 계약의 `github-login` action과 `local` 장비를 사용한다.
+`Owner={login:string,type:USER|ORGANIZATION,avatarUrl?:string,url?:string}`. `Organization={login:string,name?:string,description?:string,url?:string,publicRepositories:int,totalPrivateRepositories?:int}`. `Member={login:string,avatarUrl?:string,url?:string}`. `Team={name:string,slug:string,description?:string,url?:string,privacy?:string,permission?:string}`.
+
+`Repository={nameWithOwner:string,description?:string,url:string,isPrivate:boolean,isArchived:boolean,isFork:boolean,updatedAt:string}`. `RepositoryDetail={fullName:string,description?:string,homepage?:string,url:string,isPrivate:boolean,isArchived:boolean,isFork:boolean,defaultBranch:string,topics:string[],language?:string,openIssues:int,updatedAt:string}`. `Branch={name:string,sha:string,isProtected:boolean}`. `Tag={name:string,sha:string}`. `Contributor={login:string,contributions:int,url?:string}`. `FileEntry={path:string,type:string,sha:string,size:long,url?:string}`. `FileContent={path:string,sha:string,size:long,encoding:"utf-8",content:string}`. `Commit={sha:string,message:string,author?:string,date?:string,url?:string}`. `ChangedFile={filename:string,status:string,additions:int,deletions:int,changes:int,patch?:string,url?:string}`.
+
+`Issue={number:int,title:string,state:string,url:string,updatedAt:string}`. `PullRequest={number:int,title:string,state:string,url:string,updatedAt:string,isDraft:boolean}`. `IssueDetail={number:int,title:string,state:string,url:string,body?:string,author?:string,updatedAt:string,labels:string[],assignees:string[],milestone?:string}`. `PullRequestDetail={number:int,title:string,state:string,url:string,body?:string,author?:string,base:string,head:string,headSha:string,isDraft:boolean,mergeable?:boolean,updatedAt:string}`. `DiscussionComment={author:string,body:string,path?:string,url?:string,createdAt:string}`. `CheckRun={name:string,status:string,conclusion?:string,url?:string}`. `PullRequestContext={pullRequest:PullRequestDetail,files:ChangedFile[],commits:Commit[],conversation:DiscussionComment[],reviewComments:DiscussionComment[],checks:CheckRun[]}`. `Activity={type:string,actor?:string,repository?:string,action?:string,url?:string,createdAt:string}`. `OwnerOverview={owner:Owner,repositories:Repository[],openIssues:Issue[],openPullRequests:PullRequest[],memberCount?:int,recentActivity?:Activity[]}`; 회원·이벤트 권한 또는 외부 오류가 있으면 각 선택 필드는 null이다. `MyWork={assignedIssues:Issue[],reviewRequests:PullRequest[]}`. `SearchResult={issues:Issue[],pullRequests:PullRequest[]}`.
+
+`Workflow={id:long,name:string,path:string,state:string,url?:string}`. `WorkflowRun={id:long,name?:string,status?:string,conclusion?:string,branch?:string,event?:string,commit?:string,url?:string,createdAt?:string,updatedAt?:string}`. `WorkflowStep={name:string,status?:string,conclusion?:string,number:int}`. `WorkflowJob={id:long,name:string,status?:string,conclusion?:string,url?:string,steps:WorkflowStep[]}`. `WorkflowArtifact={id:long,name:string,size:long,expired:boolean,createdAt?:string,expiresAt?:string}`. `WorkflowAnalysis={run:WorkflowRun,failedJobs:WorkflowJob[],failedLogs:string}`. `Release={id:long,name?:string,tag:string,body?:string,url?:string,isDraft:boolean,isPrerelease:boolean,publishedAt?:string,assets:ReleaseAsset[]}`. `ReleaseAsset={name:string,size:long,contentType?:string,downloadUrl?:string}`. `DevelopmentContext={repository:RepositoryDetail,branches:Branch[],recentCommits:Commit[],openPullRequests:PullRequest[],openIssues:Issue[],recentWorkflowRuns:WorkflowRun[],recentReleases:Release[]}`. `Approval={id:UUID,operation:MERGE_PULL_REQUEST|ARCHIVE_REPOSITORY,repository:owner/name,number:int (ARCHIVE는 0),expiresAt:ISO-8601,approved:boolean}`.
+
+GitHub API 403/404와 네트워크 오류는 현재 CLI adapter에서 안전한 502로 합쳐진다. 계정 권한에 따라 Organization 회원·팀·저장소가 일부만 표시되거나 요청이 실패할 수 있다. 조직 검색은 GitHub Search 첫 100개까지이며 `overview` 숫자는 그 범위의 표시 개수다. 로그인 시작·polling·취소는 기존 `/api/v1/studio/jobs`의 `github-login` action을 사용한다.
 
 ## 서버 Codex assistant와 MCP
 
@@ -452,5 +504,42 @@ MCP tool 목록과 입력 계약:
 | `list_github_repositories` | 없음 | `{repositories: array}`; 최대 50개 |
 | `list_github_pull_requests` | `repository`: owner/name 문자열 ≤201 | `{pullRequests: array}`; 최대 50개 열린 PR |
 | `list_github_issues` | `repository`: owner/name 문자열 ≤201 | `{issues: array}`; 최대 50개 열린 이슈 |
+| `github.list_owners`, `github.list_organizations` | 없음 | `{owners: Owner[]}` 또는 `{organizations: Owner[]}`; READ |
+| `github.get_organization`, `github.list_org_members`, `github.list_org_teams` | `owner` ≤39 | Organization/Member[]/Team[]; READ |
+| `github.list_repositories`, `github.get_org_overview`, `github.get_my_work` | `owner` ≤39 | Repository[]/OwnerOverview/MyWork; READ |
+| `github.get_recent_activity` | `owner` ≤39 | Activity[]; READ |
+| `github.search_across_org` | `owner` ≤39, `query` ≤100 | SearchResult; READ |
+| `github.find_related_issues` | `repository` ≤201, `query` ≤100 | Issue[]; READ |
+| `github.get_repository`, `github.get_development_context`, `github.get_repo_health` | `repository` ≤201 | RepositoryDetail/DevelopmentContext; READ |
+| `github.create_repository` | `owner` ≤39, `name` ≤100 | `description`, `isPrivate`; RepositoryDetail; WRITE |
+| `github.update_repository` | `repository` ≤201 | `description`, `homepage`, `topics`; RepositoryDetail; WRITE |
+| `github.list_branches`, `github.list_tags`, `github.list_contributors`, `github.get_languages` | `repository` ≤201 | Branch[]/Tag[]/Contributor[]/언어별 바이트; READ |
+| `github.get_tree` | `repository`, `ref` ≤200 | FileEntry[]; READ |
+| `github.get_file` | `repository`, `path` ≤500, `ref` ≤200 | FileContent; READ |
+| `github.get_commit`, `github.get_commit_diff` | `repository`, `sha` ≤40 | Commit/ChangedFile[]; READ |
+| `github.get_issue`, `github.get_pull_request`, `github.get_pull_request_diff` | `repository`, `number` ≥1 | IssueDetail/PullRequestDetail/ChangedFile[]; READ |
+| `github.list_issues`, `github.list_pull_requests` | `repository` ≤201 | `state` open/closed/all; Issue[]/PullRequest[]; READ |
+| `github.search_owner_issues` | `owner` ≤39 | `state`, `role`, `repository`, `label`; Issue[]; READ |
+| `github.search_owner_pull_requests` | `owner` ≤39 | `state`, `repository`; PullRequest[]; READ |
+| `github.get_pr_context` | `repository`, `number` ≥1 | PullRequestContext; READ |
+| `github.get_workflow_runs`, `github.list_workflows` | `repository` | WorkflowRun[]/Workflow[]; READ |
+| `github.get_workflow_run`, `github.get_workflow_jobs`, `github.get_workflow_logs`, `github.analyze_failed_workflow` | `repository`, `runId` ≥1 | WorkflowRun/WorkflowJob[]/failedLogs/WorkflowAnalysis; READ |
+| `github.list_workflow_artifacts` | `repository`, `runId` ≥1 | WorkflowArtifact[]; READ |
+| `github.list_releases` | `repository` | Release[]; READ |
+| `github.get_release` | `repository`, `releaseId` | Release와 asset metadata; READ |
+| `github.create_issue` | `repository`, `title` ≤256 | `body` ≤60000; IssueDetail; WRITE |
+| `github.update_issue` | `repository`, `number` | `title`, `body`, `state`, `labels`, `assignees`, `milestone`; IssueDetail; WRITE |
+| `github.comment_issue` | `repository`, `number`, `body` ≤60000 | IssueDetail; WRITE |
+| `github.create_pull_request` | `repository`, `title`, `base`, `head` | `body` ≤60000, `draft` boolean; PullRequestDetail; WRITE |
+| `github.update_pull_request` | `repository`, `number` | `title`, `body`, `state`, `base`; PullRequestDetail; WRITE |
+| `github.review_pull_request` | `repository`, `number`, `event` COMMENT/APPROVE/REQUEST_CHANGES | `body` ≤60000; PullRequestDetail; WRITE |
+| `github.rerun_workflow` | `repository`, `runId` | `{rerunRequested:true}`; WRITE |
+| `github.cancel_workflow` | `repository`, `runId` | `{cancelRequested:true}`; WRITE |
+| `github.dispatch_workflow` | `repository`, `workflowId`, `ref` | `inputs` 문자열 map 최대 25개; `{dispatchRequested:true}`; WRITE |
+| `github.create_release` | `repository`, `tag` | `name`, `body`, `draft`, `prerelease`, `generateNotes`; Release; WRITE |
+| `github.request_merge` | `repository`, `number` | 일회성 Approval 생성; WRITE, 병합 실행 없음 |
+| `github.merge_pull_request` | `repository`, `number`, `approvalId` UUID | `{merged:true}`; DANGEROUS, 대시보드 브라우저 승인 필요 |
+| `github.request_archive` | `repository` | 일회성 Approval 생성; WRITE, 보관 실행 없음 |
+| `github.archive_repository` | `repository`, `approvalId` UUID | RepositoryDetail; DANGEROUS, 대시보드 브라우저 승인 필요 |
 
 Tool 오류는 MCP `CallToolResult.isError=true` 및 text content로 반환한다. 도구는 WorkspaceException의 검증 오류를 안전하게 전달하고 예상하지 못한 예외 세부 내용은 숨긴다. `open_page` navigation 이벤트는 owner 세션 browser만 GET으로 polling한다. MCP tool 자체는 삭제·임의 파일·셸 작업을 제공하지 않는다.

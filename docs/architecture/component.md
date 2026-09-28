@@ -1,5 +1,7 @@
 # 컴포넌트와 모듈
 
+GitHub는 `GithubController`와 `AssistantMcpService`가 같은 `GithubService` 유스케이스를 사용한다. 외부 호출은 `GithubCliAdapter`, 위험 작업의 승인 상태는 `GithubApprovalService`가 소유한다. `GithubDto`는 REST/MCP의 명시적 응답 타입이고 GitHub upstream JSON을 그대로 노출하지 않는다. `github.js`는 Owner·탭·검색·선택 저장소의 화면 상태만 보유한다. GitHub 계정 데이터는 SQLite entity가 아니다. [구현 범위](../github.md).
+
 catalog는 등록 리소스와 작업 공간 메타데이터를 소유한다. DeviceOperations는 등록 장비에 대한 상태/관리 유스케이스를 소유하며 외부 호출은 CommandAdapter/SshAdapter를 경유한다.
 files는 파일 조회/변경/전송만 소유한다. FileService에서 입력을 검증하고 FileAdapter가 실제 canonical 경로와 파일 스트림을 관리한다.
 runtime은 연결 핸들·최대 개수·로그인 소유권·수명만 소유한다. TerminalAdapter/RemoteAdapter/BrowserAdapter가 실제 외부 시스템에 연결한다.
@@ -23,6 +25,8 @@ Planner는 별도 기능 모듈로 요청/응답 DTO와 저장 record를 분리�
 ## Launcher와 공통 UI
 
 Launcher UI → App/Widget Registry, HomeGrid, HomePersistence의 단방향 의존성을 사용한다. 마우스/터치 변환은 interactions 모듈에, 화면 조립과 표시 트랜잭션은 launcher 모듈에 둔다. 업무 요청은 기존 workspace API helper를 주입한다. UI의 전역 색상과 공통 컨트롤은 design-system.css/ui.js에서 소유하며 기능별 독립 테마를 만들지 않는다. [구체적인 모듈 계약과 추가 절차](../launcher.md).
+
+공통 UI는 `design-system.css`의 의미 토큰과 `ui.js`의 SVG 아이콘·진행률·빈 상태·스켈레톤 표시 함수에서 시작한다. 기능별 CSS는 배치와 정보 밀도만 소유하며 홈 Widget Registry도 같은 표시 함수를 사용한다. [디자인 토큰과 컴포넌트 사용 기준](../design-system.md).
 
 ### Codex 패널
 

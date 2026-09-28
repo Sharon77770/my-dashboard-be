@@ -25,7 +25,7 @@
   const icons = {TERMINAL:'›_', FILES:'▤', REMOTE:'▰', APP:'◇', DOCKER:'DK', GPU:'GPU'};
   const labels = {TERMINAL:'터미널', FILES:'파일', REMOTE:'원격', APP:'앱', DOCKER:'Docker', GPU:'GPU'};
   const modes = {CLIENT:'현재 브라우저', SERVER:'서버 Chromium', REMOTE:'원격 브라우저 서버'};
-  const empty = message => `<p class="empty-state">${escape(message)}</p>`;
+  const empty = message => window.WorkspaceUI.emptyState(message);
   const openAttrs = (kind, target, path = '/') => `data-open="${kind}" data-target="${escape(target)}" data-path="${escape(path)}"`;
   const device = id => state.devices.find(item => item.id === id);
   const timestamp = value => new Intl.DateTimeFormat('ko-KR', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(value);
@@ -51,6 +51,10 @@
   }
   async function refresh() { state = await api('/workspace'); render(); }
   function metric(value) { return value === null || value === undefined ? '—' : `${value.toFixed(0)}%`; }
+  function metricTile(name, value, symbol) {
+    const tone=value==null?'accent':value>=90?'danger':value>=75?'warning':'accent';
+    return `<div class="metric-tile"><span class="metric-tile-head">${window.WorkspaceUI.icon(symbol)}<small>${name}</small><b>${metric(value)}</b></span>${window.WorkspaceUI.progress(value,name,tone)}</div>`;
+  }
   function statusLine(id) {
     const status = statuses.get(id);
     return status ? `${metric(status.cpu)} CPU · ${metric(status.memory)} RAM` : '상태 확인 전';
@@ -68,7 +72,9 @@
     $('#clip-list').innerHTML = state.clips.filter(item => item.expiresAt > Date.now()).map(item => `<div class="clip-item"><button data-action="clip-view" data-id="${item.id}"><b>${escape(item.content)}</b><small>${Math.max(1,Math.ceil((item.expiresAt-Date.now())/60000))}분 후 만료</small></button><button data-action="clip-delete" data-id="${item.id}" aria-label="삭제">×</button></div>`).join('') || empty('텍스트를 저장해 다른 세션에서 이어 쓰세요.');
     $('#device-grid').innerHTML = state.devices.map(item => {
       const status = statuses.get(item.id);
-      return `<article class="device-card"><header><div><i class="dot ${status?.state === 'ONLINE' ? 'green' : 'amber'}"></i><b>${escape(item.name)}</b></div><small>${escape(item.host)}${item.networkMode==='TAILSCALE'?' · Tailscale':''}</small></header><div class="metrics"><div><small>CPU</small><b>${metric(status?.cpu)}</b></div><div><small>RAM</small><b>${metric(status?.memory)}</b></div><div><small>DISK</small><b>${metric(status?.disk)}</b></div></div><p class="device-note">${escape(status?.details || '새로고침으로 상태를 확인하세요.')}</p><footer><button ${openAttrs('TERMINAL',item.id)}>${item.id === 'local' ? '셸' : 'SSH'}</button><button ${openAttrs('FILES',item.id)}>파일</button><button ${openAttrs('DOCKER',item.id)}>Docker</button><button ${openAttrs('GPU',item.id)}>GPU</button>${item.remoteProtocol !== 'NONE' ? `<button ${openAttrs('REMOTE',item.id)}>원격</button>` : ''}<button data-action="device-logs" data-id="${escape(item.id)}">로그</button><button data-action="status" data-id="${item.id}">새로고침</button>${item.id !== 'local' ? `<button data-action="remote-setup" data-id="${item.id}">원격 자동 연결</button><button data-action="device-edit" data-id="${item.id}">설정</button><button data-action="wake" data-id="${item.id}">Wake</button><button data-action="device-delete" data-id="${item.id}" class="danger">삭제</button>` : ''}</footer></article>`;
+      const stateTone=status?.state==='ONLINE'?'success':status?.state==='OFFLINE'?'danger':'warning';
+      const stateLabel=status?.state==='ONLINE'?'온라인':status?.state==='OFFLINE'?'오프라인':'미확인';
+      return `<article class="device-card"><header><div><span class="ui-status" data-state="${stateTone}">${stateLabel}</span><b>${escape(item.name)}</b></div><small>${escape(item.host)}${item.networkMode==='TAILSCALE'?' · Tailscale':''}</small></header><div class="metrics">${metricTile('CPU',status?.cpu,'cpu')}${metricTile('RAM',status?.memory,'memory')}${metricTile('Disk',status?.disk,'disk')}</div><details class="device-extra"><summary>상태 상세</summary><p>${escape(status?.details || '새로고침으로 상태를 확인하세요.')}</p></details><footer><button ${openAttrs('TERMINAL',item.id)}>${item.id === 'local' ? '셸' : 'SSH'}</button><button ${openAttrs('FILES',item.id)}>파일</button><button ${openAttrs('DOCKER',item.id)}>Docker</button><button ${openAttrs('GPU',item.id)}>GPU</button>${item.remoteProtocol !== 'NONE' ? `<button ${openAttrs('REMOTE',item.id)}>원격</button>` : ''}<button data-action="device-logs" data-id="${escape(item.id)}">로그</button><button data-action="status" data-id="${item.id}">새로고침</button>${item.id !== 'local' ? `<button data-action="remote-setup" data-id="${item.id}">원격 자동 연결</button><button data-action="device-edit" data-id="${item.id}">설정</button><button data-action="wake" data-id="${item.id}">Wake</button><button data-action="device-delete" data-id="${item.id}" class="danger">삭제</button>` : ''}</footer></article>`;
     }).join('');
     for (const [container,kind] of [['file-choices','FILES'],['terminal-choices','TERMINAL'],['remote-choices','REMOTE']]) {
       $(`#${container}`).innerHTML = state.devices.filter(item => kind !== 'REMOTE' || item.remoteProtocol !== 'NONE').map(item => `<button class="device-card choice" ${openAttrs(kind,item.id)}><span class="type">${icons[kind]}</span><b>${escape(item.name)}</b><small>${escape(item.host)}</small></button>`).join('') || empty('장비 설정에서 RDP 또는 VNC 접속을 추가해 주세요.');
@@ -223,7 +229,7 @@
   function confirmAction(title,message,action) { editor(title,`<p>${escape(message)}</p>`,action,'확인'); }
   async function loadFiles(tab) {
     const runtime=runtimes.get(tab.id); const root=runtime.element;
-    root.innerHTML='<p class="loading">파일을 불러오는 중...</p>';
+    root.innerHTML=window.WorkspaceUI.skeleton(3);
     try {
       const listing=await api(`/devices/${tab.targetId}/files?path=${encodeURIComponent(tab.path)}`);
       runtime.listing=listing;

@@ -5,6 +5,7 @@ const state=[{name:'folder',path:'/folder',directory:true,size:0,modified:1},{na
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const api=async(path,method='GET',body)=>{calls.push({path,method,body});if(path==='/cloud/trash')return [{id:'fixture-trash',path:'/deleted.txt',deletedAt:1,directory:false}];if(path==='/cloud/text'){if(failSave)throw new Error('revision conflict');assert.equal(body.revision,revision);savedContent=body.content;revision+='-next';return null;}if(path.startsWith('/cloud/preview'))return {content:savedContent,revision};if(method==='GET')return {entries:state,truncated:false,totalSpace:10000,usableSpace:9000};return null;};
 w.XMLHttpRequest=class{constructor(){this.upload={};}open(){}setRequestHeader(){}send(form){uploadForm=form;this.status=201;setTimeout(()=>{this.upload.onprogress({lengthComputable:true,loaded:1,total:1});this.onload();},0);}abort(){this.onabort();}};
+w.eval(fs.readFileSync('src/main/resources/static/js/ui.js','utf8'));
 w.eval(fs.readFileSync('src/main/resources/static/js/cloud-drive.js','utf8'));
 w.WorkspaceCloud.init({api,escape,toast:()=>{},editor:(title,html,submit)=>{d.querySelector('#editor-fields').innerHTML=html;editorSubmit=submit;},confirmAction:(title,text,action)=>action()});
 const tick=()=>new Promise(r=>setTimeout(r,25));const click=action=>d.querySelector('[data-cloud-action="'+action+'"]').click();

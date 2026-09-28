@@ -35,18 +35,18 @@ window.WorkspaceCloud=(()=>{
   $('[data-cloud-items]').innerHTML=visible.slice(page*100,(page+1)*100).map(entry=>{
    const id=trash?entry.id:entry.path;
    return `<article class="cloud-item ${selected.has(id)?'selected':''}" data-cloud-item="${esc(id)}"><input type="checkbox" data-cloud-select="${esc(id)}" aria-label="${esc(name(entry.path))} 선택" ${selected.has(id)?'checked':''}><button class="cloud-item-open" data-cloud-open="${esc(id)}"><span class="cloud-icon" aria-hidden="true">${entry.directory?'▰':'▤'}</span><span><b>${esc(name(entry.path))}</b><small>${trash?esc(entry.path):entry.directory?'폴더':esc(name(entry.path).split('.').pop().toUpperCase())+' 파일'}</small></span></button><span class="cloud-item-size">${entry.directory?'—':bytes(entry.size||0)}</span><time>${date(entry.modified||entry.deletedAt)}</time><button class="ghost" data-cloud-info="${esc(id)}" aria-label="${esc(name(entry.path))} 상세 정보">ⓘ</button></article>`;
-  }).join('')||'<p class="empty-state">'+(trash?'휴지통이 비어 있습니다.':'폴더가 비어 있거나 검색 결과가 없습니다. 파일을 끌어 놓아 업로드하세요.')+'</p>';
+  }).join('')||window.WorkspaceUI.emptyState(trash?'휴지통이 비어 있습니다.':query?'검색 결과가 없습니다.':'폴더가 비어 있습니다.',trash?'':'파일을 끌어 놓아 업로드할 수 있습니다.','files');
   buttons();
  }
  async function refresh(){
-  const version=++generation;page=0;selected.clear();tell('불러오는 중…');
+  const version=++generation;page=0;selected.clear();$('[data-cloud-items]').innerHTML=window.WorkspaceUI.skeleton(3);tell('');
   try{
    const result=await ui.api(trash?'/cloud/trash':`/cloud?path=${encodeURIComponent(path)}&query=${encodeURIComponent($('[data-cloud-filter]').value)}`);
    if(version!==generation)return;
    entries=trash?result:result.entries;
    if(!trash)$('[data-cloud-space]').textContent='서버 저장 공간: '+bytes(result.usableSpace)+' 여유 / '+bytes(result.totalSpace);
    draw();tell(result.truncated?'처리 한도에 도달했습니다. 더 작은 폴더에서 검색하세요.':'');
-  }catch(error){if(version===generation)tell(error.message);}
+  }catch(error){if(version===generation){$('[data-cloud-items]').innerHTML=window.WorkspaceUI.emptyState('파일을 불러오지 못했습니다.',error.message,'warning');tell(error.message);}}
  }
  async function navigate(target){if(busy){tell('진행 중인 작업이 끝난 뒤 이동하세요.');return;}trash=false;path=target;$('[data-cloud-filter]').value='';await refresh();}
  async function batch(ids,operation){

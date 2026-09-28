@@ -6,8 +6,8 @@
 Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 
 - `assistant/controller`, `assistant/service`, `assistant/dto`: server-hosted Codex job, Streamable HTTP MCP, browser navigation events and allowlisted application tools.
-- `github/controller`, `github/service`, `github/adapter`, `github/dto`: OWNER GitHub 조회 API, 입력/인증 확인, 고정된 서버 `gh` 호출과 응답 계약.
-- `static/js/github.js`, `static/css/github.css`: GitHub 로그인·저장소·PR·이슈 화면.
+- `github/controller`, `github/service`, `github/adapter`, `github/dto`: OWNER GitHub REST와 MCP가 공유하는 유스케이스, 승인 상태, 고정된 서버 `gh`/GitHub API 호출과 응답 계약.
+- `static/js/github.js`, `static/css/github.css`: GitHub Owner 탐색, 개발 상태, 승인 대기 화면.
 
 | 경로 | 책임 |
 | --- | --- |

@@ -38,6 +38,56 @@
 | GET | /api/v1/github/repositories | OWNER | 내 GitHub 저장소 목록 |
 | GET | /api/v1/github/pull-requests?repository={owner/name} | OWNER | 저장소의 열린 PR 목록 |
 | GET | /api/v1/github/issues?repository={owner/name} | OWNER | 저장소의 열린 이슈 목록 |
+| GET | /api/v1/github/owners | OWNER | 사용자와 접근 가능한 Organization |
+| GET | /api/v1/github/organizations | OWNER | 접근 가능한 Organization |
+| GET | /api/v1/github/organizations/{owner} | OWNER | Organization 상세 |
+| GET | /api/v1/github/organizations/{owner}/members | OWNER | Organization 회원 |
+| GET | /api/v1/github/organizations/{owner}/teams | OWNER | Organization 팀 |
+| GET | /api/v1/github/owners/{owner}/repositories | OWNER | Owner 저장소 |
+| POST | /api/v1/github/owners/{owner}/repositories | OWNER + CSRF | Owner 저장소 생성 |
+| GET | /api/v1/github/owners/{owner}/overview | OWNER | Owner 요약과 열린 작업 |
+| GET | /api/v1/github/owners/{owner}/activity | OWNER | 보이는 최근 GitHub 이벤트 |
+| GET | /api/v1/github/owners/{owner}/issues | OWNER | Owner 이슈 필터 조회 |
+| GET | /api/v1/github/owners/{owner}/pull-requests | OWNER | Owner PR 필터 조회 |
+| GET | /api/v1/github/owners/{owner}/my-work | OWNER | 내 담당 이슈와 리뷰 요청 |
+| GET | /api/v1/github/owners/{owner}/search | OWNER | Owner 이슈·PR 검색 |
+| GET | /api/v1/github/repositories/detail | OWNER | 저장소 상세 |
+| PATCH | /api/v1/github/repositories | OWNER + CSRF | 저장소 설명·홈페이지 수정 |
+| GET | /api/v1/github/repositories/branches | OWNER | Branch 목록 |
+| GET | /api/v1/github/repositories/tags | OWNER | Tag 목록 |
+| GET | /api/v1/github/repositories/contributors | OWNER | Contributor 목록 |
+| GET | /api/v1/github/repositories/languages | OWNER | 언어별 코드 크기 |
+| GET | /api/v1/github/repositories/tree | OWNER | 저장소 파일 트리 |
+| GET | /api/v1/github/repositories/file | OWNER | 파일 내용 |
+| GET | /api/v1/github/repositories/commits | OWNER | 최근 커밋 |
+| GET | /api/v1/github/repositories/commits/{sha} | OWNER | 커밋 상세 |
+| GET | /api/v1/github/repositories/commits/{sha}/files | OWNER | 커밋 변경 파일 |
+| GET | /api/v1/github/repositories/context | OWNER | 저장소 개발 컨텍스트 |
+| GET | /api/v1/github/issues/detail | OWNER | 이슈 상세 |
+| POST | /api/v1/github/issues | OWNER + CSRF | 이슈 생성 |
+| PATCH | /api/v1/github/issues/{number} | OWNER + CSRF | 이슈 제목·본문·상태·담당자 등 수정 |
+| POST | /api/v1/github/issues/{number}/comments | OWNER + CSRF | 이슈 댓글 |
+| GET | /api/v1/github/pull-requests/detail | OWNER | PR 상세 |
+| GET | /api/v1/github/pull-requests/files | OWNER | PR 변경 파일 |
+| GET | /api/v1/github/pull-requests/context | OWNER | PR 대화·커밋·검사 컨텍스트 |
+| POST | /api/v1/github/pull-requests | OWNER + CSRF | PR 생성 |
+| PATCH | /api/v1/github/pull-requests/{number} | OWNER + CSRF | PR 제목·본문·상태·base 수정 |
+| POST | /api/v1/github/pull-requests/{number}/reviews | OWNER + CSRF | PR 리뷰 |
+| GET | /api/v1/github/actions/workflows | OWNER | Workflow 목록 |
+| GET | /api/v1/github/actions/runs | OWNER | Workflow 실행 목록 |
+| GET | /api/v1/github/actions/runs/{runId} | OWNER | 실행 상세 |
+| GET | /api/v1/github/actions/runs/{runId}/jobs | OWNER | Job·Step 목록 |
+| GET | /api/v1/github/actions/runs/{runId}/artifacts | OWNER | Artifact metadata |
+| GET | /api/v1/github/actions/runs/{runId}/logs | OWNER | 실패 Step 로그 |
+| GET | /api/v1/github/actions/runs/{runId}/analysis | OWNER | 실패 분석 데이터 |
+| POST | /api/v1/github/actions/runs/{runId}/rerun | OWNER + CSRF | Workflow 재실행 |
+| POST | /api/v1/github/actions/runs/{runId}/cancel | OWNER + CSRF | Workflow 실행 취소 요청 |
+| POST | /api/v1/github/actions/workflows/{workflowId}/dispatches | OWNER + CSRF | Workflow 수동 실행 |
+| GET | /api/v1/github/releases | OWNER | Release 목록 |
+| GET | /api/v1/github/releases/{releaseId} | OWNER | Release 상세와 asset metadata |
+| POST | /api/v1/github/releases | OWNER + CSRF | Release 생성 |
+| GET | /api/v1/github/approvals | OWNER | GitHub 위험 작업 승인 대기 |
+| POST | /api/v1/github/approvals/{id} | OWNER + CSRF | 일회성 병합 승인 |
 | GET | /api/v1/search | OWNER | 장비·앱·즐겨찾기 검색 |
 | POST | /api/v1/devices | OWNER | 장비 생성(최대 5단계 점프 프록시 설정 포함) |
 | POST | /api/v1/devices/ssh | OWNER + CSRF | SSH 명령과 비밀번호로 검증 후 장비 생성/갱신(점프 프록시 포함) |

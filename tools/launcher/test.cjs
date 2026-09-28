@@ -16,7 +16,7 @@ const click=selector=>{const node=d.querySelector(selector);assert.ok(node,selec
 const load=()=>JSON.parse(w.localStorage.getItem(w.HomePersistence.key()));
 (async()=>{
 for(const file of ['ui.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js','workspace.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
-await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,13);
+await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,16);
 assert.equal(w.WorkspaceApps.all().length,21);assert.equal(d.querySelectorAll('#home-grid img').length,0);
 assert.ok(d.querySelector('#home-grid [data-view="assistant"]'));
 assert.ok(d.querySelector('#launcher-dock-apps [data-view="assistant"]'));
@@ -63,7 +63,7 @@ click('[data-launcher="new-folder"]');d.querySelector('#editor-fields [name="app
 d.querySelector('#editor-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();let folder=load().items.find(item=>item.type==='folder');assert.equal(folder.name,'Work <img>');assert.equal(d.querySelector('#home-grid img'),null);
 click(`[data-launcher="folder"][data-item="${folder.id}"]`);click('[data-launcher="folder-app-menu"]');click('[data-launcher="folder-extract"]');await tick();assert.equal(load().items.some(item=>item.type==='folder'),false);
 // Widget picker and resize preserve supported sizes and nonoverlap.
-click('[data-launcher="widgets"]');assert.equal(d.querySelectorAll('.widget-preview').length,8);click('[data-launcher="add-widget"][data-widget="codex"]');await tick();const widget=load().items.find(item=>item.widgetId==='codex');assert.ok(widget);
+click('[data-launcher="widgets"]');assert.equal(d.querySelectorAll('.widget-preview').length,9);click('[data-launcher="add-widget"][data-widget="codex"]');await tick();const widget=load().items.filter(item=>item.widgetId==='codex').at(-1);assert.ok(widget);
 click(`[data-home-item="${widget.id}"] [data-launcher="context"]`);click('#home-context [data-launcher="place"]');d.querySelector('[name="size"]').value='4,2';d.querySelector('[name="page"]').value='1';d.querySelector('[name="x"]').value='1';d.querySelector('#editor-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();assert.equal(load().items.find(item=>item.id===widget.id).page,1);assert.equal(load().items.find(item=>item.id===widget.id).w,4);
 // Pointer drag merges apps into a folder; folder reorder shares the same interaction layer.
 const source=d.querySelector('.home-item.app'),target=[...d.querySelectorAll('.home-item.app')].find(node=>node!==source);

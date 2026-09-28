@@ -1,6 +1,7 @@
 const {JSDOM}=require('jsdom'),fs=require('fs'),assert=require('node:assert/strict');
 const dom=new JSDOM('<meta name="csrf-header" content="X-CSRF-TOKEN"><meta name="csrf-token" content="fixture"><div id="notes" class="view active"></div><dialog id="editor-dialog"><form id="fields"></form></dialog>',{runScripts:'outside-only',url:'http://localhost'});
 const w=dom.window,d=w.document,entries=[{id:'org',parentId:null,kind:'FOLDER',title:'조직',icon:'📁',revision:0},{id:'project',parentId:'org',kind:'FOLDER',title:'프로젝트',icon:'📁',revision:0},{id:'page',parentId:'project',kind:'DOCUMENT',title:'<img src=x>',icon:'📄',revision:0}],documents={page:[{type:'paragraph',content:'처음'}]},calls=[];
+w.eval(fs.readFileSync('src/main/resources/static/js/ui.js','utf8'));
 let submit,change,buffer,failSave=false,holdSave=null,saveStarted=null,migrateOnRead=true;
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=value=>JSON.parse(JSON.stringify(value));

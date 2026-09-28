@@ -24,6 +24,7 @@ Compose는 Tailscale, 대시보드, guacd, Chromium 브라우저를 함께 실�
 - 앱: HTTP(S) URL 등록/수정/삭제/고정. 별도 브라우저 설정 창에서 실행 위치 선택.
 - 작업 공간: 실행 탭 열기/고정/닫기/복원, 서버 검색, Ctrl/Cmd+K, 최근 파일 위치, 모바일 앱 전환기.
 - 설정: 다크/라이트, 화면 밀도, 터미널 글자 크기, 기본 클립보드 만료 시간. SQLite에 저장합니다.
+- GitHub: 서버 `gh` 인증을 사용해 USER/Organization Owner, 저장소, 이슈, PR, Actions, Release와 개발 컨텍스트를 조회합니다. 같은 `GithubService`를 대시보드 REST와 Codex MCP 도구가 사용합니다. [구조·도구·권한·확장 방법](docs/github.md).
 
 ## 브라우저 설정
 
@@ -159,7 +160,7 @@ dashboard 컨테이너를 새로 만들면 네트워크를 공유하는 guacd/br
 
 ## Launcher 사용과 확장
 
-[Launcher 문서](docs/launcher.md)에서 홈 편집, 폴더, 위젯, Desktop/Mobile 동작과 앱 등록 방법을 확인하세요. 공통 디자인 시스템과 저장 모델, UI 검증 방법도 함께 설명합니다.
+[Launcher 문서](docs/launcher.md)에서 홈 편집, 폴더, 위젯, Desktop/Mobile 동작과 앱 등록 방법을 확인하세요. 색상·간격·상태·로딩·반응형 패턴은 [디자인 시스템](docs/design-system.md)에 정리했습니다.
 
 운영 환경변수와 업데이트 명령은 [배포 안내](docs/deployment.md)를 참고하세요.
 

@@ -23,6 +23,33 @@ window.fetch = async (url, options = {}) => {
   requests.push({ url, method: options.method || 'GET' });
   let result = [];
   if (url === '/api/v1/github/status') result = { authenticated };
+  if (url === '/api/v1/github/owners') result = [
+    {login:'alice',type:'USER'}, {login:'example-org',type:'ORGANIZATION'}
+  ];
+  if (url === '/api/v1/github/approvals') result = [];
+  if (url === '/api/v1/github/owners/alice/repositories') result = [
+    {nameWithOwner:'alice/sample', description:'Personal', isPrivate:false, isArchived:false, isFork:false, updatedAt:'2026-01-01'}
+  ];
+  if (url === '/api/v1/github/owners/example-org/repositories') result = [
+    {nameWithOwner:'example-org/service', description:'Service', isPrivate:true, isArchived:false, isFork:false, updatedAt:'2026-01-02'}
+  ];
+  if (url === '/api/v1/github/owners/alice/overview') result = {repositories:[],openIssues:[],openPullRequests:[]};
+  if (url === '/api/v1/github/owners/example-org/overview') result = {repositories:[],openIssues:[],openPullRequests:[]};
+  if (url === '/api/v1/github/repositories/context?repository=example-org%2Fservice') result = {
+    repository:{fullName:'example-org/service'},openIssues:[],openPullRequests:[],recentWorkflowRuns:[]
+  };
+  if (url.startsWith('/api/v1/github/owners/example-org/issues?')) result = [
+    {number:7,title:'Fix CI',state:'open',url:'https://github.com/example-org/service/issues/7',updatedAt:'2026-01-02'}
+  ];
+  if (url === '/api/v1/github/issues/detail?repository=example-org%2Fservice&number=7') result = {
+    number:7,title:'Fix CI',state:'open',body:'Details',assignees:[],labels:[]
+  };
+  if (url === '/api/v1/github/actions/workflows?repository=example-org%2Fservice') result = [
+    {id:11,name:'CI',state:'active',url:'https://github.com/example-org/service/actions/workflows/ci.yml'}
+  ];
+  if (url === '/api/v1/github/actions/runs?repository=example-org%2Fservice') result = [
+    {id:99,name:'CI',conclusion:'failure',branch:'main',createdAt:'2026-01-02',url:'https://github.com/example-org/service/actions/runs/99'}
+  ];
   if (url === '/api/v1/workspace') result = window.workspaceInitial;
   if (url === '/api/v1/studio/jobs' && options.method === 'POST') result = { id: 'login', state: 'RUNNING' };
   if (url === '/api/v1/studio/jobs/login') {
@@ -44,13 +71,43 @@ for (const file of scripts) window.eval(fs.readFileSync('src/main/resources/stat
 (async () => {
   window.dispatchEvent(new window.Event('DOMContentLoaded'));
   await window.WorkspaceGithub.open('github');
-  assert.match(document.querySelector('#github-status').textContent, /로그인이 필요/);
+  assert.match(document.querySelector('#github-status').textContent, /로그인 필요/);
   document.querySelector('#github-login').click();
   await new Promise(resolve => setTimeout(resolve, 800));
   assert.ok(requests.some(request => request.url === '/api/v1/studio/jobs' && request.method === 'POST'));
   assert.match(document.querySelector('#github-status').textContent, /연결됨/);
   assert.equal(document.querySelector('#github-auth-code').textContent, 'ABCD-1234');
-  console.log('PASS GitHub UI: deferred initialization and login job');
+  assert.equal(document.querySelectorAll('#github-owner option').length, 2);
+  const scope = document.querySelector('#github-owner');
+  scope.value = 'example-org'; scope.dispatchEvent(new window.Event('change', {bubbles:true}));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.ok(document.querySelector('[data-repository="example-org/service"]'));
+  document.querySelector('[data-repository="example-org/service"]').click();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(document.querySelector('#github-selected').textContent, 'example-org/service');
+  document.querySelector('[data-tab="issues"]').click();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  document.querySelector('[data-create-kind="issue"]').click();
+  assert.ok(document.querySelector('form[data-github-create="issue"]'));
+  document.querySelector('[data-detail-kind="issue"]').click();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const response = document.querySelector('[data-github-response="issue"]');
+  assert.ok(response);
+  response.querySelector('textarea').value = 'Investigating';
+  response.dispatchEvent(new window.Event('submit', {bubbles:true,cancelable:true}));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.ok(requests.some(request => request.method === 'POST'
+    && request.url === '/api/v1/github/issues/7/comments?repository=example-org%2Fservice'));
+  document.querySelector('[data-tab="actions"]').click();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  document.querySelector('[data-dispatch-workflow="11"]').click();
+  const dispatch = document.querySelector('[data-github-dispatch]');
+  dispatch.querySelector('input').value = 'main';
+  dispatch.dispatchEvent(new window.Event('submit', {bubbles:true,cancelable:true}));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.ok(requests.some(request => request.method === 'POST'
+    && request.url === '/api/v1/github/actions/workflows/11/dispatches?repository=example-org%2Fservice'));
+  console.log('PASS GitHub UI: login, Owner switch, issue comment and workflow dispatch');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;

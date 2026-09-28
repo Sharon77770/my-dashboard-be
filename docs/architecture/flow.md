@@ -1,5 +1,11 @@
 # 주요 흐름
 
+## GitHub Control Center
+
+OWNER 브라우저가 `github/status`를 조회한다. 서버 `gh`가 미인증이면 기기 코드 로그인 job을 시작하고 사용자가 GitHub에서 승인한다. 인증 후 `GithubService.owners`가 사용자와 접근 가능한 Organization을 조회한다. Owner 변경 시 저장소 선택을 초기화하고 해당 Owner의 저장소·Overview를 다시 조회한다. 저장소 선택은 같은 서비스의 이슈·PR·Workflow·파일·커밋 조회로 이어진다. 비어 있는 목록은 빈 상태로 표시하고 외부 실패는 안전한 오류 메시지로 표시한다. CLI 재시도는 자동 수행하지 않는다.
+
+Codex의 MCP `github.*` 호출은 `AssistantMcpService`에서 입력을 검증하고 `GithubService`를 호출한다. READ는 구조화된 결과를 반환한다. WRITE는 서비스가 서버 `gh` 인증과 입력을 확인한 뒤 전용 adapter로 전송한다. PR 병합과 저장소 Archive는 MCP 승인 요청 생성 → OWNER 브라우저가 작업·대상 확인 후 CSRF 보호 POST 승인 → MCP가 같은 작업·대상·UUID로 실행 요청 → 일회성 승인 소비 → GitHub 호출 순서다. 10분 만료, 승인 누락 또는 대상 불일치는 403이다.
+
 ## 시작과 인증
 환경변수 계정을 검증하고 BCrypt 계정을 등록한다. schema.sql을 idempotent 적용하고 기본 local 장비 루트를 현재 환경변수로 구성한다.
 credential.key가 없으면 32바이트 키를 생성한다. 기존 키는 재사용하며 길이 오류면 시작에 실패한다.

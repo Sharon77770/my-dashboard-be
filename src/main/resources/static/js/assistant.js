@@ -336,7 +336,10 @@
       limitsText.textContent = '잔여 사용량 정보 없음';
       return;
     }
-    limitsText.textContent = limits.map(limit => {
+    limitsText.replaceChildren();
+    const list = document.createElement('div');
+    list.className = 'assistant-limit-list';
+    for (const limit of limits) {
       const duration = Number(limit.windowDurationMins);
       const windowLabel = Number.isFinite(duration) && duration > 0
         ? duration >= 1440 && duration % 1440 === 0 ? duration / 1440 + '일'
@@ -344,20 +347,29 @@
         : '기간 미상';
       const used = Number(limit.usedPercent);
       const remaining = limit.usedPercent != null && Number.isFinite(used)
-        ? Math.max(0, Math.min(100, 100 - used)).toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '%'
-        : '정보 없음';
+        ? Math.max(0, Math.min(100, 100 - used)) : null;
       const reset = Number(limit.resetsAt);
       const resetLabel = Number.isFinite(reset) && reset > 0
-        ? ' · ' + new Date(reset * 1000).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 초기화'
+        ? new Date(reset * 1000).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' 초기화'
         : '';
-      return `${limit.name || 'Codex'} ${windowLabel} 잔여 ${remaining}${resetLabel}`;
-    }).join('  |  ');
+      const row = document.createElement('div');row.className = 'assistant-limit-row';
+      const label = document.createElement('span');label.textContent = `${limit.name || 'Codex'} · ${windowLabel}`;
+      const value = document.createElement('strong');
+      value.textContent = remaining == null ? '—' : remaining.toLocaleString('ko-KR', {maximumFractionDigits:1}) + '%';
+      row.append(label,value);
+      const bar = document.createElement('div');
+      bar.innerHTML = window.WorkspaceUI.progress(remaining,`${limit.name || 'Codex'} 잔여 사용량`,remaining != null && remaining <= 10?'danger':remaining != null && remaining <= 25?'warning':'accent');
+      row.append(bar.firstElementChild);
+      if (resetLabel) {const time = document.createElement('small');time.textContent = resetLabel;row.append(time);}
+      list.append(row);
+    }
+    limitsText.append(list);
   }
 
   async function refreshRateLimits() {
     if (busy) return;
     limitsRefresh.disabled = true;
-    limitsText.textContent = '잔여 사용량 확인 중…';
+    limitsText.innerHTML = window.WorkspaceUI.skeleton(2);
     try {
       const result = await runJob('codex-rate-limits');
       renderRateLimits(result.assistant?.rateLimits);

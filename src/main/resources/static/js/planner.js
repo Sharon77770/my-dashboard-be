@@ -13,7 +13,7 @@ window.WorkspacePlanner = (() => {
   const safe=value=>ui.escape(value);
   const field=(name,label,value,type='text',extra='')=>ui.fields.input(name,label,value,type,extra);
   const today=()=>dateString(new Date());
-  const notice=message=>`<p class="empty-state">${safe(message)}</p>`;
+  const notice=message=>window.WorkspaceUI.emptyState(message,'','calendar');
   const colorField=value=>field('color','색상',value,'color','required');
   const memo=value=>`<label>메모<textarea name="notes" rows="3" maxlength="4000">${safe(value)}</textarea></label>`;
   const onDay=(event,day)=>event.start<`${addDays(day,1)}T00:00`&&event.end>`${day}T00:00`;

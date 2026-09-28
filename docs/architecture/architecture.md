@@ -72,6 +72,8 @@ StudioController → StudioService(OWNER/HTTP 세션·수명·크기 제한, Cod
 
 AssistantController → StudioService의 assistant job 경계 → StudioAdapter의 server-local Codex process → Codex App Server stdio. 앱 assistant UI는 내장 `assistant` 앱 뷰로 실행하며 IDE Codex UI를 재사용하지 않고 기존 API와 MCP 기능을 사용한다. AssistantMcpService가 allowlisted route/app, 일정, 노트 도구를 기존 feature service로 전달하며 대화 이벤트와 사용자 확인 요청은 브라우저에서 표시한다. AssistantEvents는 MCP navigation 결과를 브라우저 polling queue로 전달한다. MCP token은 env 설정값 또는 프로세스 부팅 시 생성한 임시 값이며 SQLite에 저장하지 않는다.
 
+GitHub 화면과 MCP의 `github.*` 도구는 모두 `GithubService`를 사용한다. `GithubCliAdapter`가 서버 `gh`와 GitHub REST API를 고정된 명령으로 호출한다. Owner는 USER/ORGANIZATION을 포함하며 화면은 선택 Owner를 기준으로 저장소·작업·실행 상태를 조합한다. MCP 위험 작업인 PR 병합과 저장소 Archive는 `GithubApprovalService`의 10분 일회성 승인과 OWNER 브라우저 POST를 거친다. GitHub 데이터는 SQLite에 복사하지 않는다. [상세](../github.md).
+
 장비의 NetworkMode는 DIRECT/TAILSCALE이다. SshAdapter와 RemoteAdapter는 주입된 DeviceNetworkAdapter를 사용하고, 원격 브라우저·단순 포트 상태 조회는 CatalogService.connectionHost를 통해 같은 adapter를 사용한다. 네트워크/DNS 처리는 controller나 UI에서 수행하지 않는다. TAILSCALE은 tailscale0에 tailnet 주소가 존재하는지 확인한 뒤 3초 이내 DNS 결과 중 tailnet 주소만 선택하여 숫자 IP로 접속한다. 일반 주소 fallback은 없다. 장비는 최대 5개의 등록 점프 장비 ID를 순서대로 저장할 수 있으며 SshAdapter가 각 홉에 SSH 인증·호스트 키 검증 후 Direct-TCPIP 채널로 다음 홉을 연결한다. 점프 장비의 점프 체인 중첩은 차단한다. CLI 로그인 상태 저장이나 LocalAPI 노출은 추가하지 않는다.
 
 장비 로그는 StudioService의 세션 소유 비동기 작업으로 실행하고 StudioAdapter → 고정 logs.py → 로컬/SSH CLI를 경유한다. 기존 SSH/Tailscale 경계를 재사용한다. 로그 작업은 프로젝트 잠금을 잡지 않고 최근 이벤트만 메모리에 보유한다. 상세 계약은 [장비 로그](../device-logs.md)를 따른다.

@@ -29,15 +29,14 @@
 /* Shared product components are compiled by Tailwind. Feature layouts remain in base. */
 @layer components {
 /* Shared product presentation: quiet surfaces, consistent controls and overlay navigation. */
-button,.button,input,select,textarea{@apply rounded-md;}
-button,.button{@apply [transition:background-color_.14s_ease,border-color_.14s_ease,color_.14s_ease];}
-.panel,.device-card,.home-item.widget,.cloud-items,.studio-workbench{@apply rounded-lg;}
+button,.button,input,select,textarea{border-radius:var(--radius-sm);}
+.panel,.device-card,.home-item.widget,.cloud-items,.studio-workbench{border-radius:var(--radius-lg);}
 .page-head h1,.studio-head h1,.launcher-head h1{@apply text-xl [letter-spacing:-.025em] font-semibold;}
-.dialog,.editor-dialog{@apply rounded-xl border-subtle shadow-panel;}
+.dialog,.editor-dialog{border-radius:var(--radius-xl);@apply border-subtle shadow-panel;}
 dialog::backdrop{@apply [background:var(--drawer-overlay)] [backdrop-filter:blur(4px)] [-webkit-backdrop-filter:blur(4px)];}
 .launcher-home{@apply bg-app;}
-.launcher-shortcut .launcher-icon{@apply shadow-none [border-radius:10px];}
-.launcher-dock{@apply rounded-xl shadow-panel;}
+.launcher-shortcut .launcher-icon{border-radius:var(--radius-md);@apply shadow-none;}
+.launcher-dock{border-radius:var(--radius-xl);@apply shadow-panel;}
 .os-statusbar,.os-tools,.os-navigation{@apply bg-sidebar;}
 .cloud-selection{@apply bg-transparent [border-bottom:1px_solid_var(--border-subtle)] rounded-none [padding:4px_0_12px];}
 .cloud-sidebar button{@apply justify-start border-0 bg-transparent;}.cloud-sidebar button:hover{@apply bg-surface-hover;}
