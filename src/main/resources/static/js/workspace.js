@@ -358,7 +358,7 @@
   window.WorkspaceCloud?.init({api,escape,toast,editor,confirmAction});
   window.WorkspaceNas?.init({api,escape,editor,toast});
   window.WorkspaceTailscale?.init({api,confirmAction});
-  window.WorkspaceGithub?.init({api});
+  window.addEventListener('DOMContentLoaded', () => window.WorkspaceGithub?.init({api}));
   window.addEventListener('DOMContentLoaded', () => window.WorkspaceStudio?.init({api,editor,escape,toast,confirmAction,openTerminal: id=>openResource('TERMINAL',id)}));
   window.WorkspaceLauncher.init({api,editor,toast,state:()=>state,showHome:()=>showView('home')});
   window.WorkspaceAssistantRuntime={

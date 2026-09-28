@@ -17,7 +17,7 @@ const load=()=>JSON.parse(w.localStorage.getItem(w.HomePersistence.key()));
 (async()=>{
 for(const file of ['ui.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js','workspace.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
 await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,13);
-assert.equal(w.WorkspaceApps.all().length,20);assert.equal(d.querySelectorAll('#home-grid img').length,0);
+assert.equal(w.WorkspaceApps.all().length,21);assert.equal(d.querySelectorAll('#home-grid img').length,0);
 assert.ok(d.querySelector('#home-grid [data-view="assistant"]'));
 assert.ok(d.querySelector('#launcher-dock-apps [data-view="assistant"]'));
 // Grid projects one model without collisions or changing canonical coordinates.
