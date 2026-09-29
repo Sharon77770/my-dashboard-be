@@ -129,11 +129,14 @@ class GithubMcpToolTest {
   void calendarUpdateAndDeleteDelegateToPlannerService() throws Exception {
     when(planner.saveEvent(eq("event-1"), any()))
         .thenReturn(mock(com.personal.dashboard.planner.dto.PlannerDto.EventView.class));
-    mcp.call("update_calendar_event", json.readTree(
-        "{\"id\":\"event-1\",\"title\":\"회의\",\"start\":\"2026-10-01T09:00\",\"end\":\"2026-10-01T10:00\",\"allDay\":false,\"location\":\"\",\"notes\":\"\",\"color\":\"#6b8afd\"}"));
+    mcp.call(
+        "update_calendar_event",
+        json.readTree(
+            "{\"id\":\"event-1\",\"title\":\"회의\",\"start\":\"2026-10-01T09:00\",\"end\":\"2026-10-01T10:00\",\"allDay\":false,\"location\":\"\",\"notes\":\"\",\"color\":\"#6b8afd\"}"));
     verify(planner).saveEvent(eq("event-1"), any());
-    assertEquals(true, mcp.call("delete_calendar_event",
-        json.readTree("{\"id\":\"event-1\"}")).get("deleted"));
+    assertEquals(
+        true,
+        mcp.call("delete_calendar_event", json.readTree("{\"id\":\"event-1\"}")).get("deleted"));
     verify(planner).deleteEvent("event-1");
   }
 }

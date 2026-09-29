@@ -216,7 +216,8 @@ public class AssistantMcpService {
         dangerousTool(
             "github.delete_repository",
             "Permanently delete the exact repository after dashboard browser approval.",
-            schema(List.of("repository", "approvalId"),
+            schema(
+                List.of("repository", "approvalId"),
                 Map.of("repository", string(201), "approvalId", string(36)))),
         tool(
             "github.list_branches",
@@ -454,20 +455,31 @@ public class AssistantMcpService {
             schema(
                 List.of("repository", "releaseId"),
                 Map.of(
-                    "repository", string(201), "releaseId", integer(), "tag", string(100),
-                    "name", string(256), "body", string(60000))),
+                    "repository",
+                    string(201),
+                    "releaseId",
+                    integer(),
+                    "tag",
+                    string(100),
+                    "name",
+                    string(256),
+                    "body",
+                    string(60000))),
             false),
         tool(
             "github.request_delete_release",
             "Request dashboard browser approval to delete one release. The Git tag remains. No deletion occurs yet.",
-            schema(List.of("repository", "releaseId"),
+            schema(
+                List.of("repository", "releaseId"),
                 Map.of("repository", string(201), "releaseId", integer())),
             false),
         dangerousTool(
             "github.delete_release",
             "Delete the exact release after dashboard browser approval. The Git tag remains.",
-            schema(List.of("repository", "releaseId", "approvalId"),
-                Map.of("repository", string(201), "releaseId", integer(), "approvalId", string(36)))),
+            schema(
+                List.of("repository", "releaseId", "approvalId"),
+                Map.of(
+                    "repository", string(201), "releaseId", integer(), "approvalId", string(36)))),
         tool(
             "github.create_issue",
             "Create an issue in a repository. WRITE operation.",
@@ -672,9 +684,22 @@ public class AssistantMcpService {
             schema(
                 List.of("id", "title", "start", "end", "allDay", "location", "notes", "color"),
                 Map.of(
-                    "id", string(36), "title", string(120), "start", dateTime(), "end", dateTime(),
-                    "allDay", Map.of("type", "boolean"), "location", string(200),
-                    "notes", string(4000), "color", string(7))),
+                    "id",
+                    string(36),
+                    "title",
+                    string(120),
+                    "start",
+                    dateTime(),
+                    "end",
+                    dateTime(),
+                    "allDay",
+                    Map.of("type", "boolean"),
+                    "location",
+                    string(200),
+                    "notes",
+                    string(4000),
+                    "color",
+                    string(7))),
             false),
         dangerousTool(
             "delete_calendar_event",
@@ -715,19 +740,26 @@ public class AssistantMcpService {
             "Rename a notebook document or folder, or move it to a folder. Read the current entry and revision first. Omitted fields keep their current values.",
             schema(
                 List.of("id", "revision"),
-                Map.of("id", string(36), "revision", integer(), "title", string(200),
-                    "parentId", nullableString(36))),
+                Map.of(
+                    "id",
+                    string(36),
+                    "revision",
+                    integer(),
+                    "title",
+                    string(200),
+                    "parentId",
+                    nullableString(36))),
             false),
         dangerousTool(
             "replace_note_text",
             "Replace all blocks of an existing note with Markdown. Images and rich blocks are removed. Read the note and confirm this replacement first.",
-            schema(List.of("id", "revision", "text"),
+            schema(
+                List.of("id", "revision", "text"),
                 Map.of("id", string(36), "revision", integer(), "text", string(100000)))),
         dangerousTool(
             "delete_note",
             "Permanently delete a note or empty folder using its current revision. Read and confirm the target first.",
-            schema(List.of("id", "revision"),
-                Map.of("id", string(36), "revision", integer()))));
+            schema(List.of("id", "revision"), Map.of("id", string(36), "revision", integer()))));
   }
 
   public Map<String, Object> call(String name, JsonNode args) {
@@ -941,16 +973,21 @@ public class AssistantMcpService {
           Map.of(
               "release",
               github.updateRelease(
-                  requiredText(args, "repository", 201), requiredLong(args, "releaseId"),
+                  requiredText(args, "repository", 201),
+                  requiredLong(args, "releaseId"),
                   new GithubDto.UpdateRelease(
-                      optionalText(args, "tag", 100), optionalText(args, "name", 256),
+                      optionalText(args, "tag", 100),
+                      optionalText(args, "name", 256),
                       optionalText(args, "body", 60000))));
       case "github.request_delete_release" ->
-          Map.of("approval", github.requestDeleteRelease(
-              requiredText(args, "repository", 201), requiredLong(args, "releaseId")));
+          Map.of(
+              "approval",
+              github.requestDeleteRelease(
+                  requiredText(args, "repository", 201), requiredLong(args, "releaseId")));
       case "github.delete_release" -> {
         github.deleteRelease(
-            requiredText(args, "repository", 201), requiredLong(args, "releaseId"),
+            requiredText(args, "repository", 201),
+            requiredLong(args, "releaseId"),
             requiredText(args, "approvalId", 36));
         yield Map.of("deleted", true);
       }
@@ -1120,8 +1157,7 @@ public class AssistantMcpService {
   /** A complete event snapshot avoids silently clearing details during a small edit. */
   private Map<String, Object> updateEvent(JsonNode args) {
     String id = requiredText(args, "id", 36);
-    if (!args.path("allDay").isBoolean())
-      throw new WorkspaceException(400, "입력값을 확인해 주세요: allDay");
+    if (!args.path("allDay").isBoolean()) throw new WorkspaceException(400, "입력값을 확인해 주세요: allDay");
     var input =
         new EventRequest(
             requiredText(args, "title", 120),
@@ -1210,8 +1246,10 @@ public class AssistantMcpService {
 
   private long requiredRevision(JsonNode args) {
     JsonNode value = args.get("revision");
-    if (value == null || !value.isIntegralNumber() || !value.canConvertToLong() || value.asLong() < 0)
-      throw new WorkspaceException(400, "입력값을 확인해 주세요: revision");
+    if (value == null
+        || !value.isIntegralNumber()
+        || !value.canConvertToLong()
+        || value.asLong() < 0) throw new WorkspaceException(400, "입력값을 확인해 주세요: revision");
     return value.asLong();
   }
 

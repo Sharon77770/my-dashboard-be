@@ -734,7 +734,8 @@ public class GithubService {
     var body = json.createObjectNode();
     if (request.tag() != null) body.put("tag_name", requireText(request.tag(), 100, "Tag"));
     if (request.name() != null) body.put("name", optionalText(request.name(), 256, "Release 이름"));
-    if (request.body() != null) body.put("body", optionalText(request.body(), 60000, "Release notes"));
+    if (request.body() != null)
+      body.put("body", optionalText(request.body(), 60000, "Release notes"));
     if (body.isEmpty()) throw new WorkspaceException(400, "변경할 Release 정보를 입력해 주세요.");
     return mapRelease(cli.apiWrite("PATCH", "repos/" + target + "/releases/" + releaseId, body));
   }

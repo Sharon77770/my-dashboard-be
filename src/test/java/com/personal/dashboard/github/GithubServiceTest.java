@@ -137,16 +137,17 @@ class GithubServiceTest {
   @Test
   void releaseEditSendsOnlyRequestedFieldsThroughAdapter() throws Exception {
     when(cli.authenticated()).thenReturn(true);
-    var response = new ObjectMapper().readTree(
-        "{\"id\":7,\"tag_name\":\"v2\",\"body\":\"새 설명\",\"assets\":[]}");
-    when(cli.apiWrite(eq("PATCH"), eq("repos/alice/repo/releases/7"), any()))
-        .thenReturn(response);
+    var response =
+        new ObjectMapper()
+            .readTree("{\"id\":7,\"tag_name\":\"v2\",\"body\":\"새 설명\",\"assets\":[]}");
+    when(cli.apiWrite(eq("PATCH"), eq("repos/alice/repo/releases/7"), any())).thenReturn(response);
 
-    var updated = service.updateRelease("alice/repo", 7,
-        new GithubDto.UpdateRelease("v2", null, "새 설명"));
+    var updated =
+        service.updateRelease("alice/repo", 7, new GithubDto.UpdateRelease("v2", null, "새 설명"));
 
     assertEquals("v2", updated.tag());
-    var request = org.mockito.ArgumentCaptor.forClass(com.fasterxml.jackson.databind.JsonNode.class);
+    var request =
+        org.mockito.ArgumentCaptor.forClass(com.fasterxml.jackson.databind.JsonNode.class);
     verify(cli).apiWrite(eq("PATCH"), eq("repos/alice/repo/releases/7"), request.capture());
     assertEquals("v2", request.getValue().path("tag_name").asText());
     assertEquals("새 설명", request.getValue().path("body").asText());
@@ -162,14 +163,22 @@ class GithubServiceTest {
     var protectedService = new GithubService(cli, new ObjectMapper(), approvalService);
     var approval = protectedService.requestDeleteRelease("alice/repo", 9);
 
-    assertEquals(403, assertThrows(WorkspaceException.class,
-        () -> protectedService.deleteRelease("alice/repo", 9, approval.id())).status());
+    assertEquals(
+        403,
+        assertThrows(
+                WorkspaceException.class,
+                () -> protectedService.deleteRelease("alice/repo", 9, approval.id()))
+            .status());
     verify(cli, never()).apiDelete(anyString());
     approvalService.approve(approval.id());
     protectedService.deleteRelease("alice/repo", 9, approval.id());
     verify(cli).apiDelete("repos/alice/repo/releases/9");
-    assertEquals(403, assertThrows(WorkspaceException.class,
-        () -> protectedService.deleteRelease("alice/repo", 9, approval.id())).status());
+    assertEquals(
+        403,
+        assertThrows(
+                WorkspaceException.class,
+                () -> protectedService.deleteRelease("alice/repo", 9, approval.id()))
+            .status());
   }
 
   @Test

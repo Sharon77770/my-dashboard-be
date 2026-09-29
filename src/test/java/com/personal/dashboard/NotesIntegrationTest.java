@@ -147,30 +147,45 @@ class NotesIntegrationTest {
   @Test
   @WithMockUser(username = "notes-test", roles = "OWNER")
   void mcpCanRenameReplaceAndDeleteWithRevisionProtection() {
-    var created = mcp.call("create_note", json.valueToTree(
-        Map.of("title", "처음", "text", "원본")));
+    var created = mcp.call("create_note", json.valueToTree(Map.of("title", "처음", "text", "원본")));
     var entry = json.valueToTree(created.get("entry"));
     String id = entry.path("id").asText();
     long revision = entry.path("revision").asLong();
 
-    var renamed = mcp.call("update_note_metadata", json.valueToTree(
-        Map.of("id", id, "revision", revision, "title", "변경됨")));
+    var renamed =
+        mcp.call(
+            "update_note_metadata",
+            json.valueToTree(Map.of("id", id, "revision", revision, "title", "변경됨")));
     long nextRevision = json.valueToTree(renamed.get("entry")).path("revision").asLong();
     assertThat(json.valueToTree(renamed.get("entry")).path("title").asText()).isEqualTo("변경됨");
-    assertThatThrownBy(() -> mcp.call("replace_note_text", json.valueToTree(
-        Map.of("id", id, "revision", revision, "text", "오래된 수정"))))
+    assertThatThrownBy(
+            () ->
+                mcp.call(
+                    "replace_note_text",
+                    json.valueToTree(Map.of("id", id, "revision", revision, "text", "오래된 수정"))))
         .isInstanceOf(WorkspaceException.class);
 
-    var replaced = mcp.call("replace_note_text", json.valueToTree(
-        Map.of("id", id, "revision", nextRevision, "text", "# 새 본문")));
+    var replaced =
+        mcp.call(
+            "replace_note_text",
+            json.valueToTree(Map.of("id", id, "revision", nextRevision, "text", "# 새 본문")));
     long finalRevision = json.valueToTree(replaced.get("entry")).path("revision").asLong();
-    assertThat(json.valueToTree(mcp.call("read_note", json.valueToTree(Map.of("id", id)))
-        .get("blocks")).get(0).path("type").asText()).isEqualTo("heading");
-    assertThatThrownBy(() -> mcp.call("delete_note", json.valueToTree(
-        Map.of("id", id, "revision", nextRevision))))
+    assertThat(
+            json.valueToTree(
+                    mcp.call("read_note", json.valueToTree(Map.of("id", id))).get("blocks"))
+                .get(0)
+                .path("type")
+                .asText())
+        .isEqualTo("heading");
+    assertThatThrownBy(
+            () ->
+                mcp.call(
+                    "delete_note", json.valueToTree(Map.of("id", id, "revision", nextRevision))))
         .isInstanceOf(WorkspaceException.class);
-    assertThat(mcp.call("delete_note", json.valueToTree(
-        Map.of("id", id, "revision", finalRevision))).get("deleted")).isEqualTo(true);
+    assertThat(
+            mcp.call("delete_note", json.valueToTree(Map.of("id", id, "revision", finalRevision)))
+                .get("deleted"))
+        .isEqualTo(true);
   }
 
   private JsonNode request(String method, String path, Object body, int status) throws Exception {
