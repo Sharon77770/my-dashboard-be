@@ -4,6 +4,8 @@
 
 | 참고 영역 | 구현 | 실행 위치/저장 |
 | --- | --- | --- |
+| Services 앱·위젯 | Service Catalog 목록, 상태, 상세 탭, 기존 리소스 연결, Codex Context | SQLite binding + 기존 GitHub/장비/Telemetry 서비스 |
+| Database Studio 앱·위젯 | PostgreSQL/MySQL/MariaDB/SQLite 연결, schema 탐색, 테이블 데이터, SQL editor, history/favorites | JDBC adapter + CredentialVault + Service Catalog DATABASE binding |
 | 최근 작업 앱 | 실행 이력 목록 및 다시 열기 | SQLite activity, 최대 100개 |
 | 장비 상태 위젯/앱 | 실제 CPU/RAM/DISK 또는 포트 상태, 실패/미계측 구분 | 서버/SSH |
 | 빠른 접근, 고정 | 장비·앱 고정 | SQLite |
@@ -20,8 +22,8 @@
 | 앱 추가/설정/삭제/열기 | URL 관리 및 실행 | 사용자 선택 브라우저 위치 |
 | 별도 브라우저 설정 | CLIENT/SERVER/REMOTE, 원격 VNC 장비·디버깅 포트 | SQLite |
 | 새 탭/고정/탭 전환 | 생성·전환·닫기·고정·저장/복원 | SQLite의 위치 정보, 실행 연결은 메모리 |
-| 검색/빠른 실행/Ctrl K | 중앙 앱 등록부·장비·즐겨찾기·최근 이력 검색, Enter/방향키/ESC | 서버 검색 |
-| 모바일 메뉴 | 700px 이하 Launcher/전체 App Drawer/하단 메뉴/앱 전환기, IDE 단일 패널 | 표현 계층 |
+| 검색/빠른 실행/Ctrl K | 중앙 앱 등록부·장비·즐겨찾기·최근 이력·Service·Database 검색, Enter/방향키/ESC | 기존 서버 검색 + 기존 Catalog API |
+| 모바일 메뉴 | 700px 이하 compact app bar, Home/검색/앱/최근 작업 탐색, 콘텐츠 집중 모드, IDE·Database 단일 pane | 표현 계층 |
 | 설정 | 테마·밀도·터미널 글자·클립보드 기본 만료 | SQLite, 모든 화면에 반영 |
 
 등록하지 않은 장비, 설치하지 않은 원격 프로토콜/CLI의 상태나 결과를 만들어 내지 않는다. 오류는 재시도 또는 설정 변경으로 복구한다.
@@ -52,9 +54,9 @@ Docker에 공식 Tailscale을 기본 포함한다. 최초 로그인 후 Tailscal
 
 ## Launcher 구조
 
-GitHub 내장 앱은 서버 계정의 `gh` 기기 코드 로그인, 내 저장소와 열린 PR·이슈 목록을 제공한다. 같은 읽기 기능은 대시보드 도우미 MCP 도구에서도 사용할 수 있다. [GitHub 사용 안내](github.md).
+GitHub 내장 앱은 서버 계정의 `gh` 기기 코드 로그인, 저장소·이슈·PR·Release 조회와 작업 화면을 제공한다. 대시보드 도우미는 같은 서비스를 통해 저장소 설명·토픽과 Release 태그·설명을 수정하고, 승인된 저장소·Release 삭제도 수행한다. 일정·메모의 조회·작성·수정·삭제와 결합해 한 대화에서 처리할 수 있다. [GitHub 사용 안내](github.md).
 
-[Launcher 계약](launcher.md)에 따라 앱/폴더/위젯/페이지/Dock/App Drawer를 제공한다. 이전 홈의 최근 작업과 클립보드는 앱으로 이동했으며 장비 상태는 위젯과 장비 앱에서 제공한다. Home 배치는 계정별 브라우저 저장이고 업무 데이터의 SQLite 저장은 그대로다.
+[Launcher 계약](launcher.md)에 따라 앱/폴더/위젯/페이지/고정 앱/App Library를 제공한다. Home은 최근 작업·서비스·오늘 일정·인프라를 먼저 보여 주며 저장된 배치 항목은 compact 목록과 모듈로 표시한다. 편집 모드의 격자 좌표와 계정별 브라우저 저장, 업무 데이터의 SQLite 저장은 그대로다.
 
 장비 등록·수정 및 SSH 명령어 연결에서 기본 네트워크/Tailscale을 선택할 수 있다. 선택은 장비에 저장되고 SSH·SFTP·터미널·IDE·계측·Docker/GPU·RDP/VNC·원격 브라우저 서버 접속에 공통 적용된다. [사용법](tailscale.md).
 

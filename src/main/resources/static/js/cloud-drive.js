@@ -8,14 +8,27 @@ window.WorkspaceCloud=(()=>{
  const name=value=>value.split('/').pop();
  const bytes=value=>value<1024?value+' B':value<1048576?(value/1024).toFixed(1)+' KB':value<1073741824?(value/1048576).toFixed(1)+' MB':(value/1073741824).toFixed(1)+' GB';
  const date=value=>new Date(value).toLocaleString('ko-KR');
+ const shortDate=value=>new Date(value).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'});
  const tell=text=>{$('[data-cloud-status]').textContent=text;};
  function buttons(){
   root.querySelectorAll('[data-cloud-needs-selection]').forEach(button=>button.disabled=busy||selected.size===0);
   $('[data-cloud-paste]').disabled=busy||trash||!clipboard;
-  $('[data-cloud-count]').textContent=selected.size?selected.size+'개 선택':entries.length+'개 항목';
+  const filter=$('[data-cloud-filter]').value.trim();
+  $('[data-cloud-count]').textContent=(selected.size?selected.size+'개 선택':entries.length+'개 항목')+(filter?' · 검색: '+filter:'');
+  $('[data-cloud-selected-count]').textContent=selected.size+'개 선택';
+  root.classList.toggle('cloud-search-filtered',Boolean(filter));
+  root.classList.toggle('cloud-has-selection',selected.size>0);
+  root.classList.toggle('cloud-has-paste',Boolean(clipboard)&&!trash);
+  $('[data-cloud-action="selection-toggle"]').setAttribute('aria-expanded',String(selected.size>0||Boolean(clipboard)&&!trash||root.classList.contains('cloud-selection-open')));
   root.querySelectorAll('[data-cloud-normal]').forEach(element=>element.hidden=trash);
   root.querySelectorAll('[data-cloud-trash-only]').forEach(element=>element.hidden=!trash);
   root.querySelectorAll('[data-cloud-write]').forEach(element=>element.disabled=busy);
+ }
+ function syncViewToggle(){
+  const view=$('[data-cloud-view]').value,button=$('[data-cloud-action="view-toggle"]');
+  button.innerHTML=window.WorkspaceUI.icon(view==='list'?'apps':'menu');
+  button.setAttribute('aria-label',view==='list'?'격자 보기':'목록 보기');
+  button.title=button.getAttribute('aria-label');
  }
  function draw(){
   const query=$('[data-cloud-filter]').value.toLowerCase(),sort=$('[data-cloud-sort]').value;
@@ -25,16 +38,20 @@ window.WorkspaceCloud=(()=>{
    if(sort==='size')return (b.size||0)-(a.size||0);
    return name(a.path).localeCompare(name(b.path),'ko',{numeric:true});
   });
-  $('[data-cloud-location]').textContent=trash?'휴지통':path;
+  $('[data-cloud-location]').textContent=trash?'휴지통':path==='/'?'내 드라이브':name(path);
+  root.classList.toggle('cloud-at-root',!trash&&path==='/');
   const crumbs=[{path:'/',label:'내 드라이브'}];let cursor='';for(const part of path.split('/').filter(Boolean)){cursor+='/'+part;crumbs.push({path:cursor,label:part});}
   $('[data-cloud-crumbs]').innerHTML=trash?'휴지통':crumbs.map(part=>`<button data-cloud-path="${esc(part.path)}">${esc(part.label)}</button>`).join('<span aria-hidden="true">/</span>');
   page=Math.min(page,Math.max(0,Math.ceil(visible.length/100)-1));
   $('[data-cloud-page]').textContent=(page+1)+' / '+Math.max(1,Math.ceil(visible.length/100))+' 페이지';
+  $('.cloud-pagination').hidden=visible.length<=100;
   $('[data-cloud-action=previous]').disabled=page===0;
   $('[data-cloud-action=next]').disabled=(page+1)*100>=visible.length;
   $('[data-cloud-items]').innerHTML=visible.slice(page*100,(page+1)*100).map(entry=>{
-   const id=trash?entry.id:entry.path;
-   return `<article class="cloud-item ${selected.has(id)?'selected':''}" data-cloud-item="${esc(id)}"><input type="checkbox" data-cloud-select="${esc(id)}" aria-label="${esc(name(entry.path))} 선택" ${selected.has(id)?'checked':''}><button class="cloud-item-open" data-cloud-open="${esc(id)}"><span class="cloud-icon" aria-hidden="true">${entry.directory?'▰':'▤'}</span><span><b>${esc(name(entry.path))}</b><small>${trash?esc(entry.path):entry.directory?'폴더':esc(name(entry.path).split('.').pop().toUpperCase())+' 파일'}</small></span></button><span class="cloud-item-size">${entry.directory?'—':bytes(entry.size||0)}</span><time>${date(entry.modified||entry.deletedAt)}</time><button class="ghost" data-cloud-info="${esc(id)}" aria-label="${esc(name(entry.path))} 상세 정보">ⓘ</button></article>`;
+   const id=trash?entry.id:entry.path,fileName=name(entry.path);
+   const type=trash?entry.path:entry.directory?'폴더':fileName.split('.').pop().toUpperCase()+' 파일';
+   const modified=date(entry.modified||entry.deletedAt),mobileDate=shortDate(entry.modified||entry.deletedAt);
+   return `<article class="cloud-item ${selected.has(id)?'selected':''}" data-cloud-item="${esc(id)}"><label class="cloud-select-hit"><input type="checkbox" data-cloud-select="${esc(id)}" aria-label="${esc(fileName)} 선택" ${selected.has(id)?'checked':''}></label><button class="cloud-item-open" data-cloud-open="${esc(id)}"><span class="cloud-icon ${entry.directory?'cloud-folder-icon':'cloud-file-icon'}" aria-hidden="true">${window.WorkspaceUI.icon(entry.directory?'folder':'file')}</span><span><b>${esc(fileName)}</b><small class="cloud-item-type">${esc(type)}</small><small class="cloud-mobile-meta">${esc(type)}${entry.directory?'':' · '+bytes(entry.size||0)} · ${mobileDate}</small></span></button><span class="cloud-item-size">${entry.directory?'—':bytes(entry.size||0)}</span><time>${modified}</time><button class="ghost cloud-item-info" data-cloud-info="${esc(id)}" aria-label="${esc(fileName)} 상세 정보">${window.WorkspaceUI.icon('info')}</button></article>`;
   }).join('')||window.WorkspaceUI.emptyState(trash?'휴지통이 비어 있습니다.':query?'검색 결과가 없습니다.':'폴더가 비어 있습니다.',trash?'':'파일을 끌어 놓아 업로드할 수 있습니다.','files');
   buttons();
  }
@@ -48,7 +65,7 @@ window.WorkspaceCloud=(()=>{
    draw();tell(result.truncated?'처리 한도에 도달했습니다. 더 작은 폴더에서 검색하세요.':'');
   }catch(error){if(version===generation){$('[data-cloud-items]').innerHTML=window.WorkspaceUI.emptyState('파일을 불러오지 못했습니다.',error.message,'warning');tell(error.message);}}
  }
- async function navigate(target){if(busy){tell('진행 중인 작업이 끝난 뒤 이동하세요.');return;}trash=false;path=target;$('[data-cloud-filter]').value='';await refresh();}
+  async function navigate(target){if(busy){tell('진행 중인 작업이 끝난 뒤 이동하세요.');return;}trash=false;path=target;$('[data-cloud-filter]').value='';root.classList.remove('cloud-search-open','cloud-selection-open');$('[data-cloud-action="search-toggle"]').setAttribute('aria-expanded','false');await refresh();}
  async function batch(ids,operation){
   if(busy)return;busy=true;buttons();const failures=[];let completed=0;
   try{for(const id of ids){try{await operation(id);completed++;}catch(error){failures.push(name(id)+': '+error.message);}tell(`${completed} / ${ids.length} 처리 중…`);}}
@@ -102,7 +119,7 @@ window.WorkspaceCloud=(()=>{
   if(fileEditor)return;
   const session={saved:'',saving:false};fileEditor=session;root.classList.add('cloud-editing');
   const screen=document.createElement('section');screen.className='cloud-editor';
-  screen.innerHTML=`<header class="cloud-editor-header"><button data-file-back>← 드라이브로 돌아가기</button><div><h1>${esc(name(value))}</h1><p>${esc(value)}</p></div><button class="primary" data-file-save hidden disabled>저장</button><a class="button" href="/api/v1/cloud/content?path=${encodeURIComponent(value)}" download>다운로드</a></header><p data-file-status role="status">불러오는 중…</p><div class="cloud-editor-content"></div>`;
+  screen.innerHTML=`<header class="cloud-editor-header"><button data-file-back aria-label="드라이브로 돌아가기">${window.WorkspaceUI.icon('back')}<span class="cloud-action-label">드라이브로 돌아가기</span></button><div><h1>${esc(name(value))}</h1><p>${esc(value)}</p></div><button class="primary" data-file-save aria-label="파일 저장" hidden disabled>${window.WorkspaceUI.icon('save')}<span class="cloud-action-label">저장</span></button><a class="button" href="/api/v1/cloud/content?path=${encodeURIComponent(value)}" aria-label="파일 다운로드" download>${window.WorkspaceUI.icon('download')}<span class="cloud-action-label">다운로드</span></a></header><p data-file-status role="status">불러오는 중…</p><div class="cloud-editor-content"></div>`;
   root.append(screen);
   const content=screen.querySelector('.cloud-editor-content'),status=screen.querySelector('[data-file-status]'),save=screen.querySelector('[data-file-save]');
   screen.querySelector('[data-file-back]').onclick=async()=>{
@@ -169,15 +186,36 @@ window.WorkspaceCloud=(()=>{
   if(button.dataset.cloudOpen!==undefined){if(trash){selected=new Set([button.dataset.cloudOpen]);draw();return;}return preview(button.dataset.cloudOpen);}
   if(button.dataset.cloudInfo!==undefined){const item=entries.find(entry=>(trash?entry.id:entry.path)===button.dataset.cloudInfo);ui.editor('상세 정보',`<dl><dt>경로</dt><dd>${esc(item.path)}</dd><dt>종류</dt><dd>${item.directory?'폴더':'파일'}</dd><dt>크기</dt><dd>${item.directory?'폴더 다운로드는 ZIP으로 제공됩니다.':bytes(item.size||0)}</dd><dt>${trash?'삭제':'수정'} 시각</dt><dd>${date(item.modified||item.deletedAt)}</dd></dl>`,async()=>{},'닫기');return;}
   const action=button.dataset.cloudAction;if(!action)return;
+  const actionMenu=button.closest('.cloud-action-menu');if(actionMenu)actionMenu.open=false;
+  if(['home','trash','nas'].includes(action))button.closest('.ui-side-drawer')?.close();
+  if(action==='create-toggle'){
+   window.WorkspaceDrawers.open($('.cloud-create'),button,{title:'새 항목',side:'bottom'});
+   return;
+  }
+  if(action==='search-toggle'){const open=root.classList.toggle('cloud-search-open');button.setAttribute('aria-expanded',String(open));if(open)$('[data-cloud-filter]').focus();return;}
+  if(action==='selection-toggle'){const open=root.classList.toggle('cloud-selection-open');button.setAttribute('aria-expanded',String(open||selected.size>0));return;}
+  if(action==='view-toggle'){
+   const view=$('[data-cloud-view]');view.value=view.value==='list'?'grid':'list';
+   $('[data-cloud-items]').dataset.layout=view.value;
+   syncViewToggle();
+   return;
+  }
   if(action==='cancel'){cancelUpload=true;uploadRequest?.abort();return;}
   if(busy){tell('현재 작업이 끝날 때까지 기다려 주세요.');return;}
   if(action==='previous'||action==='next'){page+=action==='next'?1:-1;draw();return;}
   if(action==='nas')return window.WorkspaceNas.open();
   if(action==='home')return navigate('/');
-  if(action==='trash'){trash=true;$('[data-cloud-filter]').value='';return refresh();}
+  if(action==='trash'){trash=true;$('[data-cloud-filter]').value='';root.classList.remove('cloud-search-open','cloud-selection-open');$('[data-cloud-action="search-toggle"]').setAttribute('aria-expanded','false');return refresh();}
   if(action==='reload')return refresh();
-  if(action==='folder'||action==='file')return create(action==='folder');
-  if(action==='upload'||action==='upload-folder'){$(action==='upload'?'[data-cloud-files]':'[data-cloud-folders]').click();return;}
+  if(action==='folder'||action==='file'){
+   window.WorkspaceDrawers?.close();
+   return create(action==='folder');
+  }
+  if(action==='upload'||action==='upload-folder'){
+   window.WorkspaceDrawers?.close();
+   $(action==='upload'?'[data-cloud-files]':'[data-cloud-folders]').click();
+   return;
+  }
   if(action==='all'){const visible=[...root.querySelectorAll('[data-cloud-select]')].map(item=>item.dataset.cloudSelect);selected=visible.every(id=>selected.has(id))?new Set():new Set(visible);draw();return;}
   if(action==='rename')return rename();
   if(action==='download')return download([...selected]);
@@ -192,10 +230,39 @@ window.WorkspaceCloud=(()=>{
   init(helpers){
    ui=helpers;root=document.getElementById('cloud');if(!root)return;
    root.innerHTML=`<aside class="cloud-sidebar"><h2>☁ 드라이브</h2><button data-cloud-action="home">내 드라이브</button><button data-cloud-action="trash">휴지통</button><button data-cloud-action="nas">NAS 연결</button><p data-cloud-space class="section-hint"></p></aside><section class="cloud-main"><div class="cloud-header"><h1 data-cloud-location>내 드라이브</h1><form data-cloud-search><input data-cloud-filter placeholder="이 폴더와 하위 폴더 검색" aria-label="파일 검색" maxlength="200"><button>검색</button></form><button data-cloud-action="reload" aria-label="새로고침">↻</button></div><nav data-cloud-crumbs aria-label="폴더 경로"></nav><div class="cloud-toolbar cloud-create" data-cloud-normal><button class="primary" data-cloud-action="upload" data-cloud-write>파일 업로드</button><button data-cloud-action="upload-folder" data-cloud-write>폴더 업로드</button><button data-cloud-action="folder" data-cloud-write>새 폴더</button><button data-cloud-action="file" data-cloud-write>새 파일</button><label><input type="checkbox" data-cloud-overwrite>같은 이름 업로드 덮어쓰기</label><input type="file" multiple data-cloud-files hidden><input type="file" webkitdirectory multiple data-cloud-folders hidden></div><div class="cloud-toolbar cloud-selection"><button data-cloud-action="all">페이지 전체 선택</button><span data-cloud-count></span><span data-cloud-normal><button data-cloud-action="download" data-cloud-needs-selection>다운로드</button><button data-cloud-action="delete" data-cloud-needs-selection>삭제</button><details class="ui-menu cloud-action-menu"><summary aria-label="더 많은 파일 작업">더 보기</summary><div class="ui-menu-content"><button data-cloud-action="copy" data-cloud-needs-selection>복사</button><button data-cloud-action="move" data-cloud-needs-selection>이동</button><button data-cloud-action="rename" data-cloud-needs-selection>이름 변경</button><button data-cloud-action="clipboard" data-cloud-needs-selection>복사 대기</button><button data-cloud-action="cut" data-cloud-needs-selection>잘라내기</button><button data-cloud-action="paste" data-cloud-paste disabled>붙여넣기</button></div></details></span><span data-cloud-trash-only hidden><button data-cloud-action="restore" data-cloud-needs-selection>복원</button><details class="ui-menu cloud-action-menu"><summary aria-label="더 많은 휴지통 작업">더 보기</summary><div class="ui-menu-content"><button data-cloud-action="purge" data-cloud-needs-selection class="danger">영구 삭제</button><button data-cloud-action="empty" class="danger">휴지통 비우기</button></div></details></span></div><div class="cloud-toolbar cloud-view-options"><label>정렬<select data-cloud-sort><option value="name">이름</option><option value="modified">최근 수정</option><option value="size">크기</option></select></label><label>보기<select data-cloud-view><option value="list">목록</option><option value="grid">격자</option></select></label><span class="section-hint">파일을 열면 에디터로 이동 · 파일을 끌어 놓아 업로드</span></div><div data-cloud-upload-state hidden><progress data-cloud-progress max="100" value="0"></progress><button data-cloud-action="cancel">업로드 취소</button></div><p data-cloud-status role="status"></p><div data-cloud-items class="cloud-items" data-layout="list"></div><div class="cloud-toolbar cloud-pagination"><button data-cloud-action="previous">이전</button><span data-cloud-page></span><button data-cloud-action="next">다음</button></div></section>`;
+   $('.cloud-sidebar h2').innerHTML=window.WorkspaceUI.icon('files')+'<span>드라이브</span>';
+   const header=$('.cloud-header');
+   header.insertAdjacentHTML('afterbegin',`<button type="button" class="ui-drawer-trigger" data-drawer-target=".cloud-sidebar" data-drawer-title="드라이브" aria-label="드라이브 열기" aria-expanded="false" aria-haspopup="dialog">${window.WorkspaceUI.icon('menu')}</button>`);
+   header.insertAdjacentHTML('beforeend',`<button type="button" class="cloud-search-trigger" data-cloud-action="search-toggle" aria-label="파일 검색 열기" aria-expanded="false">${window.WorkspaceUI.icon('search')}</button><button type="button" class="cloud-select-trigger" data-cloud-action="selection-toggle" aria-label="파일 선택 작업 열기" aria-expanded="false">${window.WorkspaceUI.icon('select')}</button><button type="button" class="cloud-create-trigger" data-cloud-action="create-toggle" data-cloud-normal aria-label="새 항목 만들기" aria-haspopup="dialog">${window.WorkspaceUI.icon('plus')}</button>`);
+   const selectedCount=document.createElement('span');
+   selectedCount.dataset.cloudSelectedCount='';
+   selectedCount.className='cloud-selected-count';
+   $('.cloud-selection').insertBefore(selectedCount,$('.cloud-selection [data-cloud-normal]'));
+   $('.cloud-view-options').prepend($('[data-cloud-count]'));
+   $('[data-cloud-view]').closest('label').classList.add('cloud-view-select');
+   $('.cloud-view-options').append($('[data-cloud-action="reload"]'));
+   const viewToggle=document.createElement('button');
+   viewToggle.type='button';viewToggle.className='cloud-view-trigger';viewToggle.dataset.cloudAction='view-toggle';
+   viewToggle.setAttribute('aria-label','격자 보기');viewToggle.title='격자 보기';
+   viewToggle.innerHTML=window.WorkspaceUI.icon('apps');
+   $('.cloud-view-options').insertBefore(viewToggle,$('[data-cloud-action="reload"]'));
+   $('.cloud-view-options').insertBefore($('[data-cloud-action="selection-toggle"]'),$('[data-cloud-action="reload"]'));
+   $('.cloud-selection [data-cloud-normal] .ui-menu-content').append($('[data-cloud-action="delete"]'));
+   for(const [action,label] of Object.entries({upload:'파일 업로드','upload-folder':'폴더 업로드',folder:'새 폴더',file:'새 파일',all:'페이지 전체 선택',download:'선택 파일 다운로드',delete:'선택 파일 삭제',restore:'선택 파일 복원'})){
+    const control=$(`[data-cloud-action="${action}"]`);control.setAttribute('aria-label',label);control.title=label;
+   }
+   for(const [action,symbol] of Object.entries({reload:'refresh',upload:'upload','upload-folder':'uploadFolder',folder:'folderPlus',file:'filePlus',all:'select',download:'download',delete:'trash',restore:'restore'})){
+    const control=$(`[data-cloud-action="${action}"]`);
+    control.innerHTML=window.WorkspaceUI.icon(symbol)+`<span class="cloud-action-label">${action==='reload'?'새로고침':control.textContent}</span>`;
+   }
+   root.querySelectorAll('.cloud-action-menu>summary').forEach(control=>{
+    control.innerHTML=window.WorkspaceUI.icon('more')+'<span class="cloud-action-label">더 보기</span>';
+   });
+   $('[data-cloud-overwrite]').setAttribute('aria-label','같은 이름 업로드 덮어쓰기');
    root.addEventListener('click',event=>Promise.resolve(click(event)).catch(error=>tell(error.message)));
    root.addEventListener('change',event=>{const id=event.target.dataset.cloudSelect;if(id!==undefined){if(event.target.checked)selected.add(id);else selected.delete(id);event.target.closest('.cloud-item').classList.toggle('selected',event.target.checked);buttons();}});
    $('[data-cloud-search]').addEventListener('submit',event=>{event.preventDefault();if(!busy)refresh();});
-   $('[data-cloud-sort]').onchange=draw;$('[data-cloud-view]').onchange=event=>{$('[data-cloud-items]').dataset.layout=event.target.value;};
+   $('[data-cloud-sort]').onchange=draw;$('[data-cloud-view]').onchange=event=>{$('[data-cloud-items]').dataset.layout=event.target.value;syncViewToggle();};
    for(const selector of ['[data-cloud-files]','[data-cloud-folders]'])$(selector).onchange=event=>{upload([...event.target.files]);event.target.value='';};
    root.addEventListener('dragover',event=>{if(event.dataTransfer?.types.includes('Files')){event.preventDefault();root.classList.add('cloud-drag');}});
    root.addEventListener('dragleave',event=>{if(!root.contains(event.relatedTarget))root.classList.remove('cloud-drag');});

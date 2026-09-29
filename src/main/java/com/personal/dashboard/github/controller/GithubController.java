@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -139,6 +140,12 @@ public class GithubController {
   public GithubDto.RepositoryDetail updateRepository(
       @RequestParam String repository, @RequestBody GithubDto.UpdateRepository request) {
     return service.updateRepository(repository, request);
+  }
+
+  @DeleteMapping("/repositories")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteRepository(@RequestParam String repository, @RequestParam String approvalId) {
+    service.deleteRepository(repository, approvalId);
   }
 
   @GetMapping("/repositories/branches")
@@ -353,6 +360,23 @@ public class GithubController {
       @RequestParam String repository,
       @org.springframework.web.bind.annotation.PathVariable long releaseId) {
     return service.release(repository, releaseId);
+  }
+
+  @PatchMapping("/releases/{releaseId}")
+  public GithubDto.Release updateRelease(
+      @RequestParam String repository,
+      @org.springframework.web.bind.annotation.PathVariable long releaseId,
+      @RequestBody GithubDto.UpdateRelease request) {
+    return service.updateRelease(repository, releaseId, request);
+  }
+
+  @DeleteMapping("/releases/{releaseId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteRelease(
+      @RequestParam String repository,
+      @org.springframework.web.bind.annotation.PathVariable long releaseId,
+      @RequestParam String approvalId) {
+    service.deleteRelease(repository, releaseId, approvalId);
   }
 
   @PostMapping("/releases")

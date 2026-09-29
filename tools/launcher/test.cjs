@@ -10,6 +10,8 @@ w.workspaceInitial={devices:[],applications:[{id:'external',name:'<img src=x> To
 const calls=[];w.fetch=async(url,opt={})=>{const method=opt.method||'GET',body=opt.body?JSON.parse(opt.body):null;calls.push({url,method,body});let data=[];
 if(url==='/api/v1/workspace')data=w.workspaceInitial;
 if(url==='/api/v1/preferences'){Object.assign(w.workspaceInitial.preferences,body);data=body;}
+if(url.startsWith('/api/v1/devices/device-1/files?'))data={entries:[{name:'test.txt',path:'/test.txt',directory:false,size:1024,modifiedAt:Date.now()},{name:'folder',path:'/folder',directory:true,size:0,modifiedAt:Date.now()}]};
+if(url==='/api/v1/devices/device-1/docker')data={output:'running'};
 return {ok:true,status:200,headers:{get:()=> 'application/json'},json:async()=>data};};
 const tick=()=>new Promise(resolve=>setTimeout(resolve,25));
 const click=selector=>{const node=d.querySelector(selector);assert.ok(node,selector);node.click();};
@@ -17,7 +19,16 @@ const load=()=>JSON.parse(w.localStorage.getItem(w.HomePersistence.key()));
 (async()=>{
 for(const file of ['ui.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js','workspace.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
 await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,16);
-assert.equal(w.WorkspaceApps.all().length,21);assert.equal(d.querySelectorAll('#home-grid img').length,0);
+for(const selector of ['.mobile-search-button','.workspace-mark','.home-command>span:first-child','.os-navigation [data-view="home"]>span:first-child','.os-navigation [data-action="palette"]>span:first-child','.os-navigation [data-launcher="drawer"]>span:first-child','.os-navigation [data-action="app-switcher"]>span:first-child','#devices [data-action="refresh-status"]','#apps [data-action="app-add"]'])assert.ok(d.querySelector(selector+' .ui-icon'),`${selector} uses a shared SVG icon`);
+assert.ok(d.querySelector('.os-navigation [data-action="app-switcher"] #os-app-count'),'recent app count survives icon hydration');
+assert.equal(d.querySelector('#devices [data-action="device-add"]').getAttribute('aria-label'),'SSH로 장비 연결');
+assert.equal(d.querySelectorAll('#home-grid .home-widget-disclosure').length,0,'work shortcuts stay separate from saved widgets');
+assert.equal(d.querySelectorAll('#home-widgets .home-widget-disclosure').length,6);
+assert.equal(d.querySelectorAll('#home-widgets .home-widget-disclosure[open]').length,0);
+assert.ok(d.querySelector('.overview-continue .overview-empty'));
+assert.ok(d.querySelector('.home-command[data-action="palette"]'));
+assert.equal(d.querySelectorAll('#launcher-dock-apps').length,1);
+assert.equal(w.WorkspaceApps.all().length,23);assert.equal(d.querySelectorAll('#home-grid img').length,0);
 assert.ok(d.querySelector('#home-grid [data-view="assistant"]'));
 assert.ok(d.querySelector('#launcher-dock-apps [data-view="assistant"]'));
 // Grid projects one model without collisions or changing canonical coordinates.
@@ -33,9 +44,14 @@ click('[data-action="app-switcher"]');assert.equal(d.querySelector('#app-switche
 click('[data-action="os-back"]');await tick();assert.equal(d.querySelector('#calendar').classList.contains('active'),true);click('[data-action="os-back"]');await tick();assert.equal(d.body.dataset.home,'true');
 click('#launcher-dock-apps [data-view="assistant"]');await tick();assert.equal(d.querySelector('#assistant').classList.contains('active'),true);assert.equal(d.querySelectorAll('#switcher-apps [data-view="assistant"]').length,1);
 click('[data-action="os-back"]');await tick();assert.equal(d.body.dataset.home,'true');
+const savedWidget=d.querySelector('#home-widgets .home-widget-disclosure');savedWidget.open=true;
+assert.ok(savedWidget.querySelector('.widget-body'),'saved widgets remain available on demand');
+savedWidget.dispatchEvent(new w.Event('toggle'));
+await w.WorkspaceLauncher.refreshWidgets();
+assert.ok(d.querySelector('#home-widgets .home-widget-disclosure[open]'),'refresh preserves an expanded widget');
 // Swiping a drawer icon must leave the drawer open and must not mutate the home layout.
 const touchPointer=(type,node,x,y)=>{const event=new w.MouseEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,button:0});Object.defineProperties(event,{pointerId:{value:2},pointerType:{value:'touch'}});node.dispatchEvent(event);return event;};
-click('[data-launcher="drawer"]');const beforeSwipe=w.localStorage.getItem(w.HomePersistence.key());
+click('[data-launcher="drawer"]');assert.ok(d.querySelector('.app-library-group h3'));const beforeSwipe=w.localStorage.getItem(w.HomePersistence.key());
 const drawerIcon=d.querySelector('[data-drawer-app] .launcher-shortcut');
 for(const end of ['pointerup','pointercancel']){
   touchPointer('pointerdown',drawerIcon,40,200);
@@ -54,7 +70,7 @@ assert.equal(d.querySelector('#home-context').open,true);touchPointer('pointerup
 d.querySelector('#home-context').close();click('#app-drawer [data-launcher="close"]');
 click('[data-launcher="drawer"]');click('#drawer-apps [data-view="calendar"]');await tick();
 assert.equal(d.querySelector('#calendar').classList.contains('active'),true);click('.os-navigation [data-view="home"]');await tick();
-click('#home-edit');assert.equal(d.querySelector('#home-edit-tools').hidden,false);assert.equal(d.querySelector('#home-grid .launcher-shortcut[data-app-icon="studio"]').hasAttribute('data-view'),false);click('[data-launcher="page-add"]');assert.equal(load().pages,2);
+click('#home-edit');assert.equal(d.querySelector('#home-edit-tools').hidden,false);assert.equal(d.querySelector('#home-saved-widgets').hidden,true);assert.equal(d.querySelectorAll('#home-grid .home-item.widget').length,6,'editing restores saved widget coordinates');assert.equal(d.querySelector('#home-grid .launcher-shortcut[data-app-icon="studio"]').hasAttribute('data-view'),false);click('[data-launcher="page-add"]');assert.equal(load().pages,2);
 click('[data-page="0"]');click('[data-launcher="drawer"]');assert.equal(d.querySelector('#app-drawer').open,true);assert.equal(d.querySelectorAll('#drawer-apps img').length,0);
 d.querySelector('#drawer-search').value='터미널';d.querySelector('#drawer-search').dispatchEvent(new w.Event('input'));assert.equal(d.querySelectorAll('[data-drawer-app]').length,1);
 click('[data-launcher="add-app"][data-app="terminal"]');await tick();assert.equal(load().items.filter(item=>item.appId==='terminal').length,2);click('#app-drawer [data-launcher="close"]');
@@ -63,7 +79,7 @@ click('[data-launcher="new-folder"]');d.querySelector('#editor-fields [name="app
 d.querySelector('#editor-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();let folder=load().items.find(item=>item.type==='folder');assert.equal(folder.name,'Work <img>');assert.equal(d.querySelector('#home-grid img'),null);
 click(`[data-launcher="folder"][data-item="${folder.id}"]`);click('[data-launcher="folder-app-menu"]');click('[data-launcher="folder-extract"]');await tick();assert.equal(load().items.some(item=>item.type==='folder'),false);
 // Widget picker and resize preserve supported sizes and nonoverlap.
-click('[data-launcher="widgets"]');assert.equal(d.querySelectorAll('.widget-preview').length,9);click('[data-launcher="add-widget"][data-widget="codex"]');await tick();const widget=load().items.filter(item=>item.widgetId==='codex').at(-1);assert.ok(widget);
+click('[data-launcher="widgets"]');assert.equal(d.querySelectorAll('.widget-preview').length,11);click('[data-launcher="add-widget"][data-widget="codex"]');await tick();const widget=load().items.filter(item=>item.widgetId==='codex').at(-1);assert.ok(widget);
 click(`[data-home-item="${widget.id}"] [data-launcher="context"]`);click('#home-context [data-launcher="place"]');d.querySelector('[name="size"]').value='4,2';d.querySelector('[name="page"]').value='1';d.querySelector('[name="x"]').value='1';d.querySelector('#editor-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();assert.equal(load().items.find(item=>item.id===widget.id).page,1);assert.equal(load().items.find(item=>item.id===widget.id).w,4);
 // Pointer drag merges apps into a folder; folder reorder shares the same interaction layer.
 const source=d.querySelector('.home-item.app'),target=[...d.querySelectorAll('.home-item.app')].find(node=>node!==source);
@@ -82,5 +98,24 @@ click('#app-drawer [data-launcher="close"]');click('[data-action="palette"]');aw
 // Scoped persistence and untrusted layout validation.
 const key=w.HomePersistence.key();d.body.dataset.account='another';assert.notEqual(w.HomePersistence.key(),key);d.body.dataset.account='';
 const clean=grid.sanitize({version:1,pages:2,dock:['missing','terminal'],items:[{id:'x',type:'folder',apps:[],page:0,x:0,y:0},{id:'y',type:'app',appId:'missing'}]},w.WorkspaceApps,w.WorkspaceWidgets);assert.equal(clean.items.length,0);assert.equal(clean.dock.length,1);
-dom.window.close();console.log('PASS launcher: grid collisions/projection, registry XSS, tabs/switcher, pages, drawer, folders/extraction, widgets/resize, lock, shared search, account persistence');
-})().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});
+// Mobile runtime tools keep file navigation and actions reachable without overlapping columns.
+w.workspaceInitial.devices.push({id:'device-1',name:'Spark',host:'localhost',remoteProtocol:'NONE'});
+w.workspaceInitial.bookmarks.push({id:'bookmark-1',deviceId:'device-1',path:'/saved'});
+w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js/drawers.js'),'utf8'));
+const launch=d.createElement('button');launch.dataset.open='FILES';launch.dataset.target='device-1';d.body.append(launch);launch.click();await tick();
+let fileRuntime=d.querySelector('#runtime-host .runtime-pane');assert.ok(fileRuntime);
+assert.equal(fileRuntime.querySelectorAll('.file-row:not(.head)').length,2);
+assert.ok(fileRuntime.querySelector('.file-places-trigger[aria-label] .ui-icon'));
+assert.ok(fileRuntime.querySelector('.tool-bar [data-file="upload"] .ui-icon'));
+assert.ok(fileRuntime.querySelector('.file-row-open .file-mobile-meta'));
+assert.ok(fileRuntime.querySelector('.file-mobile-actions [data-file="delete"]'));
+let uploadClicks=0;fileRuntime.querySelector('[data-upload]').click=()=>uploadClicks++;
+click('.tool-bar [data-file="upload"]');await tick();assert.equal(uploadClicks,1);
+click('.file-places-trigger');await tick();assert.ok(d.querySelector('.ui-side-drawer[open] .bookmark-item'));
+click('.ui-side-drawer [data-file="navigate"]');await tick();
+fileRuntime=d.querySelector('#runtime-host .runtime-pane');assert.equal(fileRuntime.querySelector('.path').value,'/saved');
+assert.equal(d.querySelector('.ui-side-drawer[open]'),null,'navigating a bookmark closes its drawer');
+const dockerLaunch=d.createElement('button');dockerLaunch.dataset.open='DOCKER';dockerLaunch.dataset.target='device-1';d.body.append(dockerLaunch);dockerLaunch.click();await tick();
+assert.ok(d.querySelector('#runtime-host .runtime-pane:not([hidden]) [data-runtime-action="docker"][aria-label] .ui-icon'));
+w.dispatchEvent(new w.Event('pagehide'));dom.window.close();console.log('PASS launcher: grid collisions/projection, registry XSS, tabs/switcher, pages, drawer, folders/extraction, widgets/resize, lock, shared search, account persistence, mobile files runtime');
+})().catch(error=>{console.error(error);w.dispatchEvent(new w.Event('pagehide'));dom.window.close();process.exitCode=1;});

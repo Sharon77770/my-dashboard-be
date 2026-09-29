@@ -17,7 +17,21 @@ window.WorkspaceUI = (() => {
     cpu:'M7 7h10v10H7zM9 2v5m6-5v5M9 17v5m6-5v5M2 9h5m-5 6h5m10-6h5m-5 6h5', memory:'M4 7h16v10H4zM8 7v10m4-10v10m4-10v10M7 20h10', disk:'M4 5h16v14H4zM7 15h10M7 9h.01M11 9h.01',
     issue:'M12 8v5m0 4h.01M4 4h16v16H4z', pull:'M7 4v12a3 3 0 0 0 6 0V9h4m-4 0 3-3m-3 3 3 3M7 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',
     warning:'M12 3 2 21h20L12 3Zm0 7v4m0 3h.01', check:'m4 12 5 5L20 6', wifi:'M2 9a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0m-11 3a6 6 0 0 1 8 0m-4 4h.01',
-    up:'M12 19V5m-6 6 6-6 6 6', stop:'M6 6h12v12H6z'
+    up:'M12 19V5m-6 6 6-6 6 6', play:'M8 5v14l11-7z', stop:'M6 6h12v12H6z',
+    file:'M6 3h8l4 4v14H6zM14 3v5h4M9 12h6m-6 4h6', star:'m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z',
+    upload:'M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5',
+    uploadFolder:'M3 8V5h7l2 3h9v12H3zM12 18v-7m-3 3 3-3 3 3',
+    folderPlus:'M3 8V5h7l2 3h9v12H3zM12 12v6m-3-3h6',
+    filePlus:'M6 3h8l4 4v14H6zM14 3v5h4M12 12v6m-3-3h6',
+    select:'M4 4h16v16H4zM8 12l3 3 5-6',
+    download:'M12 3v13m-5-5 5 5 5-5M4 18v3h16v-3',
+    trash:'M4 7h16M9 7V4h6v3m-9 0 1 14h10l1-14M10 11v6m4-6v6',
+    restore:'M4 11V5m0 6h6M4 11a8 8 0 1 1 2 8',
+    info:'M12 10v7m0-10h.01M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0Z',
+    save:'M4 4h14l2 2v14H4zM8 4v6h8V4M8 20v-7h8v7',
+    workspace:'M12 2 22 12 12 22 2 12zM12 7l5 5-5 5-5-5z',
+    external:'M13 4h7v7M20 4l-9 9M20 14v6H4V4h6',
+    chevron:'m6 9 6 6 6-6', arrowRight:'M4 12h16m-6-6 6 6-6 6'
   };
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const icon = name => `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name] || paths.apps}"/></svg>`;
@@ -36,11 +50,18 @@ window.WorkspaceUI = (() => {
   const skeleton = (count = 2) => Array.from({length:Math.max(1,Math.min(5,count))}, () => '<div class="ui-skeleton-row"><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>').join('');
   function hydrateIcons() {
     const targets = [
-      ['.os-mark','home'],['.os-tools [data-launcher=drawer]','apps'],['.os-tools [data-action=palette]','search'],
-      ['.os-tools [data-action=os-fullscreen]','maximize'],['.os-tools [data-action=settings]','settings'],
-      ['.os-navigation [data-action=os-back]','back'],['.os-navigation [data-view=home]','home'],
-      ['.os-navigation [data-action=app-switcher]','apps'],['.os-navigation [data-launcher=drawer]','menu'],
-      ['.os-statusbar .ui-menu>summary','more'],['#assistant-sidebar-open','menu'],
+      ['.activity-rail [data-view=home]','home'],['.activity-rail [data-action=palette]','search'],
+      ['.activity-rail [data-view=services]','server'],['.activity-rail [data-view=studio]','studio'],
+      ['.activity-rail [data-view=devices]','devices'],['.activity-rail [data-view=databases]','disk'],
+      ['.activity-rail [data-launcher=drawer]','apps'],['.activity-rail [data-action=app-switcher]','recent'],
+      ['.workspace-mark','workspace'],['.mobile-search-button','search'],
+      ['.workspace-search>span:first-child','search'],['.home-command>span:first-child','search'],
+      ['#home .launcher-head .ui-menu>summary','more'],['.launcher-dock .launcher-shortcut .launcher-icon','apps'],
+      ['.os-navigation [data-view=home]>span:first-child','home'],
+      ['.os-navigation [data-action=palette]>span:first-child','search'],
+      ['.os-navigation [data-launcher=drawer]>span:first-child','apps'],
+      ['.os-navigation [data-action=app-switcher]>span:first-child','recent'],
+      ['.workspace-back','back'],['.workspace-bar .ui-menu>summary','more'],['#assistant-sidebar-open','menu'],
       ['#assistant-sidebar-close','close'],['#assistant-header-new','plus'],['#assistant-header-settings','settings'],
       ['#assistant-history-refresh','refresh'],['#assistant-limits-refresh','refresh'],
       ['#assistant-attach','plus'],['#assistant-send','up'],['#assistant-stop','stop'],
@@ -53,8 +74,24 @@ window.WorkspaceUI = (() => {
           const label=target.getAttribute('aria-label')||target.textContent.trim();
           if (label) {target.setAttribute('aria-label',label);target.dataset.tooltip=label;}
         }
-        target.innerHTML = icon(name) + (selector === '.os-navigation [data-action=app-switcher]' ? '<span id="os-app-count" class="os-app-count" hidden></span>' : '');
+        target.innerHTML = icon(name);
       }
+    }
+    const actions = [
+      ['#devices [data-action=refresh-status]','refresh'],['#devices [data-action=device-add]','plus'],
+      ['#devices [data-action=device-manual]','more'],['#terminal .page-head [data-open=TERMINAL]','terminal'],
+      ['#apps [data-action=tailscale-settings]','wifi'],['#apps [data-action=browser-settings]','browser'],
+      ['#apps [data-action=app-add]','plus'],['#github-login','external'],['#github-cancel','close'],
+      ['#services .page-head [data-services=create]','plus'],
+      ['#telemetry .page-head [data-telemetry=create]','plus'],['#clipboard .page-head [data-action=clip-add]','plus']
+    ];
+    for (const [selector, name] of actions) {
+      const target=document.querySelector(selector);
+      if (!target) continue;
+      const label=target.getAttribute('aria-label')||target.textContent.trim();
+      target.setAttribute('aria-label',label);
+      target.title=label;
+      target.innerHTML=icon(name)+`<span class="ui-action-label">${escape(label)}</span>`;
     }
     const edit = document.querySelector('#home-edit');
     if (edit) {edit.innerHTML = `${icon('edit')}<span>홈 편집</span>`; edit.dataset.tooltip = '홈 편집';}

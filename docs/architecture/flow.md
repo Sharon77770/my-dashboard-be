@@ -1,10 +1,20 @@
 # 주요 흐름
 
+## Database Studio
+
+OWNER가 연결을 저장하면 DatabaseStudioService가 입력을 검증하고 CredentialVault로 비밀번호를 암호화해 Workspace SQLite에 저장한다. 테스트·탐색·쿼리는 DatabaseAdapter가 새 JDBC 연결을 열고 제한된 결과를 만든 뒤 닫는다. SQL 실행은 bounded worker가 진행하며 브라우저는 execution ID로 polling·취소한다. Service의 DATABASE binding은 연결 ID를 Context의 안전한 요약으로 만들며 MCP는 읽기 metadata 도구만 호출한다. [상세](../database-studio.md).
+
+## Service Catalog
+
+OWNER가 Services 앱에서 Service를 만들고 기존 GitHub/장비/Telemetry 리소스를 선택한다. ServiceCatalogService가 참조를 검증하고 SQLite에 연결을 저장한다. 같은 type/reference/device 조합은 409로 거부한다. URL과 파일 경로는 형식을 검증하며 서버에서 URL을 자동 호출하지 않는다. 삭제된 장비/Telemetry 연결은 orphan으로 표시하고 다른 연결 조회는 유지한다.
+
+목록/위젯은 연결된 운영·계측·GitHub Action 신호로 Health를 계산한다. 상세 Context는 기존 GithubService, CatalogService/DeviceOperations, TelemetryService 결과와 Resource, Activity를 묶는다. 외부 조회 실패 시 해당 Context 부분만 생략하고 Health는 UNKNOWN 신호를 표시한다. Activity는 카탈로그 이벤트와 기존 GitHub/장비/Telemetry 기록을 최신순으로 합친다. Quick Action은 기존 GitHub/Terminal/Files/Remote/Telemetry 화면으로 이동한다. Docker restart는 기존 DeviceOperations API와 확인 대화상자를 사용한다. Ask Codex는 Service ID를 포함한 요청을 기존 assistant 화면에 넣고 MCP `get_service_context`로 같은 모델을 읽는다.
+
 ## GitHub Control Center
 
 OWNER 브라우저가 `github/status`를 조회한다. 서버 `gh`가 미인증이면 기기 코드 로그인 job을 시작하고 사용자가 GitHub에서 승인한다. 인증 후 `GithubService.owners`가 사용자와 접근 가능한 Organization을 조회한다. Owner 변경 시 저장소 선택을 초기화하고 해당 Owner의 저장소·Overview를 다시 조회한다. 저장소 선택은 같은 서비스의 이슈·PR·Workflow·파일·커밋 조회로 이어진다. 비어 있는 목록은 빈 상태로 표시하고 외부 실패는 안전한 오류 메시지로 표시한다. CLI 재시도는 자동 수행하지 않는다.
 
-Codex의 MCP `github.*` 호출은 `AssistantMcpService`에서 입력을 검증하고 `GithubService`를 호출한다. READ는 구조화된 결과를 반환한다. WRITE는 서비스가 서버 `gh` 인증과 입력을 확인한 뒤 전용 adapter로 전송한다. PR 병합과 저장소 Archive는 MCP 승인 요청 생성 → OWNER 브라우저가 작업·대상 확인 후 CSRF 보호 POST 승인 → MCP가 같은 작업·대상·UUID로 실행 요청 → 일회성 승인 소비 → GitHub 호출 순서다. 10분 만료, 승인 누락 또는 대상 불일치는 403이다.
+Codex의 MCP `github.*` 호출은 `AssistantMcpService`에서 입력을 검증하고 `GithubService`를 호출한다. READ는 구조화된 결과를 반환한다. WRITE는 서비스가 서버 `gh` 인증과 입력을 확인한 뒤 전용 adapter로 전송한다. PR 병합과 저장소 Archive·삭제, Release 삭제는 MCP 승인 요청 생성 → OWNER 브라우저가 작업·대상 확인 후 CSRF 보호 POST 승인 → MCP가 같은 작업·대상·UUID로 실행 요청 → 일회성 승인 소비 → GitHub 호출 순서다. 삭제 승인 버튼에는 대상이 표시되며 브라우저 재확인이 필요하다. 10분 만료, 승인 누락 또는 대상 불일치는 403이다.
 
 ## 시작과 인증
 환경변수 계정을 검증하고 BCrypt 계정을 등록한다. schema.sql을 idempotent 적용하고 기본 local 장비 루트를 현재 환경변수로 구성한다.
@@ -71,17 +81,19 @@ OWNER가 GitHub 앱을 열면 서버 `gh auth status`로 인증을 확인한다.
 
 ## Launcher 실행과 편집
 
-인증된 Home → Registry 구성 → 계정별 홈 복원/검증 → 화면 너비에 맞는 격자 투영. 앱 실행은 내장 화면 탭, 기존 설정 모달 또는 기존 실행 세션 흐름으로 분기한다. 홈 편집은 잠금 확인 → 좌표/크기 검증 → 폴더 합치기 또는 충돌 재배치 → 성공한 레이아웃 저장이다. 실패하면 이전 상태와 오류 안내를 유지한다. Widget은 기존 데이터의 요약/앱 이동만 제공하며 CLI를 자동 실행하지 않는다. 모바일 홈 스와이프는 Home 격자 안에서만 처리해 앱 내부 스크롤과 분리한다. [사용 흐름과 실패 처리](../launcher.md).
+인증된 Home → Registry 구성 → 계정별 홈 복원/검증 → 이어하기·Services·일정·인프라 요약과 compact 저장 항목 표시. 홈 편집 시 화면 너비에 맞는 기존 격자 투영으로 전환한다. 앱 실행은 내장 화면 탭, 기존 설정 모달 또는 기존 실행 세션 흐름으로 분기한다. 편집은 잠금 확인 → 좌표/크기 검증 → 폴더 합치기 또는 충돌 재배치 → 성공한 레이아웃 저장이다. 실패하면 이전 상태와 오류 안내를 유지한다. Widget은 기존 데이터의 요약/앱 이동만 제공하며 CLI를 자동 실행하지 않는다. 모바일 홈 스와이프는 편집 격자 안에서만 처리해 앱 내부 스크롤과 분리한다. [사용 흐름과 실패 처리](../launcher.md).
 
 ### Codex 대화
 
 SSH 장비의 프로젝트 열기 → Codex 탭 → 원격 model/list 및 account/read → 최근 thread 복원 또는 세션 목록 선택 → 파일/선택/이미지/스킬 첨부 → thread/start 또는 resume → turn/start → 스트림 표시 → 필요 시 승인/질문 응답 → turn/completed → thread/read. 서버 자체(local) 프로젝트에서 Codex 요청은 400으로 거부하고 SSH 장비를 선택하도록 안내한다. 전송 전 미저장 편집을 막는다. 첫 메시지 전 새 세션은 draft다. 다른 cwd의 thread 작업은 403. 자동 모델 호출 재시도는 하지 않는다.
 
-전역 Codex assistant: 내장 `대시보드 도우미` 앱 열기 → server-local setup/MCP 연결 및 계정·모델 확인 → 사용자 turn을 assistant job으로 실행 → MCP tools/call로 페이지 이동·일정·노트 작업 → app-server usage/item/interaction 이벤트를 채팅에 표시 → navigation queue를 브라우저가 polling해 내부 페이지 또는 등록 앱을 연다. 앱을 벗어나도 실행 중인 job과 세션 대화는 유지되고 다시 열면 해당 세션 대화를 표시한다. 프로젝트 편집기 job endpoint는 사용하지 않는다. 로그인 만료, 설치 오류와 MCP 도구 오류는 채팅 상태로 표시하고 삭제·셸 도구는 제공하지 않는다.
+전역 Codex assistant: 상단 `비서` 또는 내장 앱 열기 → server-local setup/MCP 연결 및 계정·모델 확인 → 빠른 작업 초안 편집 또는 직접 입력 → 사용자 turn을 assistant job으로 실행 → MCP tools/call로 페이지 이동·일정·노트·GitHub 조회/생성/수정/삭제 → app-server usage/item/interaction 이벤트를 채팅에 표시 → navigation queue를 브라우저가 polling해 내부 페이지 또는 등록 앱을 연다. 일정·메모 삭제 및 메모 전체 교체는 대화에서 정확한 대상을 확인한다. GitHub 저장소·Release 삭제는 승인 요청 → GitHub 화면에서 대상 확인과 재확인 → 같은 작업·대상에 묶인 일회성 승인 소비 → GitHub API 호출 순서다. 앱을 벗어나도 실행 중인 job과 세션 대화는 유지되고 다시 열면 해당 세션 대화를 표시한다. 프로젝트 편집기 job endpoint는 사용하지 않는다. 로그인 만료, 설치 오류와 MCP 도구 오류는 채팅 상태로 표시하고 임의 셸 도구는 제공하지 않는다.
 
 사이드바는 동일한 서버 Codex 계정의 thread/list를 검색·페이지네이션하고, 선택 시 thread/read 결과의 사용자/답변 item만 대화에 복원한다. 새 채팅은 저장 전 draft이고 첫 turn 후 목록에 나타난다. 설정 창의 로그인·로그아웃, 모델·추론 설정과 대화 이름 변경·보관은 기존 assistant job action을 사용한다. 사이드바 삭제 모달은 별도의 thread/list 페이지를 표시하고 선택한 세션을 각 thread/delete job으로 영구 삭제한다. 현재 대화 제목 옆 삭제 버튼도 같은 action을 사용하며 성공하면 세션 저장소의 현재 ID를 지우고 빈 대화로 이동한다. 실패한 세션은 목록에 남긴다. 첨부 이미지와 UTF-8 텍스트는 전송 전 브라우저 메모리에만 두고, 전송 시 검증된 context로 turn에 전달한다. 실패 시 입력과 첨부는 재시도를 위해 유지한다.
 
 assistant UI는 응답 대기 중 진행 말풍선을 표시하고 turn/reasoning, MCP 도구, agentMessage 이벤트에 따라 단계 문구를 갱신한다. 내용 없는 agentMessage 시작 이벤트는 빈 답변으로 확정하지 않는다. 첫 실제 답변 텍스트 또는 job 완료/실패가 진행 표시를 종료한다. 새로고침 뒤 sessionStorage에 남은 미완료 표시도 완료 상태의 재시도 안내로 바꾼다.
+
+assistant 실행 하네스: 사용자 요청의 결과와 MCP 필요 여부 판단 → MCP가 필요하면 이해한 요청과 사용할 도구를 채팅에 미리 알림 → 해당 도구 호출 → 결과와 사용 기능 보고. 진행 중 먼저 보낸 안내는 최종 답변 위에 유지한다. 별도의 `실제 MCP 호출` 목록은 app-server의 `mcpToolCall` item에서 생성하고, 저장된 thread/read를 열 때 turn의 item으로 복원한다. 호출 인수와 결과 본문은 목록에 넣지 않으며 실패 상태만 표시한다. 도구를 쓰지 않은 요청에는 호출 목록을 만들지 않는다.
 
 장비 네트워크 선택과 점프 장비 순서 지정 → 저장/SSH 등록의 호스트 키 확인에도 동일한 점프 체인 적용 → 각 장비의 networkMode가 TAILSCALE이면 공유 tailscale0 인터페이스 주소 확인 및 Tailscale 주소 해석 → 첫 점프 장비부터 SSH 호스트 키 검증·인증 → 각 점프 장비에서 Direct-TCPIP 채널로 다음 주소에 연결 → 대상 장비 호스트 키 검증·인증 → SFTP/터미널/원격 어댑터 연결. TAILSCALE 브릿지 뒤의 DIRECT 목표는 Tailscale 확인 없이 브릿지에서 목표 주소를 해석·연결한다. 점프 체인은 최대 5개이며 어느 홉이라도 실패하면 전체 연결을 실패시킨다. 실패 시 기본 네트워크로 재시도하지 않는다. SSH 재등록에서 jumpDeviceIds 생략/null은 기존 체인을 유지하고 빈 배열은 직접 연결을 지정한다. 프로필 변경 전 열린 실행 세션은 생성 당시 설정을 유지하므로 새 연결로 적용한다.
 

@@ -7,6 +7,8 @@ Thymeleaf가 계정·CSRF·초기 WorkspaceView와 화면 구조를 렌더링하
 ## 계층
 
 - `catalog/controller -> catalog/service -> catalog/repository -> SQLite`: 장비·앱·클립보드·즐겨찾기·최근 작업·화면 설정·탭.
+- `services/controller -> services/service -> services/repository -> SQLite`: Service 메타데이터·binding·activity를 보유한다. ServiceCatalogService는 기존 CatalogService/DeviceOperations, GithubService, TelemetryService를 조합해 Health와 Context를 만든다. AssistantMcpService의 read-only 도구도 같은 서비스를 호출한다.
+- `database/controller -> database/service -> database/repository`는 Studio 연결 메타데이터·이력·즐겨찾기를 내부 SQLite에 저장한다. `database/service -> database/adapter -> JDBC`는 외부 PostgreSQL/MySQL 또는 기존 local Device의 서버 파일 영역에 있는 SQLite 파일을 요청마다 열고 닫는다. 비밀번호는 기존 CredentialVault를 재사용한다. Service Catalog는 DATABASE binding의 기존 연결 ID만 보관하며 Context에는 credential 없는 요약을 넣는다. MCP는 동일 service의 연결·metadata 읽기 도구만 제공한다.
 - `files/controller -> files/service -> files/adapter -> local filesystem 또는 SshAdapter/SFTP`: 경로 검증, 탐색, 스트리밍 파일 작업.
 - `runtime/controller -> runtime/service -> runtime/adapter`: 실행 세션 생성·소유권·종료, PTY/SSH, Chromium URL 열기, guacd 연결.
 - WebSocket handler는 입출력 변환과 연결 수명만 처리하고 세션 소유권은 RuntimeService가 검증한다.
@@ -62,7 +64,7 @@ studio/controller → studio/service → studio/adapter → 로컬 프로세스 
 
 ## Launcher 표시 아키텍처 (2026-09-14)
 
-Sidebar와 대시보드형 Home을 앱/폴더/위젯/페이지/Dock/Drawer 구조로 교체한다. 중앙 App Registry를 Launcher, 검색, 내장 앱 탭이 공유한다. HomeItem은 브라우저 표시 모델이며 계정별 localStorage에 저장한다. 기존 서버 실행 탭과 업무 API/SQLite 계약은 유지한다. Desktop과 Mobile은 같은 모델을 사용하지만 모바일은 전체 앱 화면과 전환기, IDE 단일 패널 모드를 사용한다. [모듈·격자·저장 계약](../launcher.md).
+중앙 App Registry를 Command Center, App Library, 명령 Palette와 내장 앱 탭이 공유한다. HomeItem은 브라우저 표시 모델이며 계정별 localStorage에 저장한다. 평상시 Home은 최근 작업과 기존 Widget renderer를 조합하고, 편집 시 기존 격자 좌표를 사용한다. Desktop은 global bar + activity rail + 앱 콘텐츠, Mobile은 compact app bar + 작업 탐색 + 집중형 단일 pane을 사용한다. Shell은 `shell.css`, 의미 토큰은 `design-system.css`, Home/Library 표현은 `launcher.css`가 소유한다. 기존 서버 실행 탭과 업무 API/SQLite 계약은 유지한다. [모듈·저장 계약](../launcher.md).
 
 ### IDE Codex 통신
 
@@ -70,9 +72,9 @@ StudioController → StudioService(OWNER/HTTP 세션·수명·크기 제한, Cod
 
 ### 서버 Codex assistant와 MCP
 
-AssistantController → StudioService의 assistant job 경계 → StudioAdapter의 server-local Codex process → Codex App Server stdio. 앱 assistant UI는 내장 `assistant` 앱 뷰로 실행하며 IDE Codex UI를 재사용하지 않고 기존 API와 MCP 기능을 사용한다. AssistantMcpService가 allowlisted route/app, 일정, 노트 도구를 기존 feature service로 전달하며 대화 이벤트와 사용자 확인 요청은 브라우저에서 표시한다. AssistantEvents는 MCP navigation 결과를 브라우저 polling queue로 전달한다. MCP token은 env 설정값 또는 프로세스 부팅 시 생성한 임시 값이며 SQLite에 저장하지 않는다.
+AssistantController → StudioService의 assistant job 경계 → StudioAdapter의 server-local Codex process → Codex App Server stdio. 앱 assistant UI는 내장 `assistant` 앱 뷰로 실행하며 IDE Codex UI를 재사용하지 않고 기존 API와 MCP 기능을 사용한다. AssistantMcpService가 allowlisted route/app, 일정, 노트, GitHub 도구를 기존 feature service로 전달하며 대화 이벤트와 사용자 확인 요청은 브라우저에서 표시한다. AssistantEvents는 MCP navigation 결과를 브라우저 polling queue로 전달한다. MCP token은 env 설정값 또는 프로세스 부팅 시 생성한 임시 값이며 SQLite에 저장하지 않는다.
 
-GitHub 화면과 MCP의 `github.*` 도구는 모두 `GithubService`를 사용한다. `GithubCliAdapter`가 서버 `gh`와 GitHub REST API를 고정된 명령으로 호출한다. Owner는 USER/ORGANIZATION을 포함하며 화면은 선택 Owner를 기준으로 저장소·작업·실행 상태를 조합한다. MCP 위험 작업인 PR 병합과 저장소 Archive는 `GithubApprovalService`의 10분 일회성 승인과 OWNER 브라우저 POST를 거친다. GitHub 데이터는 SQLite에 복사하지 않는다. [상세](../github.md).
+GitHub 화면과 MCP의 `github.*` 도구는 모두 `GithubService`를 사용한다. `GithubCliAdapter`가 서버 `gh`와 GitHub REST API를 고정된 명령으로 호출한다. Owner는 USER/ORGANIZATION을 포함하며 화면은 선택 Owner를 기준으로 저장소·작업·실행 상태를 조합한다. MCP 위험 작업인 PR 병합과 저장소 Archive·삭제, Release 삭제는 `GithubApprovalService`의 10분 일회성 승인과 OWNER 브라우저 POST를 거친다. GitHub 데이터는 SQLite에 복사하지 않는다. [상세](../github.md).
 
 장비의 NetworkMode는 DIRECT/TAILSCALE이다. SshAdapter와 RemoteAdapter는 주입된 DeviceNetworkAdapter를 사용하고, 원격 브라우저·단순 포트 상태 조회는 CatalogService.connectionHost를 통해 같은 adapter를 사용한다. 네트워크/DNS 처리는 controller나 UI에서 수행하지 않는다. TAILSCALE은 tailscale0에 tailnet 주소가 존재하는지 확인한 뒤 3초 이내 DNS 결과 중 tailnet 주소만 선택하여 숫자 IP로 접속한다. 일반 주소 fallback은 없다. 장비는 최대 5개의 등록 점프 장비 ID를 순서대로 저장할 수 있으며 SshAdapter가 각 홉에 SSH 인증·호스트 키 검증 후 Direct-TCPIP 채널로 다음 홉을 연결한다. 점프 장비의 점프 체인 중첩은 차단한다. CLI 로그인 상태 저장이나 LocalAPI 노출은 추가하지 않는다.
 

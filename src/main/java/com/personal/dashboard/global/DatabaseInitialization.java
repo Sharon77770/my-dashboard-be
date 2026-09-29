@@ -31,5 +31,13 @@ public class DatabaseInitialization implements InitializingBean {
           .execute(dataSource);
     new ResourceDatabasePopulator(new ClassPathResource("db/migrations/V6__telemetry.sql"))
         .execute(dataSource);
+    new ResourceDatabasePopulator(new ClassPathResource("db/migrations/V7__service_catalog.sql"))
+        .execute(dataSource);
+    new ResourceDatabasePopulator(new ClassPathResource("db/migrations/V8__database_studio.sql"))
+        .execute(dataSource);
+    if (jdbc.queryForList("PRAGMA table_info(database_connections)").stream()
+        .noneMatch(column -> "metadata".equals(column.get("name"))))
+      jdbc.execute(
+          "ALTER TABLE database_connections ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'");
   }
 }

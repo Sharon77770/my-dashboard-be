@@ -7,7 +7,11 @@ const markdownScript = fs.readFileSync('src/main/resources/static/js/assistant-m
 const answer = '# fixture answer\n\n**중요** [문서](https://example.com)\n\n- 첫째\n- 둘째\n\n```js\nconst value = 1;\n```\n\n| 이름 | 값 |\n| --- | --- |\n| A | 1 |';
 const tick = () => new Promise(resolve => setTimeout(resolve, 20));
 const connected = { name: 'personal-dashboard', status: 'bearerToken', runtimeStatus: null,
-  tools: ['list_calendar_events'], error: '' };
+  tools: ['list_apps', 'list_calendar_events', 'create_calendar_event', 'update_calendar_event',
+    'delete_calendar_event', 'list_notes', 'read_note', 'create_note', 'append_note',
+    'update_note_metadata', 'replace_note_text', 'delete_note', 'github.get_repository',
+    'github.update_repository', 'github.update_release', 'github.delete_repository',
+    'github.delete_release'], error: '' };
 
 async function fixture(connection, authenticated = true, connectionFailure = false, thinking = false) {
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost' });
@@ -20,6 +24,14 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     if (path === '/assistant/jobs/thinking') return { id: 'thinking', state: 'SUCCEEDED', events: [
       { assistant: { kind: 'item', item: { type: 'agentMessage', text: answer } } }
     ], result: { assistant: { thread: { id: 'fixture', turns: [] } } } };
+    if (path === '/assistant/jobs/harness') return { id: 'harness', state: 'SUCCEEDED', events: [
+      { assistant: { kind: 'item', item: { id: 'answer', type: 'agentMessage', text: '조회 결과입니다.' } } }
+    ], result: { assistant: { thread: { id: 'fixture', turns: [{ items: [
+      { id: 'notice', type: 'agentMessage', text: '요청 이해: 앱 목록 조회 / 사용할 MCP: list_apps' },
+      { id: 'tool', type: 'mcpToolCall', server: 'personal-dashboard', tool: 'list_apps', status: 'completed' },
+      { id: 'retry', type: 'mcpToolCall', server: 'personal-dashboard', tool: 'list_apps', status: 'failed', arguments: 'hidden credential' },
+      { id: 'answer', type: 'agentMessage', text: '조회 결과입니다.' }
+    ] }] } } } };
     assert.equal(method, 'POST');
     calls.push(body.action);
     requests.push(body);
@@ -34,14 +46,23 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       { assistant: { kind: 'started' } },
       { assistant: { kind: 'item', item: { type: 'reasoning', text: 'private reasoning summary' } } }
     ] };
+    if (body.action === 'codex-run' && state.harness) return { id: 'harness', state: 'RUNNING', events: [
+      { assistant: { kind: 'item', item: { id: 'notice', type: 'agentMessage', text: '요청 이해: 앱 목록 조회 / 사용할 MCP: list_apps' } } },
+      { assistant: { kind: 'item', item: { id: 'tool', type: 'mcpToolCall', server: 'personal-dashboard', tool: 'list_apps', status: 'completed' } } }
+    ] };
     const result = body.action === 'codex-account' ? { assistant: { authenticated: state.authenticated } }
       : body.action === 'codex-rate-limits' ? { assistant: { rateLimits: [{ name: 'Codex', windowDurationMins: 300, usedPercent: 25, resetsAt: 1730947200 }] } }
       : body.action === 'codex-connections' ? { assistant: { connections: state.connection ? [state.connection] : [] } }
       : body.action === 'codex-threads' ? { assistant: { threads: state.threads.slice(body.args.cursor ? 25 : 0, body.args.cursor ? 50 : 25), nextCursor: !body.args.cursor && state.threads.length > 25 ? 'next' : null } }
       : body.action === 'codex-thread-read' ? { assistant: { thread: { id: body.args.threadId, turns: [{ items: [
-        { type: 'userMessage', text: '10월 일정 설명해줘' }, { type: 'agentMessage', text: answer }
+        { type: 'userMessage', text: '10월 일정 설명해줘' },
+        { type: 'mcpToolCall', server: 'personal-dashboard', tool: 'list_calendar_events', status: 'completed' },
+        { type: 'agentMessage', text: answer }
       ] }] } } }
-      : body.action === 'codex-run' ? { assistant: { thread: { id: 'fixture', turns: [{ items: [{ type: 'agentMessage', text: answer }] }] } } }
+      : body.action === 'codex-run' ? { assistant: { thread: { id: 'fixture', turns: [{ items: [
+        { type: 'mcpToolCall', server: 'personal-dashboard', tool: 'list_calendar_events', status: 'completed' },
+        { type: 'agentMessage', text: answer }
+      ] }] } } }
       : {};
     return { id: String(calls.length), state: 'SUCCEEDED', result };
   } };
@@ -63,6 +84,10 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       assert.match(f.d.querySelector('#assistant-limits-text').textContent, /5시간/);
       assert.match(f.d.querySelector('#assistant-limits-text').textContent, /75%/);
       assert.equal(f.d.querySelector('#assistant-limits-text [role="progressbar"]').getAttribute('aria-valuenow'), '75');
+      assert.ok(f.d.querySelector('.assistant-top-shortcut[data-view="assistant"]'));
+      f.d.querySelector('[data-assistant-draft="오늘 일정 보여줘"]').click();
+      assert.equal(f.d.querySelector('#assistant-prompt').value, '오늘 일정 보여줘');
+      assert.ok(!f.calls.includes('codex-run'));
       f.d.querySelector('#assistant-prompt').value = '10월 일정 설명해줘';
       f.d.querySelector('#assistant-form').dispatchEvent(new f.w.Event('submit', { cancelable: true }));
       await tick();
@@ -79,6 +104,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       assert.equal(f.d.querySelector('.assistant-message[data-role="assistant"] li').textContent, '첫째');
       assert.equal(f.d.querySelector('.assistant-message[data-role="assistant"] pre code').textContent, 'const value = 1;');
       assert.equal(f.d.querySelector('.assistant-message[data-role="assistant"] table td').textContent, 'A');
+      assert.match(f.d.querySelector('.assistant-tool-report').textContent, /personal-dashboard \/ list_calendar_events/);
       assert.equal(f.calls.filter(action => action === 'codex-run').length, 1);
     } finally { f.dom.window.close(); }
   }
@@ -94,7 +120,22 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     assert.match(thinking.d.querySelector('#assistant-messages').textContent, /fixture answer/);
     assert.equal(thinking.d.querySelector('.assistant-progress'), null);
   } finally { thinking.dom.window.close(); }
-  for (const connection of [null, { ...connected, tools: [] }, { ...connected, runtimeStatus: 'failed' },
+  const harness = await fixture(connected);
+  try {
+    harness.state.harness = true;
+    harness.d.querySelector('#assistant-prompt').value = '등록된 앱 보여줘';
+    harness.d.querySelector('#assistant-form').dispatchEvent(new harness.w.Event('submit', { cancelable: true }));
+    await tick();
+    assert.match(harness.d.querySelector('#assistant-messages').textContent, /요청 이해: 앱 목록 조회/);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    assert.match(harness.d.querySelector('.assistant-message-notices').textContent, /사용할 MCP: list_apps/);
+    assert.match(harness.d.querySelector('.assistant-tool-report').textContent, /personal-dashboard \/ list_apps/);
+    assert.equal(harness.d.querySelectorAll('.assistant-tool-report li').length, 2);
+    assert.match(harness.d.querySelector('.assistant-tool-report').textContent, /실패/);
+    assert.doesNotMatch(harness.d.querySelector('#assistant-messages').textContent, /hidden credential/);
+  } finally { harness.dom.window.close(); }
+  for (const connection of [null, { ...connected, tools: [] }, { ...connected, tools: ['list_calendar_events'] },
+    { ...connected, runtimeStatus: 'failed' },
     { ...connected, error: '도구 조회 실패' }]) {
     const f = await fixture(connection);
     try {
@@ -140,6 +181,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     history.d.querySelector('[data-thread-id="older"]').click();
     await tick();
     assert.match(history.d.querySelector('#assistant-messages').textContent, /fixture answer/);
+    assert.match(history.d.querySelector('.assistant-tool-report').textContent, /list_calendar_events/);
     assert.equal(history.d.querySelector('#assistant-chat-title').textContent, '지난 대화');
     history.d.querySelector('#assistant-header-settings').click();
     assert.equal(history.d.querySelector('#assistant-settings').hasAttribute('open'), true);

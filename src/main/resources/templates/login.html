@@ -11,10 +11,8 @@
 </head>
 <body class="login-page">
   <main class="login-card">
-    <div class="brand-mark" aria-hidden="true">PW</div>
-    <p class="eyebrow">PERSONAL WORKSPACE</p>
-    <h1>나만의 작업 공간</h1>
-    <p class="muted">대시보드에 접속하려면 로그인하세요.</p>
+    <div class="brand-mark" aria-hidden="true">◈</div>
+    <h1>Workspace</h1>
     <p class="notice error" role="alert" th:if="${param.error}">아이디 또는 비밀번호를 확인해 주세요.</p>
     <p class="notice" role="status" th:if="${param.logout}">로그아웃되었습니다.</p>
     <form th:action="@{/login}" method="post" class="login-form">
@@ -22,7 +20,7 @@
       <input id="id" name="id" type="text" autocomplete="username" required autofocus>
       <label for="password">비밀번호</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required>
-      <button class="primary" type="submit">로그인</button>
+      <button class="primary" type="submit">계속</button>
     </form>
   </main>
 </body>

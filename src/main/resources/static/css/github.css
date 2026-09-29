@@ -45,7 +45,7 @@
 .github-run-controls{display:flex;gap:var(--space-2);margin:12px 0}
 #github-detail [data-github-response]{display:grid;gap:9px;margin:14px 0;padding:12px;border:1px solid var(--border-default);border-radius:var(--radius-md)}
 #github-detail [data-github-response] textarea,#github-detail [data-github-response] select{width:100%;min-width:0;padding:8px;border:1px solid var(--border-default);border-radius:var(--radius-sm);background:var(--bg-surface);color:var(--text-primary)}
-@media(max-width:720px){.github-layout{grid-template-columns:1fr}.github-scope{gap:10px}#github-nav{flex-wrap:nowrap;overflow-x:auto;padding-bottom:5px}#github-nav button{white-space:nowrap}#github-repositories{max-height:170px}.github-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.github-scope-trigger{display:none}
 
 #github-status{margin:var(--space-2) 0;color:var(--text-secondary)}
 .github-summary{gap:var(--space-2)}.github-summary>.ui-kpi{padding:var(--space-3);background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:var(--radius-md)}
@@ -53,3 +53,31 @@
 #github-nav button[aria-current=true]{background:var(--selection-gradient);border-color:var(--accent);color:var(--accent)}
 #github-nav button .ui-icon{width:15px;height:15px}
 .github-detail-row{transition:background-color var(--motion-fast) var(--motion-ease)}.github-detail-row:hover{background:var(--bg-surface-hover)}
+
+/* Repository navigation remains one panel on desktop and a drawer on phones. */
+.github-layout{grid-template-columns:minmax(210px,260px) minmax(0,1fr);gap:0;margin-top:9px}
+.github-layout .panel{padding:8px 12px;border:0;border-radius:0;background:transparent}
+.github-layout .panel:first-child{border-right:1px solid var(--border-subtle)}
+.github-row,.github-external{min-height:42px;border-color:var(--border-subtle);font-size:12px}
+.github-summary>div,.github-summary>.ui-kpi{padding:8px 2px;border:0;border-radius:0;background:transparent}
+.github-detail-body,#github-detail details pre{border-radius:3px}
+.github-auth{border-radius:3px}
+.github-content-head>h2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:700px){
+ .github-layout{display:block;margin-top:5px}
+ #github .github-layout .panel{padding:4px 0}
+ #github .github-scope{display:none}
+ #github .ui-side-drawer>.github-scope{display:flex;flex-direction:column;flex:1;min-height:0;gap:9px;width:100%;padding:10px 12px calc(10px + env(safe-area-inset-bottom));overflow:auto;border:0}
+ #github .ui-side-drawer>.github-scope label{font-size:11px}
+ #github .ui-side-drawer>.github-scope select,#github .ui-side-drawer>.github-scope input{min-height:40px;font-size:12px}
+ #github-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;overflow:visible}
+ #github-nav button{justify-content:flex-start;min-width:0;min-height:40px;padding:5px 8px;white-space:nowrap}
+ #github-repositories{max-height:none;min-height:100px;overflow:visible}
+ .github-content-head{gap:5px;min-height:44px;margin-bottom:6px}
+ .github-content-head>.github-scope-trigger{display:grid;place-items:center;flex:none;width:40px;min-width:40px;min-height:40px;padding:0;border:0;background:transparent}
+ .github-scope-trigger .ui-icon{width:18px;height:18px}
+ #github-context{max-width:33%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .github-summary{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:8px}
+ .github-summary strong{font-size:16px}
+ .github-detail-body,#github-detail details pre{max-height:none;padding:7px 2px;overflow-x:auto;font-size:11px}
+}

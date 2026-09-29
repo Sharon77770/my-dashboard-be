@@ -3,7 +3,7 @@
 window.WorkspaceLauncher = (() => {
   const apps=window.WorkspaceApps,grid=window.HomeGrid,widgets=window.WorkspaceWidgets;
   const {escape:e,icon}=window.WorkspaceUI;
-  let helpers,state,statuses=new Map(),layout,page=0,editing=false,projection=[],folderId=null;
+  let helpers,state,statuses=new Map(),layout,page=0,editing=false,projection=[],folderId=null,expandedWidgets=new Set();
   const $=selector=>document.querySelector(selector);
   const mobile=()=>window.matchMedia('(max-width:700px)').matches;
   const columns=()=>mobile()?4:8;
@@ -12,19 +12,36 @@ window.WorkspaceLauncher = (() => {
   function save(){try{window.HomePersistence.save(layout);}catch{helpers.toast('홈 배치를 저장하지 못했습니다. 브라우저 저장 공간과 권한을 확인하세요. 현재 배치는 이 창에서 유지됩니다.');}render();}
   function transaction(change){try{const next=JSON.parse(JSON.stringify(layout));change(next);if(next.items.length>160)throw new Error('홈에는 최대 160개 항목을 배치할 수 있습니다.');if(next.items.some(item=>item.type==='folder'&&item.apps.length>60))throw new Error('폴더에는 최대 60개 앱을 배치할 수 있습니다.');layout=next;save();}catch(error){helpers.toast(error.message);}}
   function iconLabel(app,attrs=''){return `<button class="launcher-shortcut" data-app-icon="${e(app.id)}" ${attrs} aria-label="${e(app.name)}"><span class="launcher-icon">${icon(app.icon)}</span><span class="launcher-label">${e(app.name)}</span></button>`;}
+  /** The overview composes existing recent activity and widget summaries without changing HomeItem storage. */
+  function renderOverview(){
+    const recent=(state.activity||[]).slice(0,5).map(item=>`<button class="overview-row" data-open="${e(item.kind)}" data-target="${e(item.targetId)}" data-path="${e(item.path||'/')}"><span>${icon(({TERMINAL:'terminal',FILES:'files',REMOTE:'remote',APP:'browser'})[item.kind]||'recent')}</span><b>${e(item.label)}</b><small>${e(item.path||item.kind)}</small></button>`).join('')||'<p class="overview-empty">최근 작업이 없습니다.</p>';
+    const module=(title,appId,widgetId)=>`<section class="overview-module"><header><h2>${title}</h2><button data-view="${appId}" aria-label="${title} 열기">${icon('arrowRight')}</button></header><div>${widgets.render({widgetId,h:2},state,statuses)}</div></section>`;
+    $('#home-date').textContent=new Date().toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'});
+    $('#home-overview').innerHTML=`<section class="overview-module overview-continue"><header><h2>이어하기</h2><button data-action="app-switcher" aria-label="최근 작업 모두 보기">${icon('arrowRight')}</button></header><div>${recent}</div></section>${module('서비스','services','services-status')}${module('오늘','calendar','today')}${module('인프라','devices','device-status')}`;
+  }
   function render(){
     if(!layout)return;
     projection=grid.project(layout.items,columns());
     const visible=projection.filter(item=>item.page===page);
     const rows=Math.max(5,...visible.map(item=>item.y+item.h));
     const host=$('#home-grid');host.style.setProperty('--home-columns',columns());host.style.setProperty('--home-rows',rows);host.dataset.editing=editing;
-    host.innerHTML=visible.map(item=>{
+    const rendered=visible.map(item=>{
       let content;
       if(item.type==='app'){const app=apps.get(item.appId);content=app?iconLabel(app,editing?'':apps.attributes(app)):'';}
       if(item.type==='folder')content=`<button class="launcher-shortcut" data-launcher="folder" data-item="${e(item.id)}"><span class="launcher-icon folder-preview">${item.apps.slice(0,4).map(appId=>icon(apps.get(appId)?.icon)).join('')}</span><span class="launcher-label">${e(item.name)}</span></button>`;
-      if(item.type==='widget'){const def=widgets.get(item.widgetId);content=`<section class="home-widget ${item.h===1?'compact':''}"><header><span>${icon(apps.get(def.appId)?.icon)} ${e(def.name)}</span><button class="ghost sm" ${apps.attributes(apps.get(def.appId))} aria-label="${e(def.name)} 앱 열기">↗</button></header><div class="widget-body">${widgets.render(item,state,statuses)}</div></section>`;}
-      return `<div class="home-item ${item.type}" data-home-item="${e(item.id)}" style="grid-column:${item.x+1}/span ${item.w};grid-row:${item.y+1}/span ${item.h}" tabindex="${editing?'0':'-1'}" aria-label="${e(item.type==='folder'?item.name:item.type==='widget'?widgets.get(item.widgetId).name:apps.get(item.appId)?.name)}${editing?' · 방향키 이동, Enter 메뉴':''}">${content}${editing?`<button class="item-edit" data-launcher="context" data-item="${e(item.id)}" aria-label="항목 편집">${icon('more')}</button>${item.type==='widget'?`<button class="widget-resize" data-widget-resize data-launcher="place" data-item="${e(item.id)}" aria-label="위젯 크기 조절">↘</button>`:''}`:''}</div>`;
-    }).join('');
+      if(item.type==='widget'){
+        const def=widgets.get(item.widgetId);
+        const body=`<div class="widget-body">${widgets.render(item,state,statuses)}</div>`;
+        content=editing
+          ?`<section class="home-widget ${item.h===1?'compact':''}"><header><span>${icon(apps.get(def.appId)?.icon)} ${e(def.name)}</span><button class="ghost sm" ${apps.attributes(apps.get(def.appId))} aria-label="${e(def.name)} 앱 열기">${icon('arrowRight')}</button></header>${body}</section>`
+          :`<details class="home-widget home-widget-disclosure" ${expandedWidgets.has(item.id)?'open':''}><summary>${icon(apps.get(def.appId)?.icon)}<span>${e(def.name)}</span><span class="widget-chevron" aria-hidden="true">${icon('chevron')}</span></summary>${body}</details>`;
+      }
+      return `<div class="home-item ${item.type}" data-home-item="${e(item.id)}" data-widget="${e(item.widgetId||'')}" style="grid-column:${item.x+1}/span ${item.w};grid-row:${item.y+1}/span ${item.h}" tabindex="${editing?'0':'-1'}" aria-label="${e(item.type==='folder'?item.name:item.type==='widget'?widgets.get(item.widgetId).name:apps.get(item.appId)?.name)}${editing?' · 방향키 이동, Enter 메뉴':''}">${content}${editing?`<button class="item-edit" data-launcher="context" data-item="${e(item.id)}" aria-label="항목 편집">${icon('more')}</button>${item.type==='widget'?`<button class="widget-resize" data-widget-resize data-launcher="place" data-item="${e(item.id)}" aria-label="위젯 크기 조절">↘</button>`:''}`:''}</div>`;
+    });
+    host.innerHTML=rendered.filter((_,index)=>editing||visible[index].type!=='widget').join('');
+    $('#home-widgets').innerHTML=editing?'':rendered.filter((_,index)=>visible[index].type==='widget').join('');
+    $('#home-saved-widgets').hidden=editing||!visible.some(item=>item.type==='widget');
+    renderOverview();
     $('#home-pages').innerHTML=Array.from({length:layout.pages},(_,index)=>`<button data-page="${index}" class="page-dot ${index===page?'active':''}" aria-label="홈 ${index+1}페이지" aria-current="${index===page?'page':'false'}">${index+1}</button>`).join('');
     $('#home-page-label').textContent=`${page+1} / ${layout.pages}`;
     $('#home-edit-tools').hidden=!editing;
@@ -37,7 +54,7 @@ window.WorkspaceLauncher = (() => {
   function edit(){if(layout.locked){helpers.toast('레이아웃 잠금을 먼저 해제하세요.');return;}editing=!editing;render();}
   function addItem(item){transaction(next=>{if(next.items.length>=160)throw new Error('홈에는 최대 160개 항목을 배치할 수 있습니다.');const projected=grid.project(next.items,columns());next.items=[...projected,grid.findSpace(projected,{id:id(),page,x:0,y:0,w:1,h:1,...item},columns())];});}
   function drawer(){const dialog=$('#app-drawer');dialog.showModal();$('#drawer-search').value='';renderDrawer();$('#drawer-search').focus();}
-  function renderDrawer(){const query=$('#drawer-search').value;$('#drawer-apps').innerHTML=apps.search(query).map(app=>`<div data-drawer-app="${e(app.id)}">${iconLabel(app,apps.attributes(app))}<button class="drawer-add ghost sm" data-launcher="add-app" data-app="${e(app.id)}" aria-label="${e(app.name)} 홈에 추가">+</button></div>`).join('')||window.WorkspaceUI.emptyState('검색 결과가 없습니다','','search');}
+  function renderDrawer(){const query=$('#drawer-search').value;const groups=[['고정',layout.dock],['개발',['studio','github','terminal','databases','assistant']],['서비스와 인프라',['services','devices','files','remote','telemetry','logs']],['생산성',['notes','calendar','timetable','cloud','clipboard','recent']],['기타',apps.all().map(app=>app.id)]];const results=apps.search(query),seen=new Set();$('#drawer-apps').innerHTML=groups.map(([title,ids])=>{const matches=results.filter(app=>ids.includes(app.id)&&!seen.has(app.id));matches.forEach(app=>{seen.add(app.id);});return matches.length?`<section class="app-library-group"><h3>${title}</h3>${matches.map(app=>`<div data-drawer-app="${e(app.id)}">${iconLabel(app,apps.attributes(app))}<button class="drawer-add ghost sm" data-launcher="add-app" data-app="${e(app.id)}" aria-label="${e(app.name)} 홈에 추가">${icon('plus')}</button></div>`).join('')}</section>`:''}).join('')||window.WorkspaceUI.emptyState('검색 결과가 없습니다','','search');}
   function closePopups(){for(const selector of ['#app-drawer','#home-context','#home-folder','#widget-picker']){const dialog=$(selector);if(dialog.open)dialog.close();}}
   function context(target){const item=layout.items.find(item=>item.id===(target?.dataset.homeItem||target?.dataset.item));const appId=target?.dataset.drawerApp||target?.dataset.dockApp;const folderApp=target?.dataset.folderApp;const dialog=$('#home-context');
     let html='';
@@ -104,6 +121,7 @@ window.WorkspaceLauncher = (() => {
   return {
     init(shared){helpers=shared;state=helpers.state();apps.sync(state);try{const saved=window.HomePersistence.load();layout=saved?grid.sanitize(saved,apps,widgets):defaults();}catch{layout=defaults();helpers.toast('저장된 홈을 읽지 못해 기본 배치를 표시합니다. 편집 후 새 배치가 저장됩니다.');}
       document.body.addEventListener('click',click);$('#drawer-search').addEventListener('input',renderDrawer);
+      $('#home').addEventListener('toggle',event=>{const widget=event.target.closest('.home-widget-disclosure');if(!widget)return;const itemId=widget.closest('[data-home-item]')?.dataset.homeItem;if(!itemId)return;if(widget.open)expandedWidgets.add(itemId);else expandedWidgets.delete(itemId);},true);
       document.body.addEventListener('contextmenu',event=>{const app=event.target.closest('[data-dock-app],[data-folder-app]');if(app){event.preventDefault();context(app);}});
       window.LauncherInteractions.attach(document.body,{editable:()=>editing&&!layout.locked,locked:()=>layout.locked,context,drop,resize,dragMove:(source,x,y)=>{if(source.dataset.folderApp&&$('#home-folder').open){const box=$('#home-folder').getBoundingClientRect();if(x<box.left||x>box.right||y<box.top||y>box.bottom)$('#home-folder').close();}},page:delta=>setPage(page+delta),dragStart:source=>{if(source.dataset.drawerApp){editing=true;$('#app-drawer').close();helpers.showHome();render();}}});
       $('#home-grid').addEventListener('keydown',event=>{if(!editing)return;const target=event.target.closest('[data-home-item]');if(!target)return;if(event.key==='Enter'){event.preventDefault();context(target);return;}const offsets={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(!offsets[event.key])return;event.preventDefault();const item=projection.find(item=>item.id===target.dataset.homeItem);transaction(next=>{next.items=grid.move(projection,item.id,{x:item.x+offsets[event.key][0],y:item.y+offsets[event.key][1]},columns());});$(`[data-home-item="${item.id}"]`)?.focus();});

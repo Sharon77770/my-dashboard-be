@@ -8,6 +8,8 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 - `assistant/controller`, `assistant/service`, `assistant/dto`: server-hosted Codex job, Streamable HTTP MCP, browser navigation events and allowlisted application tools.
 - `github/controller`, `github/service`, `github/adapter`, `github/dto`: OWNER GitHub REST와 MCP가 공유하는 유스케이스, 승인 상태, 고정된 서버 `gh`/GitHub API 호출과 응답 계약.
 - `static/js/github.js`, `static/css/github.css`: GitHub Owner 탐색, 개발 상태, 승인 대기 화면.
+- `database/controller`, `database/service`, `database/repository`, `database/entity`, `database/dto`, `database/adapter`: Database Studio의 HTTP, 유스케이스, Workspace SQLite 저장 모델, JDBC 경계.
+- `static/js/databases.js`, `static/css/databases.css`: 기존 Workspace 안의 Database Studio 화면.
 
 | 경로 | 책임 |
 | --- | --- |
@@ -31,9 +33,11 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 | `global/integration/` | SSH/서버 명령 어댑터 |
 | `global/security/` | 계정 인증 및 영속 credential vault |
 | `home/controller/`, `login/controller/`, `health/` | 대시보드·로그인·liveness |
-| `src/main/resources/db/schema.sql` | 스키마 v5 (기존 데이터 보존 추가) |
+| `src/main/resources/db/schema.sql`, `src/main/resources/db/migrations/` | 기본 schema와 V3~V8 idempotent 추가 |
 | `src/main/resources/templates/` | Thymeleaf 로그인·대시보드·오류 |
 | `src/main/resources/static/css/workspace.css` | 앱 콘텐츠와 실행 화면 레이아웃 (테마는 design-system.css) |
+| `src/main/resources/static/css/shell.css` | Desktop activity rail, Mobile app bar/작업 탐색, 앱 공통 밀도와 집중 모드 |
+| `src/main/resources/static/css/launcher.css` | Command Center, App Library, Home 배치 편집 |
 | `src/main/resources/static/js/workspace.js` | UI 조작, API/WS 전송과 화면 상태 |
 | `src/main/resources/static/js/assistant.js`, `js/assistant-markdown.js`, `css/assistant.css` | IDE와 분리된 대시보드 전용 Codex 대화 화면과 안전한 Markdown 표시 |
 | `src/main/resources/static/vendor/` | 자체 제공 xterm/Guacamole JS와 라이선스 |
@@ -81,7 +85,7 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 - static/js/studio-codex.js, static/css/studio-codex.css: IDE의 Codex 세션 패널.
 - src/test/python/test_codex_bridge.py: 외부 모델 호출 없는 실행형 CLI fixture 계약 테스트.
 
-- static/css/os-shell.css: OS 상태바·시스템 도구·탐색 버튼·실행 앱 카드의 테마 및 반응형 배치.
+- static/css/shell.css: Desktop activity rail, Mobile app bar와 작업 탐색, 집중형 콘텐츠 배치.
 
 - global/integration/DeviceNetworkAdapter.java: Tailscale 인터페이스 및 목적지 주소 해석.
 - catalog/entity/NetworkMode.java: DIRECT/TAILSCALE 장비 설정.

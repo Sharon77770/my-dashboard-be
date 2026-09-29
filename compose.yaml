@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
     ports:
       - "${DASHBOARD_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT:-8080}:8080"
-      - "${NAS_SMB_BIND_ADDRESS:?Set NAS_SMB_BIND_ADDRESS to a LAN interface IP or 127.0.0.1}:445:445"
+      - "${NAS_SMB_BIND_ADDRESS:?Set NAS_SMB_BIND_ADDRESS to a LAN interface IP or 127.0.0.1}:${NAS_SMB_HOST_PORT:-445}:445"
     environment:
       DASHBOARD_AUTH_ID: ${DASHBOARD_AUTH_ID:?Set DASHBOARD_AUTH_ID in .env}
       DASHBOARD_AUTH_PASSWORD: ${DASHBOARD_AUTH_PASSWORD:?Set DASHBOARD_AUTH_PASSWORD in .env}

@@ -55,4 +55,21 @@ class GithubApprovalServiceTest {
             .status());
     approvals.consumeArchive(request.id(), "alice/repo");
   }
+
+  @Test
+  void repositoryAndReleaseDeletionRequireSeparateExactApprovals() {
+    var repository = approvals.requestDeleteRepository("alice/repo");
+    var release = approvals.requestDeleteRelease("alice/repo", 5000000000L);
+    approvals.approve(repository.id());
+    approvals.approve(release.id());
+
+    assertEquals(403, assertThrows(WorkspaceException.class,
+        () -> approvals.consumeDeleteRelease(repository.id(), "alice/repo", 5000000000L)).status());
+    assertEquals(403, assertThrows(WorkspaceException.class,
+        () -> approvals.consumeDeleteRelease(release.id(), "alice/repo", 1L)).status());
+    approvals.consumeDeleteRelease(release.id(), "alice/repo", 5000000000L);
+    approvals.consumeDeleteRepository(repository.id(), "alice/repo");
+    assertEquals(403, assertThrows(WorkspaceException.class,
+        () -> approvals.consumeDeleteRepository(repository.id(), "alice/repo")).status());
+  }
 }

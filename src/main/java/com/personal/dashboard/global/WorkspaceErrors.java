@@ -19,7 +19,9 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
       "com.personal.dashboard.studio.controller",
       "com.personal.dashboard.github.controller",
       "com.personal.dashboard.assistant.controller",
-      "com.personal.dashboard.telemetry.controller"
+      "com.personal.dashboard.telemetry.controller",
+      "com.personal.dashboard.services.controller",
+      "com.personal.dashboard.database.controller"
     })
 public class WorkspaceErrors {
   public record ErrorResponse(String message) {}

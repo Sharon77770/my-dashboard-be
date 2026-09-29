@@ -37,6 +37,41 @@ class WorkspaceIntegrationTest {
 
   @Test
   @org.springframework.transaction.annotation.Transactional
+  void databaseApiRequiresOwnerAndCsrfAndNeverReturnsCredential() throws Exception {
+    mvc.perform(get("/api/v1/databases")).andExpect(status().isUnauthorized());
+    mvc.perform(post("/api/v1/databases").with(user("owner").roles("OWNER")))
+        .andExpect(status().isForbidden());
+    String response =
+        mvc.perform(
+                post("/api/v1/databases")
+                    .with(user("owner").roles("OWNER"))
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        "{\"name\":\"Test database\",\"type\":\"POSTGRESQL\",\"host\":\"localhost\",\"port\":5432,\"databaseName\":\"test_db\",\"username\":\"owner\",\"credential\":\"integration-secret\",\"sslMode\":\"DISABLE\",\"accessMode\":\"READ_ONLY\"}"))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    assertThat(response)
+        .contains("passwordConfigured")
+        .doesNotContain("integration-secret", "credentialCipher");
+    String id = mapper.readTree(response).path("id").asText();
+    String cipher =
+        jdbc.queryForObject(
+            "SELECT credential_cipher FROM database_connections WHERE id=?", String.class, id);
+    assertThat(cipher).isNotEqualTo("integration-secret").isNotBlank();
+    mvc.perform(get("/api/v1/databases/" + id).with(user("owner").roles("OWNER")))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .string(
+                    org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("integration-secret"))));
+  }
+
+  @Test
+  @org.springframework.transaction.annotation.Transactional
   void removedDesktopCannotReappearFromSavedStateOrStartThroughApi() throws Exception {
     jdbc.update(
         "INSERT INTO activity VALUES (?,?,?,?,?,?)",

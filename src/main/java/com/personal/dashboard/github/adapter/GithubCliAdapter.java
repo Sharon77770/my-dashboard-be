@@ -99,6 +99,11 @@ public class GithubCliAdapter {
     }
   }
 
+  /** Calls a fixed DELETE endpoint without sending a request body. */
+  public void apiDelete(String endpoint) {
+    execute(List.of("api", "--hostname", "github.com", "--method", "DELETE", endpoint), false);
+  }
+
   /** Returns bounded failed-step logs as plain text; gh owns log archive decoding. */
   public String failedWorkflowLogs(String repository, long runId) {
     byte[] output =

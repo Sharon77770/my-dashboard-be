@@ -19,6 +19,7 @@ NAS_USERNAME=nasuser
 NAS_PASSWORD=replace-with-a-unique-password
 NAS_SMB_HOST=nas.example.lan
 NAS_SMB_BIND_ADDRESS=192.168.1.20
+NAS_SMB_HOST_PORT=445
 ```
 
 LAN 클라이언트도 연결할 경우 `NAS_SMB_BIND_ADDRESS`는 클라이언트가 들어오는 전용 LAN 인터페이스 IP여야 합니다. VPN-only 구성에서는 이 호스트 게시 주소를 `127.0.0.1`로 제한해도 되며 Samba는 dashboard와 Tailscale network namespace를 공유하므로 tailnet 클라이언트는 Tailscale 주소로 직접 연결할 수 있습니다. 공인 IP나 전체 인터페이스 바인딩 `0.0.0.0`은 사용하지 마십시오. `NAS_SMB_HOST`는 클라이언트가 사용할 LAN/VPN DNS 이름 또는 주소입니다. 하나의 호스트 이름이 두 네트워크에서 모두 해석되도록 설정하거나 `.env`의 주소를 해당 연결 환경에 맞추십시오. Samba 계정은 대시보드 로그인과 별도입니다. 비밀번호는 저장소에 넣지 말고 `.env` 또는 운영환경 secret 주입을 사용합니다. `.env`에서 `$` 등 Compose 특수 문자를 쓰는 비밀번호는 작은따옴표로 감싸십시오.
@@ -41,7 +42,7 @@ docker compose --env-file .env up -d --build --force-recreate samba
 
 ## 네트워크 경계
 
-Compose는 TCP 445를 지정된 `NAS_SMB_BIND_ADDRESS`에만 게시합니다. 서버 방화벽에서도 허용된 LAN CIDR 또는 VPN CIDR에서 해당 인터페이스의 TCP 445로 오는 연결만 허용하십시오. Docker가 게시한 포트는 UFW/firewalld의 일반 INPUT 규칙을 우회할 수 있습니다. 운영 서버가 사용하는 Docker firewall backend를 먼저 확인하고, iptables backend라면 `DOCKER-USER` 체인으로 제한하며 nftables backend라면 해당 backend 방식으로 허용 대역을 제한하십시오. 기존 규칙을 조사 없이 변경하지 않습니다. 라우터에서 TCP 445 포트 포워딩을 만들거나 공용 인터넷에 SMB를 노출하지 마십시오. 원격 접속은 Tailscale/WireGuard에 연결된 서버 인터페이스 주소를 통해 수행하십시오. [Docker firewall 및 포트 게시 문서](https://docs.docker.com/engine/network/firewall-iptables/).
+Compose는 기본적으로 TCP 445를 지정된 `NAS_SMB_BIND_ADDRESS`에만 게시합니다. `NAS_SMB_HOST_PORT`를 지정하면 호스트 게시 포트만 바뀌고 컨테이너 내부 SMB 포트는 445로 유지됩니다. Windows Docker Desktop 로컬 테스트에서 호스트 445가 점유되면 `.env`에 `NAS_SMB_BIND_ADDRESS=127.0.0.1`과 `NAS_SMB_HOST_PORT=1445`를 설정할 수 있습니다. 이는 로컬 컨테이너 시작 검증용이며 운영 LAN SMB 접속은 445를 사용합니다. 서버 방화벽에서도 허용된 LAN CIDR 또는 VPN CIDR에서 해당 인터페이스의 TCP 445로 오는 연결만 허용하십시오. Docker가 게시한 포트는 UFW/firewalld의 일반 INPUT 규칙을 우회할 수 있습니다. 운영 서버가 사용하는 Docker firewall backend를 먼저 확인하고, iptables backend라면 `DOCKER-USER` 체인으로 제한하며 nftables backend라면 해당 backend 방식으로 허용 대역을 제한하십시오. 기존 규칙을 조사 없이 변경하지 않습니다. 라우터에서 TCP 445 포트 포워딩을 만들거나 공용 인터넷에 SMB를 노출하지 마십시오. 원격 접속은 Tailscale/WireGuard에 연결된 서버 인터페이스 주소를 통해 수행하십시오. [Docker firewall 및 포트 게시 문서](https://docs.docker.com/engine/network/firewall-iptables/).
 
 ## 클라이언트 연결
 

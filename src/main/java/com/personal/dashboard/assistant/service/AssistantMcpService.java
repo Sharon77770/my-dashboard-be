@@ -3,6 +3,7 @@ package com.personal.dashboard.assistant.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.personal.dashboard.catalog.service.CatalogService;
+import com.personal.dashboard.database.service.DatabaseStudioService;
 import com.personal.dashboard.github.dto.GithubDto;
 import com.personal.dashboard.github.service.GithubService;
 import com.personal.dashboard.global.WorkspaceException;
@@ -12,6 +13,7 @@ import com.personal.dashboard.notes.service.NoteMarkdownConverter;
 import com.personal.dashboard.notes.service.NoteService;
 import com.personal.dashboard.planner.dto.PlannerDto.EventRequest;
 import com.personal.dashboard.planner.service.PlannerService;
+import com.personal.dashboard.services.service.ServiceCatalogService;
 import jakarta.validation.Validator;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,6 +40,8 @@ public class AssistantMcpService {
           "remote",
           "studio",
           "github",
+          "services",
+          "databases",
           "recent",
           "clipboard");
   private final PlannerService planner;
@@ -48,6 +52,8 @@ public class AssistantMcpService {
   private final Validator validator;
   private final ObjectMapper json;
   private final GithubService github;
+  private final ServiceCatalogService services;
+  private final DatabaseStudioService databases;
 
   public AssistantMcpService(
       PlannerService planner,
@@ -57,7 +63,9 @@ public class AssistantMcpService {
       AssistantEvents events,
       Validator validator,
       ObjectMapper json,
-      GithubService github) {
+      GithubService github,
+      ServiceCatalogService services,
+      DatabaseStudioService databases) {
     this.planner = planner;
     this.catalog = catalog;
     this.notes = notes;
@@ -66,10 +74,54 @@ public class AssistantMcpService {
     this.validator = validator;
     this.json = json;
     this.github = github;
+    this.services = services;
+    this.databases = databases;
   }
 
   public List<Map<String, Object>> tools() {
     return List.of(
+        tool(
+            "list_database_connections",
+            "List saved database connections without credentials.",
+            schema(List.of(), Map.of()),
+            true),
+        tool(
+            "get_database_metadata",
+            "Get safe connection metadata and schemas.",
+            schema(List.of("id"), Map.of("id", string(36))),
+            true),
+        tool(
+            "list_database_tables",
+            "List tables in a schema.",
+            schema(List.of("id", "schema"), Map.of("id", string(36), "schema", string(128))),
+            true),
+        tool(
+            "describe_database_table",
+            "Describe columns, keys and indexes.",
+            schema(
+                List.of("id", "schema", "table"),
+                Map.of("id", string(36), "schema", string(128), "table", string(128))),
+            true),
+        tool(
+            "list_services",
+            "List registered application services.",
+            schema(List.of(), Map.of()),
+            true),
+        tool(
+            "get_service",
+            "Get a Service Catalog entry and its bindings.",
+            schema(List.of("id"), Map.of("id", string(36))),
+            true),
+        tool(
+            "get_service_context",
+            "Read the service context across GitHub, runtime and telemetry.",
+            schema(List.of("id"), Map.of("id", string(36))),
+            true),
+        tool(
+            "get_service_health",
+            "Check aggregated health signals for a service.",
+            schema(List.of("id"), Map.of("id", string(36))),
+            true),
         tool(
             "github_status",
             "Check whether the dashboard server gh CLI is authenticated.",
@@ -155,6 +207,16 @@ public class AssistantMcpService {
             "Archive a repository after dashboard browser approval.",
             schema(
                 List.of("repository", "approvalId"),
+                Map.of("repository", string(201), "approvalId", string(36)))),
+        tool(
+            "github.request_delete_repository",
+            "Request dashboard browser approval to permanently delete a repository. No deletion occurs yet.",
+            schema(List.of("repository"), Map.of("repository", string(201))),
+            false),
+        dangerousTool(
+            "github.delete_repository",
+            "Permanently delete the exact repository after dashboard browser approval.",
+            schema(List.of("repository", "approvalId"),
                 Map.of("repository", string(201), "approvalId", string(36)))),
         tool(
             "github.list_branches",
@@ -387,6 +449,26 @@ public class AssistantMcpService {
                 Map.of("repository", string(201), "releaseId", integer())),
             true),
         tool(
+            "github.update_release",
+            "Update an existing release tag, name, or description. This does not rename a Git tag. WRITE operation.",
+            schema(
+                List.of("repository", "releaseId"),
+                Map.of(
+                    "repository", string(201), "releaseId", integer(), "tag", string(100),
+                    "name", string(256), "body", string(60000))),
+            false),
+        tool(
+            "github.request_delete_release",
+            "Request dashboard browser approval to delete one release. The Git tag remains. No deletion occurs yet.",
+            schema(List.of("repository", "releaseId"),
+                Map.of("repository", string(201), "releaseId", integer())),
+            false),
+        dangerousTool(
+            "github.delete_release",
+            "Delete the exact release after dashboard browser approval. The Git tag remains.",
+            schema(List.of("repository", "releaseId", "approvalId"),
+                Map.of("repository", string(201), "releaseId", integer(), "approvalId", string(36)))),
+        tool(
             "github.create_issue",
             "Create an issue in a repository. WRITE operation.",
             schema(
@@ -585,6 +667,20 @@ public class AssistantMcpService {
                     "color", Map.of("type", "string", "pattern", "^#[0-9a-fA-F]{6}$"))),
             false),
         tool(
+            "update_calendar_event",
+            "Replace the specified dashboard calendar event after reading its current details. All event fields must be supplied.",
+            schema(
+                List.of("id", "title", "start", "end", "allDay", "location", "notes", "color"),
+                Map.of(
+                    "id", string(36), "title", string(120), "start", dateTime(), "end", dateTime(),
+                    "allDay", Map.of("type", "boolean"), "location", string(200),
+                    "notes", string(4000), "color", string(7))),
+            false),
+        dangerousTool(
+            "delete_calendar_event",
+            "Permanently delete a dashboard calendar event by its ID. Read the event first and confirm the target with the user.",
+            schema(List.of("id"), Map.of("id", string(36)))),
+        tool(
             "list_notes",
             "List notebook folders and documents with their IDs and parent folders.",
             schema(List.of(), Map.of()),
@@ -611,15 +707,57 @@ public class AssistantMcpService {
             "append_note",
             "Append Markdown blocks to an existing notebook document using its current revision.",
             schema(
-                List.of("id", "text"),
+                List.of("id", "text", "revision"),
                 Map.of("id", string(36), "text", string(100000), "revision", integer())),
-            false));
+            false),
+        tool(
+            "update_note_metadata",
+            "Rename a notebook document or folder, or move it to a folder. Read the current entry and revision first. Omitted fields keep their current values.",
+            schema(
+                List.of("id", "revision"),
+                Map.of("id", string(36), "revision", integer(), "title", string(200),
+                    "parentId", nullableString(36))),
+            false),
+        dangerousTool(
+            "replace_note_text",
+            "Replace all blocks of an existing note with Markdown. Images and rich blocks are removed. Read the note and confirm this replacement first.",
+            schema(List.of("id", "revision", "text"),
+                Map.of("id", string(36), "revision", integer(), "text", string(100000)))),
+        dangerousTool(
+            "delete_note",
+            "Permanently delete a note or empty folder using its current revision. Read and confirm the target first.",
+            schema(List.of("id", "revision"),
+                Map.of("id", string(36), "revision", integer()))));
   }
 
   public Map<String, Object> call(String name, JsonNode args) {
     if (args == null || !args.isObject())
       throw new WorkspaceException(400, "MCP 도구 입력은 JSON 객체여야 합니다.");
     return switch (name) {
+      case "list_database_connections" -> Map.of("connections", databases.list());
+      case "get_database_metadata" -> {
+        String id = requiredText(args, "id", 36);
+        yield Map.of("connection", databases.get(id), "schemas", databases.schemas(id));
+      }
+      case "list_database_tables" ->
+          Map.of(
+              "tables",
+              databases.tables(requiredText(args, "id", 36), requiredText(args, "schema", 128)));
+      case "describe_database_table" ->
+          Map.of(
+              "table",
+              databases.describe(
+                  requiredText(args, "id", 36),
+                  requiredText(args, "schema", 128),
+                  requiredText(args, "table", 128)));
+      case "list_services" -> Map.of("services", services.list());
+      case "get_service" -> {
+        String id = requiredText(args, "id", 36);
+        yield Map.of("service", services.get(id), "resources", services.resources(id));
+      }
+      case "get_service_context" ->
+          Map.of("context", services.context(requiredText(args, "id", 36)));
+      case "get_service_health" -> Map.of("health", services.health(requiredText(args, "id", 36)));
       case "open_page" -> openPage(args);
       case "github_status" -> Map.of("authenticated", github.status().authenticated());
       case "list_github_repositories" -> Map.of("repositories", github.repositories());
@@ -661,6 +799,13 @@ public class AssistantMcpService {
               "repository",
               github.archiveRepository(
                   requiredText(args, "repository", 201), requiredText(args, "approvalId", 36)));
+      case "github.request_delete_repository" ->
+          Map.of("approval", github.requestDeleteRepository(requiredText(args, "repository", 201)));
+      case "github.delete_repository" -> {
+        github.deleteRepository(
+            requiredText(args, "repository", 201), requiredText(args, "approvalId", 36));
+        yield Map.of("deleted", true);
+      }
       case "github.list_branches" ->
           Map.of("branches", github.branches(requiredText(args, "repository", 201)));
       case "github.list_tags" -> Map.of("tags", github.tags(requiredText(args, "repository", 201)));
@@ -792,6 +937,23 @@ public class AssistantMcpService {
               "release",
               github.release(
                   requiredText(args, "repository", 201), requiredLong(args, "releaseId")));
+      case "github.update_release" ->
+          Map.of(
+              "release",
+              github.updateRelease(
+                  requiredText(args, "repository", 201), requiredLong(args, "releaseId"),
+                  new GithubDto.UpdateRelease(
+                      optionalText(args, "tag", 100), optionalText(args, "name", 256),
+                      optionalText(args, "body", 60000))));
+      case "github.request_delete_release" ->
+          Map.of("approval", github.requestDeleteRelease(
+              requiredText(args, "repository", 201), requiredLong(args, "releaseId")));
+      case "github.delete_release" -> {
+        github.deleteRelease(
+            requiredText(args, "repository", 201), requiredLong(args, "releaseId"),
+            requiredText(args, "approvalId", 36));
+        yield Map.of("deleted", true);
+      }
       case "github.create_issue" ->
           Map.of(
               "issue",
@@ -896,6 +1058,11 @@ public class AssistantMcpService {
                   LocalDate.parse(requiredText(args, "from", 10)),
                   LocalDate.parse(requiredText(args, "to", 10))));
       case "create_calendar_event" -> createEvent(args);
+      case "update_calendar_event" -> updateEvent(args);
+      case "delete_calendar_event" -> {
+        planner.deleteEvent(requiredText(args, "id", 36));
+        yield Map.of("deleted", true);
+      }
       case "list_notes" -> Map.of("entries", notes.entries());
       case "read_note" -> {
         var document = notes.document(requiredText(args, "id", 36));
@@ -904,6 +1071,9 @@ public class AssistantMcpService {
       case "create_note_folder" -> createFolder(args);
       case "create_note" -> createNote(args);
       case "append_note" -> appendNote(args);
+      case "update_note_metadata" -> updateNoteMetadata(args);
+      case "replace_note_text" -> replaceNoteText(args);
+      case "delete_note" -> deleteNote(args);
       default -> throw new WorkspaceException(404, "지원하지 않는 MCP 도구입니다.");
     };
   }
@@ -947,6 +1117,24 @@ public class AssistantMcpService {
     return Map.of("event", planner.saveEvent(null, input));
   }
 
+  /** A complete event snapshot avoids silently clearing details during a small edit. */
+  private Map<String, Object> updateEvent(JsonNode args) {
+    String id = requiredText(args, "id", 36);
+    if (!args.path("allDay").isBoolean())
+      throw new WorkspaceException(400, "입력값을 확인해 주세요: allDay");
+    var input =
+        new EventRequest(
+            requiredText(args, "title", 120),
+            LocalDateTime.parse(requiredText(args, "start", 32)),
+            LocalDateTime.parse(requiredText(args, "end", 32)),
+            args.path("allDay").asBoolean(),
+            requiredField(args, "location", 200),
+            requiredField(args, "notes", 4000),
+            requiredText(args, "color", 7));
+    validate(input);
+    return Map.of("event", planner.saveEvent(id, input));
+  }
+
   private Map<String, Object> createFolder(JsonNode args) {
     var input =
         new NoteDto.Create(
@@ -987,6 +1175,51 @@ public class AssistantMcpService {
         .forEach(block -> combined.add(block.deepCopy()));
     var saved = notes.save(id, new NoteDto.Content(combined, document.entry().revision()));
     return Map.of("entry", saved, "appended", true);
+  }
+
+  /** Keeps unmentioned metadata and delegates revision checks to NoteService. */
+  private Map<String, Object> updateNoteMetadata(JsonNode args) {
+    String id = requiredText(args, "id", 36);
+    long revision = requiredRevision(args);
+    var current = notes.document(id).entry();
+    if (!args.has("title") && !args.has("parentId"))
+      throw new WorkspaceException(400, "변경할 메모 정보를 입력해 주세요.");
+    var input =
+        new NoteDto.Metadata(
+            args.has("parentId") ? optionalText(args, "parentId", 36) : current.parentId(),
+            args.has("title") ? requiredText(args, "title", 200) : current.title(),
+            current.icon(),
+            revision);
+    validate(input);
+    return Map.of("entry", notes.metadata(id, input));
+  }
+
+  /** Revision checked full replacement; the caller explicitly chooses to discard old blocks. */
+  private Map<String, Object> replaceNoteText(JsonNode args) {
+    String id = requiredText(args, "id", 36);
+    long revision = requiredRevision(args);
+    var input = new NoteDto.Content(markdown.blocks(requiredField(args, "text", 100000)), revision);
+    validate(input);
+    return Map.of("entry", notes.save(id, input));
+  }
+
+  private Map<String, Object> deleteNote(JsonNode args) {
+    notes.delete(requiredText(args, "id", 36), requiredRevision(args));
+    return Map.of("deleted", true);
+  }
+
+  private long requiredRevision(JsonNode args) {
+    JsonNode value = args.get("revision");
+    if (value == null || !value.isIntegralNumber() || !value.canConvertToLong() || value.asLong() < 0)
+      throw new WorkspaceException(400, "입력값을 확인해 주세요: revision");
+    return value.asLong();
+  }
+
+  private String requiredField(JsonNode args, String name, int limit) {
+    JsonNode value = args.get(name);
+    if (value == null || !value.isTextual() || value.asText().length() > limit)
+      throw new WorkspaceException(400, "입력값을 확인해 주세요: " + name);
+    return value.asText();
   }
 
   private <T> void validate(T input) {

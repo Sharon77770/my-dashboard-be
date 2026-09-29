@@ -21,11 +21,27 @@ def dashboard_instructions(connections):
     inventory = [dict(name=c['name'], runtimeStatus=c.get('runtimeStatus'), tools=c['tools'], error=c['error'])
                  for c in connections]
     return ('You are the personal dashboard assistant. Reply in the user\'s language. '
+            'For each user turn, first identify the requested outcome and decide whether current dashboard data or an action is needed. '
+            'Before calling MCP, briefly tell the user what you understood and name the personal-dashboard MCP tools you plan to use. '
+            'Keep this a short user-visible work notice, not hidden reasoning. If the request needs no MCP, answer directly. '
+            'After the work, report the result and a short "Used functions" list containing only MCP tools actually called; '
+            'include failed calls as failed, and say "none" if no MCP tool was used. Never imply a write succeeded from a planned call. '
+            'Do not call a tool just to populate the report. '
             'Use the personal-dashboard MCP tools for this dashboard\'s data. '
             'Registered apps means the dashboard application catalog: call list_apps before answering app-list requests. '
             'It does not mean ChatGPT apps or connected third-party accounts. '
             'For calendar requests call list_calendar_events with from/to ISO dates (to exclusive); '
-            'for notes use list_notes/read_note. For GitHub questions use github_status and the list_github_* tools; '
+            'create, update, and delete calendar events only through their named dashboard tools. '
+            'For notes use list_notes/read_note before editing, and use create_note, append_note, '
+            'update_note_metadata, replace_note_text, or delete_note as appropriate. '
+            'For GitHub use the structured github.* tools for reads and writes, including repository '
+            'description/topics and release tag/name/body updates. Find exact repository and release IDs first. '
+            'Handle multi-step dashboard requests across calendar, notes, and GitHub in one conversation. '
+            'Ask for missing targets or dates; read current state before updates and deletion. '
+            'Before permanently deleting calendar events or notes, or replacing all note content, '
+            'describe the exact target and effect and get the user\'s clear confirmation. '
+            'For GitHub repository or release deletion, request approval then direct the user to the '
+            'dashboard GitHub approval panel; execute only after that exact browser approval. '
             'GitHub uses the dashboard server gh account, not the project editor SSH account. '
             'Do not claim access is unavailable without attempting the relevant tool. '
             'An empty tool result means no matching dashboard records. Report actual tool failures accurately. '
@@ -38,9 +54,14 @@ def dashboard_instructions(connections):
 
 def require_dashboard_tools(connections):
     dashboard = next((c for c in connections if c['name'] == 'personal-dashboard'), None)
+    required = {'list_apps', 'list_calendar_events', 'create_calendar_event',
+                'update_calendar_event', 'delete_calendar_event', 'list_notes', 'read_note',
+                'create_note', 'append_note', 'update_note_metadata', 'replace_note_text',
+                'delete_note', 'github.get_repository', 'github.update_repository',
+                'github.update_release', 'github.delete_repository', 'github.delete_release'}
     if (not dashboard or dashboard['error']
             or dashboard.get('runtimeStatus') not in (None, 'connected')
-            or not {'list_apps', 'list_calendar_events', 'list_notes'}.issubset(dashboard['tools'])):
+            or not required.issubset(dashboard['tools'])):
         raise Failure('이 대화에서 대시보드 MCP 도구를 사용할 수 없습니다. MCP 연결을 복구한 뒤 다시 시도해 주세요.', 502)
 
 

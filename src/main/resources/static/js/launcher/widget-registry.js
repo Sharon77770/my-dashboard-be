@@ -7,19 +7,23 @@ window.WorkspaceWidgets = (() => {
     {id:'device-status',appId:'devices',name:'장비 상태',sizes:[[2,1],[4,2]],defaultSize:[4,2],description:'마지막으로 측정한 CPU·RAM과 빠른 연결을 표시합니다.'},
     {id:'today',appId:'calendar',name:'오늘 일정',sizes:[[2,2],[4,2]],defaultSize:[4,2],description:'오늘의 일정과 시작 시간을 표시합니다.'},
     {id:'service-analytics',appId:'telemetry',name:'Service Analytics',sizes:[[2,1],[4,2]],defaultSize:[4,2],description:'등록한 서비스 요청량과 사용자, 오류 상태를 간단히 보여줍니다.'},
+    {id:'services-status',appId:'services',name:'Services',sizes:[[2,1],[4,2]],defaultSize:[4,2],description:'서비스 상태와 빠른 이동을 표시합니다.'},
+    {id:'database-status',appId:'databases',name:'Databases',sizes:[[2,1],[4,2]],defaultSize:[4,2],description:'등록한 데이터베이스 연결을 표시합니다.'},
     {id:'github-status',appId:'github',name:'GitHub 작업',sizes:[[2,1],[4,2]],defaultSize:[4,2],description:'열린 PR, 이슈와 최근 CI 상태를 보여줍니다.'},
     {id:'connections',appId:'terminal',name:'최근 연결',sizes:[[2,2],[4,2]],defaultSize:[2,2],description:'최근 터미널 연결을 바로 다시 엽니다.'},
     {id:'recent-files',appId:'files',name:'최근 파일',sizes:[[2,2],[4,2]],defaultSize:[2,2],description:'최근에 탐색한 서버 파일 위치를 엽니다.'},
     {id:'project',appId:'studio',name:'최근 프로젝트',sizes:[[2,1],[4,2]],defaultSize:[4,2],description:'최근 작업 폴더와 이 세션에서 확인한 Git 상태입니다.'},
     {id:'codex',appId:'studio',name:'Codex 작업',sizes:[[2,1],[4,2]],defaultSize:[2,1],description:'현재 브라우저 세션의 마지막 Codex 실행 상태입니다.'}
   ];
-  let today=[],calendarError='',calendarLoading=false,studio={},telemetry=[],github=null,githubLoading=false;
+  let today=[],calendarError='',calendarLoading=false,studio={},telemetry=[],github=null,githubLoading=false,serviceItems=[],databaseItems=[];
   const day=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   function rows(items){return items.join('')||window.WorkspaceUI.emptyState('표시할 항목 없음');}
   return {
     all(){return definitions.filter(def=>window.WorkspaceApps.get(def.appId)?.widgets?.includes(def.id));},get(id){return definitions.find(item=>item.id===id);},
     updateStudio(detail){studio=detail;},
     updateTelemetry(items){telemetry=items||[];},
+    updateServices(items){serviceItems=items||[];},
+    updateDatabases(items){const known=new Map(databaseItems.map(item=>[item.id,item.connected]));databaseItems=(items||[]).map(item=>({...item,connected:known.get(item.id)}));},
     async refresh(api){
       calendarLoading=true;githubLoading=true;
       const now=new Date(),next=new Date(now);next.setDate(next.getDate()+1);
@@ -33,11 +37,15 @@ window.WorkspaceWidgets = (() => {
           const firstRepository=overview.repositories?.[0]?.nameWithOwner;
           const runs=firstRepository?await api('/github/actions/runs?repository='+encodeURIComponent(firstRepository)).catch(()=>[]):[];
           return {authenticated:true,overview,run:runs[0]};
-        })()
+        })(),
+        (async()=>Promise.all((await api('/services')).map(async service=>({...service,health:await api('/services/'+encodeURIComponent(service.id)+'/health')}))))(),
+        (async()=>{const items=await api('/databases');return Promise.all(items.map(async(item,index)=>index<4?{...item,connected:(await api('/databases/'+encodeURIComponent(item.id)+'/test','POST').catch(()=>({connected:false}))).connected}:item))})()
       ]);
       if(results[0].status==='fulfilled'){today=results[0].value;calendarError='';}else calendarError=results[0].reason?.message||'일정 조회 실패';
       if(results[1].status==='fulfilled')telemetry=results[1].value||[];
       github=results[2].status==='fulfilled'?results[2].value:{error:true};
+      if(results[3].status==='fulfilled')serviceItems=results[3].value;
+      if(results[4].status==='fulfilled')databaseItems=results[4].value;
       calendarLoading=false;githubLoading=false;
     },
     render(item,state,statuses){const compact=item.h===1;switch(item.widgetId){
@@ -57,6 +65,12 @@ window.WorkspaceWidgets = (() => {
         const errorRate=requests?Math.min(100,weightedErrors/requests*100):0;
         return `<button class="widget-analytics" data-view="telemetry"><span class="ui-status" data-state="${errors?'warning':'success'}">${active} / ${telemetry.length} 수신</span><span class="widget-stat-grid"><span><b>${requests.toLocaleString()}</b><small>요청</small></span><span><b>${users.toLocaleString()}</b><small>사용자</small></span><span><b>${errors.toLocaleString()}</b><small>오류</small></span></span>${window.WorkspaceUI.progress(errorRate,'오류율',errors?'warning':'success')}</button>`;
       }
+      case 'services-status':{
+        if(!serviceItems.length)return window.WorkspaceUI.emptyState('서비스 없음','Services에서 연결하세요.','server');
+        const count=state=>serviceItems.filter(item=>item.health?.state===state).length;
+        return `<button class="widget-analytics" data-view="services"><span class="widget-stat-grid"><span><b>${count('HEALTHY')}</b><small>Healthy</small></span><span><b>${count('DEGRADED')}</b><small>Degraded</small></span><span><b>${count('DOWN')}</b><small>Down</small></span></span></button>${compact?'':serviceItems.slice(0,4).map(item=>`<button class="widget-row" data-service-open="${e(item.id)}"><b>${e(item.name)}</b><span class="ui-status" data-state="${item.health?.state==='HEALTHY'?'success':item.health?.state==='DOWN'?'danger':'warning'}">${e(item.health?.state||'UNKNOWN')}</span></button>`).join('')}`;
+      }
+      case 'database-status':return `<button class="widget-analytics" data-view="databases"><b>${databaseItems.filter(item=>item.connected).length} / ${databaseItems.length}</b><small>Connected</small></button>${compact?'':databaseItems.slice(0,3).map(item=>`<button class="widget-row" data-database-open="${e(item.id)}"><span class="ui-status" data-state="${item.connected?'success':'info'}">${item.connected?'●':'○'}</span><b>${e(item.name)}</b></button>`).join('')}`;
       case 'github-status':{
         if(githubLoading)return window.WorkspaceUI.skeleton(2);
         if(!github?.authenticated)return window.WorkspaceUI.emptyState(github?.error?'GitHub 조회 실패':'GitHub 로그인 필요','','git');

@@ -1,6 +1,16 @@
-# SQLite schema v6
+# SQLite schema
 
-소스: `src/main/resources/db/schema.sql`. DatabaseInitialization이 기본 schema와 V3, V4, V5, V6 migrations를 적용하며 최종 user_version은 6이다. V3/V5의 devices 컬럼 추가는 `PRAGMA table_info`로 검사해 재시작 시 중복 적용하지 않는다.
+소스: `src/main/resources/db/schema.sql`. DatabaseInitialization이 기본 schema와 V3~V8 migration을 적용한다. V3/V5의 devices 컬럼 추가는 `PRAGMA table_info`로 검사해 재시작 시 중복 적용하지 않는다. V8은 Database Studio의 **연결 정보 저장용** SQLite 테이블이며 사용자가 연결한 외부 DB의 schema를 저장하지 않는다.
+
+## Database Studio (owner: database)
+
+`V8__database_studio.sql`은 idempotent CREATE로 적용한다. 연결 삭제 시 즐겨찾기는 CASCADE 삭제되고 이력의 `connection_id`는 NULL이 되며 `connection_name` snapshot은 남는다. 활성 JDBC 연결과 SQL 결과는 저장하지 않는다.
+
+| Table | 주요 컬럼 | 제약·의미 |
+| --- | --- | --- |
+| `database_connections` | `id` TEXT PK, `name/type/host/database_name/username/credential_cipher/ssl_mode/access_mode/metadata` TEXT, `port/created_at/updated_at` INTEGER | type=`POSTGRESQL/MYSQL/MARIADB/SQLITE`, ssl=`DISABLE/REQUIRE`, access=`READ_ONLY/READ_WRITE`; metadata는 JSON이며 암호문만 저장 |
+| `database_query_history` | `id` TEXT PK, `connection_id` TEXT nullable FK, `connection_name/sql_text/result_type/error_type` TEXT, `executed_at/duration_ms/success` INTEGER | 최신순 인덱스 `database_history_time`; 연결 삭제 후 ID만 NULL |
+| `database_query_favorites` | `id` TEXT PK, `connection_id` TEXT FK CASCADE, `name/sql_text` TEXT, `created_at` INTEGER | 연결별 저장 SQL |
 기존 초기 프로젝트에는 업무 테이블이 없었으므로 데이터 삭제 없이 추가한다. v3는 db/migrations/V3__device_network.sql로 기존 devices에 network_mode를, v5는 db/migrations/V5__device_jump_proxy.sql로 jump_device_ids를 추가한다. PRAGMA table_info로 적용 여부를 확인하므로 재시작 시 반복 추가하지 않는다. 기존 장비는 DIRECT와 빈 점프 체인으로 보존한다.
 V6 `db/migrations/V6__telemetry.sql`은 서비스 telemetry 테이블과 인덱스를 추가한다. 대시보드 시작 시 idempotent하게 적용하며 기존 데이터는 보존한다.
 기존 테이블 owner는 catalog이며 soft delete는 사용하지 않는다. 아래 표의 컬럼은 별도 명시가 없으면 NOT NULL, default 없음이다.
@@ -213,3 +223,48 @@ SQLite 테이블/마이그레이션 추가 없음. cloud 모듈 소유 CLOUD_ROO
 | created_at | INTEGER | 예 | 없음 | 없음 | 업로드 epoch ms |
 
 로그인 계정·세션·토큰 테이블은 추가하지 않는다. 기존 SQLite DB/dashboard-data 백업에 본문과 이미지가 함께 포함된다. 파일 내용이 커지면 DB 파일도 증가하며 삭제한 공간 회수는 SQLite 정책을 따른다.
+
+## Service Catalog (owner: services)
+
+`V7__service_catalog.sql`은 기존 DB에 idempotent CREATE로 추가된다. 세 테이블 모두 soft delete가 없고 SQLite 데이터 볼륨에 저장된다. Service 삭제는 하위 binding/activity를 CASCADE 삭제하지만 GitHub·장비·Telemetry 원본은 유지한다. 외부 리소스는 FK가 아니라 reference로 연결하므로 원본 삭제 시 binding이 orphan으로 남는다.
+
+### services
+
+| Column | Type | Required | Default | Index/Unique | 의미 |
+| --- | --- | --- | --- | --- | --- |
+| id | TEXT | 예 | 서버 UUID | PK/unique | Service ID |
+| name | TEXT | 예 | 없음 | 없음 | 표시 이름 |
+| icon | TEXT | 예 | 없음 | 없음 | 기존 Workspace 아이콘 키 |
+| environment | TEXT | 예 | 없음 | 없음 | Production/Development 등 사용자 환경 이름 |
+| description | TEXT | 예 | '' | 없음 | 간단한 설명 |
+| created_at | INTEGER | 예 | 없음 | 없음 | 생성 epoch ms |
+| updated_at | INTEGER | 예 | 없음 | 없음 | 수정 epoch ms |
+
+### service_resources
+
+Service 1:N Resource. `(service_id,type,reference,device_id)`가 유일하다.
+
+| Column | Type | Required | Default | Index/Unique | 의미 |
+| --- | --- | --- | --- | --- | --- |
+| id | TEXT | 예 | 서버 UUID | PK/unique | 연결 ID |
+| service_id | TEXT | 예 | 없음 | FK services.id CASCADE, service_resources_service | 소유 Service |
+| type | TEXT | 예 | 없음 | 복합 unique | GITHUB_REPOSITORY/GITHUB_ORGANIZATION/DEVICE/DOCKER_CONTAINER/TELEMETRY/ENDPOINT/FILE/DATABASE |
+| reference | TEXT | 예 | 없음 | 복합 unique | 기존 리소스 ID, repo owner/name, URL 또는 경로 |
+| device_id | TEXT | 예 | '' | 복합 unique | Docker 장비 ID 또는 File 위치의 장비 ID, 그 외 빈 문자열 |
+| label | TEXT | 예 | '' | 없음 | 표시 이름 |
+| created_at | INTEGER | 예 | 없음 | 없음 | 연결 epoch ms |
+
+### service_activity
+
+Service 1:N Event. `service_id` FK CASCADE. GitHub/장비/Telemetry의 기존 기록은 복제 저장하지 않고 조회 시 합친다.
+
+| Column | Type | Required | Default | Index/Unique | 의미 |
+| --- | --- | --- | --- | --- | --- |
+| id | TEXT | 예 | 서버 UUID | PK/unique | 이벤트 ID |
+| service_id | TEXT | 예 | 없음 | FK services.id CASCADE, service_activity_time | 소유 Service |
+| source | TEXT | 예 | 없음 | 없음 | 현재 CATALOG, 향후 외부 source |
+| type | TEXT | 예 | 없음 | 없음 | CREATED/UPDATED/RESOURCE_BOUND/RESOURCE_UNBOUND |
+| occurred_at | INTEGER | 예 | 없음 | service_activity_time | 발생 epoch ms |
+| severity | TEXT | 예 | 없음 | 없음 | 현재 INFO |
+| title | TEXT | 예 | 없음 | 없음 | 안전한 표시 제목 |
+| metadata | TEXT | 예 | '{}' | 없음 | 향후 source 메타데이터 JSON |

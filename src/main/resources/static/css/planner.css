@@ -1,8 +1,8 @@
-.planner-subtitle{margin:8px 0 0;color:var(--text-muted);font-size:13px}
-.planner-toolbar{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin:0 0 20px}
-.planner-toolbar .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.planner-toolbar h2{font-size:21px;margin:0 6px}
-.planner-toolbar input,.planner-toolbar select{padding:9px 12px;border:1px solid var(--border-subtle);background:var(--bg-surface);color:inherit;border-radius:var(--radius-sm);color-scheme:inherit}
+.planner-toolbar{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;margin:0 0 12px}
+.planner-toolbar .actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.planner-toolbar h2{font-size:16px;margin:0 6px}
+.planner-toolbar input,.planner-toolbar select{min-width:0;padding:6px 8px;border:1px solid var(--border-subtle);background:var(--bg-surface);color:inherit;border-radius:var(--radius-sm);color-scheme:inherit}
+.planner-toolbar .ui-icon,#calendar .page-head .ui-icon,#timetable .page-head .ui-icon{width:17px;height:17px;flex:none}
 .calendar-layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:var(--space-4);align-items:start}
 .month-board{border:1px solid var(--border-subtle);border-radius:var(--radius-sm);overflow:hidden}
 .week-labels,.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
@@ -69,11 +69,23 @@
 .planner-toolbar{gap:10px}
 .meeting-row{grid-template-columns:55px 1fr 1fr 28px;gap:5px}
 .semester-summary small{width:100%}
-.planner-subtitle{max-width:230px}
 .planner-welcome{padding:35px 12px}
 }
  
 .course-summary{background:var(--bg-surface);border:1px solid var(--border-subtle);border-left:4px solid var(--event-color);color:var(--text-primary);border-radius:var(--radius-sm)}
 #add-meeting,.remove-meeting,#delete-planner-item{background:var(--bg-surface-hover);border:1px solid var(--border-subtle);color:var(--text-primary);border-radius:var(--radius-sm);padding:7px 10px;cursor:pointer}
 .calendar-day button,.course-block,.course-summary{cursor:pointer}
+
+@media(max-width:700px){
+ #calendar .page-head,#timetable .page-head{display:flex;align-items:center;min-height:44px;margin-bottom:6px}
+ #calendar .page-head>button,#timetable .page-head>button{width:44px;min-width:44px;min-height:44px;padding:0}
+ .planner-action-label{display:none}
+ .planner-toolbar{gap:6px;margin-bottom:10px}
+ .planner-toolbar .actions{width:100%;gap:3px;flex-wrap:nowrap}
+ .planner-toolbar h2{display:none}
+ .planner-toolbar [data-month],.planner-toolbar [data-term]{flex:1;min-width:0;width:0;min-height:44px;font-size:13px}
+ .planner-toolbar .actions>button{flex:none;width:44px;min-width:44px;min-height:44px;padding:0}
+ .semester-summary{gap:10px;font-size:11px}
+ .semester-summary small{width:auto;font-size:10px}
+}
 

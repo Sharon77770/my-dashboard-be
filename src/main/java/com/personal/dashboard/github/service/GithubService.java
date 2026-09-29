@@ -189,6 +189,21 @@ public class GithubService {
     return repository(target);
   }
 
+  /** Repository deletion requires an exact, short-lived browser approval. */
+  public GithubApprovalService.Approval requestDeleteRepository(String repository) {
+    requireAuthentication();
+    String target = requireRepository(repository);
+    repository(target);
+    return approvals.requestDeleteRepository(target);
+  }
+
+  public void deleteRepository(String repository, String approvalId) {
+    requireAuthentication();
+    String target = requireRepository(repository);
+    approvals.consumeDeleteRepository(approvalId, target);
+    cli.apiDelete("repos/" + target);
+  }
+
   public List<GithubDto.Branch> branches(String repository) {
     requireAuthentication();
     List<GithubDto.Branch> branches = new ArrayList<>();
@@ -708,6 +723,34 @@ public class GithubService {
     body.put("generate_release_notes", request.generateNotes());
     JsonNode release = cli.apiWrite("POST", "repos/" + target + "/releases", body);
     return mapRelease(release);
+  }
+
+  /** Updates only the supplied release metadata through the server gh account. */
+  public GithubDto.Release updateRelease(
+      String repository, long releaseId, GithubDto.UpdateRelease request) {
+    requireAuthentication();
+    String target = requireRepository(repository);
+    if (releaseId < 1) throw new WorkspaceException(400, "Release ID를 확인해 주세요.");
+    var body = json.createObjectNode();
+    if (request.tag() != null) body.put("tag_name", requireText(request.tag(), 100, "Tag"));
+    if (request.name() != null) body.put("name", optionalText(request.name(), 256, "Release 이름"));
+    if (request.body() != null) body.put("body", optionalText(request.body(), 60000, "Release notes"));
+    if (body.isEmpty()) throw new WorkspaceException(400, "변경할 Release 정보를 입력해 주세요.");
+    return mapRelease(cli.apiWrite("PATCH", "repos/" + target + "/releases/" + releaseId, body));
+  }
+
+  /** Release deletion leaves the Git tag in place. */
+  public GithubApprovalService.Approval requestDeleteRelease(String repository, long releaseId) {
+    release(repository, releaseId);
+    return approvals.requestDeleteRelease(requireRepository(repository), releaseId);
+  }
+
+  public void deleteRelease(String repository, long releaseId, String approvalId) {
+    requireAuthentication();
+    String target = requireRepository(repository);
+    if (releaseId < 1) throw new WorkspaceException(400, "Release ID를 확인해 주세요.");
+    approvals.consumeDeleteRelease(approvalId, target, releaseId);
+    cli.apiDelete("repos/" + target + "/releases/" + releaseId);
   }
 
   private GithubDto.Release mapRelease(JsonNode release) {

@@ -1,5 +1,7 @@
 # 컴포넌트와 모듈
 
+Database Studio의 `DatabaseStudioService`는 연결 입력, READ_ONLY, 위험 SQL 확인, 실행 worker·취소, 이력을 소유한다. `DatabaseRepository`는 Workspace 내부 SQLite 연결 메타데이터·이력·즐겨찾기만 저장한다. `DatabaseAdapter`는 PostgreSQL/MySQL/SQLite JDBC URL과 연결 수명, schema metadata, 제한된 결과 변환을 소유한다. `DatabaseDto.ConnectionView`와 Service Context에는 암호문을 넣지 않는다. `databases.js`는 기존 Workspace 라우트의 여러 editor 탭과 탐색 표현 상태를 보유한다.
+
 GitHub는 `GithubController`와 `AssistantMcpService`가 같은 `GithubService` 유스케이스를 사용한다. 외부 호출은 `GithubCliAdapter`, 위험 작업의 승인 상태는 `GithubApprovalService`가 소유한다. `GithubDto`는 REST/MCP의 명시적 응답 타입이고 GitHub upstream JSON을 그대로 노출하지 않는다. `github.js`는 Owner·탭·검색·선택 저장소의 화면 상태만 보유한다. GitHub 계정 데이터는 SQLite entity가 아니다. [구현 범위](../github.md).
 
 catalog는 등록 리소스와 작업 공간 메타데이터를 소유한다. DeviceOperations는 등록 장비에 대한 상태/관리 유스케이스를 소유하며 외부 호출은 CommandAdapter/SshAdapter를 경유한다.
@@ -24,7 +26,7 @@ Planner는 별도 기능 모듈로 요청/응답 DTO와 저장 record를 분리�
 
 ## Launcher와 공통 UI
 
-Launcher UI → App/Widget Registry, HomeGrid, HomePersistence의 단방향 의존성을 사용한다. 마우스/터치 변환은 interactions 모듈에, 화면 조립과 표시 트랜잭션은 launcher 모듈에 둔다. 업무 요청은 기존 workspace API helper를 주입한다. UI의 전역 색상과 공통 컨트롤은 design-system.css/ui.js에서 소유하며 기능별 독립 테마를 만들지 않는다. [구체적인 모듈 계약과 추가 절차](../launcher.md).
+Launcher UI → App/Widget Registry, HomeGrid, HomePersistence의 단방향 의존성을 사용한다. 마우스/터치 변환은 interactions 모듈에, 화면 조립과 표시 트랜잭션은 launcher 모듈에 둔다. 일반 Home 요약은 최근 작업과 기존 Widget renderer를 조합하고, 편집에서 HomeGrid 좌표를 그대로 사용한다. 업무 요청은 기존 workspace API helper를 주입한다. 전역 색상은 design-system.css, Desktop/Mobile shell은 shell.css, 아이콘과 공통 상태 표시는 ui.js가 소유한다. [구체적인 모듈 계약과 추가 절차](../launcher.md).
 
 공통 UI는 `design-system.css`의 의미 토큰과 `ui.js`의 SVG 아이콘·진행률·빈 상태·스켈레톤 표시 함수에서 시작한다. 기능별 CSS는 배치와 정보 밀도만 소유하며 홈 Widget Registry도 같은 표시 함수를 사용한다. [디자인 토큰과 컴포넌트 사용 기준](../design-system.md).
 
@@ -34,7 +36,7 @@ studio-codex.js는 세션/모델/컨텍스트 및 대화 표시를 소유하고 
 
 ### 서버 Codex assistant
 
-assistant.js와 assistant.css는 IDE Codex 패널과 분리된 대시보드 전용 내장 앱 뷰를 소유한다. launcher의 앱 registry가 `assistant`를 홈·Dock·모든 앱·검색에 노출하고 workspace 라우터가 앱 열기 이벤트를 전달한다. 프로젝트 컨텍스트나 StudioCodex 화면을 재사용하지 않는다. 대화는 기존 assistant job과 Codex API를 호출한다. 일반 StudioController의 프로젝트 Codex는 SSH 대상을 사용한다. McpController는 Streamable HTTP 요청·bearer 검증만 담당하고 AssistantMcpService는 기존 Catalog/Planner/Notes service의 고정 도구를 제공한다. AssistantEvents는 browser navigation event를 메모리에 보유하며 DB 모델을 추가하지 않는다.
+assistant.js와 assistant.css는 IDE Codex 패널과 분리된 대시보드 전용 내장 앱 뷰를 소유한다. launcher의 앱 registry가 `assistant`를 홈·Dock·모든 앱·검색에 노출하고 상단 `비서` 버튼도 같은 workspace 라우터를 사용한다. 빠른 작업은 전송 전 입력 초안만 채운다. 프로젝트 컨텍스트나 StudioCodex 화면을 재사용하지 않는다. 대화는 기존 assistant job과 Codex API를 호출한다. 일반 StudioController의 프로젝트 Codex는 SSH 대상을 사용한다. McpController는 Streamable HTTP 요청·bearer 검증만 담당하고 AssistantMcpService는 기존 Catalog/Planner/Notes/GitHub service의 고정 도구를 제공한다. AssistantEvents는 browser navigation event를 메모리에 보유하며 DB 모델을 추가하지 않는다.
 
 장비 로그 화면(device-logs.js)은 선택·표시·취소를 담당하고 StudioService가 작업 소유권·수명·보유 제한을 관리한다. logs.py는 고정 CLI 인자와 출력 읽기만 담당한다. StudioDto.LogTarget과 Event.sequence가 목록 및 중복 없는 출력 계약이며 파일 Entry나 Codex 이벤트 타입과 혼용하지 않는다.
 

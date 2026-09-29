@@ -5,6 +5,8 @@ window.WorkspaceApps = (() => {
     {id:'devices',name:'장비',icon:'devices',route:'devices',widgets:['device-status']},
     {id:'notes',name:'메모장',icon:'notes',route:'notes'},
     {id:'telemetry',name:'Telemetry',icon:'apps',route:'telemetry',widgets:['service-analytics']},
+    {id:'services',name:'Services',icon:'server',route:'services',widgets:['services-status']},
+    {id:'databases',name:'Database Studio',icon:'studio',route:'databases',widgets:['database-status']},
     {id:'cloud',name:'클라우드 드라이브',icon:'files',route:'cloud'},
     {id:'files',name:'파일',icon:'files',route:'files',widgets:['recent-files']},
     {id:'logs',name:'장비 로그',icon:'terminal',route:'logs'},

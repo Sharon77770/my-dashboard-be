@@ -14,7 +14,7 @@
     const meta = document.createElement('small'); meta.textContent = detail || '';
     element.append(name, meta); return element;
   };
-  let ui, owner = '', repository = '', tab = 'overview', jobId = null, busy = false, fileRef = '';
+  let ui, owner = '', repository = '', tab = 'overview', jobId = null, busy = false, fileRef = '', pendingRepository = '';
   let workState = 'open', issueRole = 'all', issueLabel = '';
   let failedRunsOnly = false;
   let owners = [], repositories = [], viewToken = 0;
@@ -22,6 +22,7 @@
   $('#github-status').classList.add('ui-status');
   const layout = $('.github-layout');
   layout.innerHTML = '<section class="panel github-scope"><label>Scope <select id="github-owner"></select></label><nav id="github-nav" aria-label="GitHub 탐색"></nav><label>저장소 검색 <input id="github-search" type="search" placeholder="이름 또는 설명"></label><label>필터 <select id="github-filter"><option value="all">전체</option><option value="public">Public</option><option value="private">Private</option><option value="archived">Archived</option><option value="fork">Fork</option></select></label><label>정렬 <select id="github-sort"><option value="updated">최근 업데이트</option><option value="name">이름</option></select></label><div id="github-repositories"></div></section><section class="panel github-content"><div class="github-content-head"><h2 id="github-selected">Owner를 선택하세요</h2><span id="github-context"></span></div><div id="github-items"></div><div id="github-detail" hidden></div></section>';
+  $('.github-content-head').insertAdjacentHTML('afterbegin',`<button type="button" class="github-scope-trigger" data-drawer-target=".github-scope" data-drawer-title="GitHub 탐색" aria-label="GitHub 탐색 열기" aria-haspopup="dialog" aria-expanded="false" title="GitHub 탐색 열기">${window.WorkspaceUI.icon('menu')}</button>`);
   const actionBar = document.createElement('div'); actionBar.id = 'github-actions';
   const formHost = document.createElement('div'); formHost.id = 'github-form'; formHost.hidden = true;
   $('#github-items').before(actionBar, formHost);
@@ -140,10 +141,19 @@
     approvalPanel.hidden = !approvals.length;
     for (const item of approvals) {
       const row = document.createElement('div'); row.className = 'github-approval';
-      const label = document.createElement('span'); label.textContent = item.operation === 'ARCHIVE_REPOSITORY'
-        ? '저장소 보관: ' + item.repository : 'PR 병합: ' + item.repository + '#' + item.number;
+      const actions = {
+        ARCHIVE_REPOSITORY: ['저장소 보관', '보관 승인'],
+        DELETE_REPOSITORY: ['저장소 영구 삭제', '삭제 승인'],
+        DELETE_RELEASE: ['릴리스 삭제', '삭제 승인'],
+        MERGE_PULL_REQUEST: ['PR 병합', '병합 승인']
+      };
+      const action = actions[item.operation] || ['GitHub 작업', '승인'];
+      const target = item.repository + (item.number ? (item.operation === 'DELETE_RELEASE' ? ' · 릴리스 #' : '#') + item.number : '');
+      const label = document.createElement('span'); label.textContent = action[0] + ': ' + target;
       const button = document.createElement('button'); button.type = 'button'; button.dataset.approval = item.id;
-      button.textContent = item.operation === 'ARCHIVE_REPOSITORY' ? '보관 승인' : '병합 승인';
+      button.dataset.operation = item.operation;
+      button.dataset.target = target;
+      button.textContent = action[1];
       row.append(label, button); list.append(row);
     }
   }
@@ -380,9 +390,14 @@
       if (event.target.closest('#github-copy')) return await navigator.clipboard.writeText($('#github-auth-code').textContent);
       if (event.target.closest('#github-refresh')) return await load();
       const approve = event.target.closest('[data-approval]');
-      if (approve) {await ui.api('/github/approvals/' + encodeURIComponent(approve.dataset.approval), 'POST'); return await loadApprovals();}
+      if (approve) {
+        if (approve.dataset.operation?.startsWith('DELETE_')
+            && !window.confirm(approve.dataset.target + ' 삭제를 승인할까요? 이 작업은 복구할 수 없습니다.')) return;
+        await ui.api('/github/approvals/' + encodeURIComponent(approve.dataset.approval), 'POST');
+        return await loadApprovals();
+      }
       const selected = event.target.closest('[data-repository]');
-      if (selected) {repository = selected.dataset.repository; tab = 'overview'; return await renderContent();}
+      if (selected) {repository = selected.dataset.repository; tab = 'overview';if(selected.closest('.ui-side-drawer'))window.WorkspaceDrawers?.close();return await renderContent();}
       const detailButton = event.target.closest('[data-detail-kind]');
       if (detailButton) return await showDetail(detailButton);
       const create = event.target.closest('[data-create-kind]');
@@ -406,7 +421,7 @@
         await renderContent(); return;
       }
       const nextTab = event.target.closest('[data-tab]');
-      if (nextTab) {tab = nextTab.dataset.tab; return await renderContent();}
+      if (nextTab) {tab = nextTab.dataset.tab;if(nextTab.closest('.ui-side-drawer'))window.WorkspaceDrawers?.close();return await renderContent();}
     } catch (error) {setStatus(error.message);}
   });
   root.addEventListener('submit', async event => {
@@ -464,5 +479,5 @@
   });
   window.setInterval(() => {if (ui && root.getClientRects().length && !$('#github-login').hidden) return;
     if (ui && root.getClientRects().length) loadApprovals().catch(() => {});}, 10000);
-  window.WorkspaceGithub = {init(runtime) {ui = runtime;}, open(id) {if (id === 'github') return load();}};
+  window.WorkspaceGithub = {init(runtime) {ui = runtime;}, queueRepository(name) {pendingRepository = name;}, async open(id) {if (id !== 'github') return; await load();if(pendingRepository){const requested=pendingRepository;pendingRepository='';const requestedOwner=requested.split('/')[0];if(owner!==requestedOwner){owner=requestedOwner;$('#github-owner').value=owner;await loadOwner()}repository=requested;tab='overview';await renderContent()}}};
 })();

@@ -222,4 +222,7 @@ public final class GithubDto {
       boolean draft,
       boolean prerelease,
       boolean generateNotes) {}
+
+  /** Only provided fields are changed on an existing release. */
+  public record UpdateRelease(String tag, String name, String body) {}
 }

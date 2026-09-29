@@ -8,10 +8,13 @@ const { window } = dom;
 const document = window.document;
 const requests = [];
 let authenticated = false;
+let approvals = [];
 
-window.HTMLDialogElement.prototype.close = function () { this.open = false; };
+window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+window.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new window.Event('close')); };
 window.setInterval = () => 0;
-window.matchMedia = () => ({ matches: false, addEventListener() {} });
+let mobile = false;
+window.matchMedia = () => ({ get matches() { return mobile; }, addEventListener() {} });
 window.ResizeObserver = class { observe() {} disconnect() {} };
 window.workspaceInitial = {
   devices: [{ id: 'local', name: 'Server', host: 'localhost', rootPath: '/srv/dashboard', remoteProtocol: 'NONE' }],
@@ -26,7 +29,11 @@ window.fetch = async (url, options = {}) => {
   if (url === '/api/v1/github/owners') result = [
     {login:'alice',type:'USER'}, {login:'example-org',type:'ORGANIZATION'}
   ];
-  if (url === '/api/v1/github/approvals') result = [];
+  if (url === '/api/v1/github/approvals') result = approvals;
+  if (url.startsWith('/api/v1/github/approvals/') && options.method === 'POST') {
+    approvals = approvals.filter(item => !url.endsWith('/' + item.id));
+    result = {approved:true};
+  }
   if (url === '/api/v1/github/owners/alice/repositories') result = [
     {nameWithOwner:'alice/sample', description:'Personal', isPrivate:false, isArchived:false, isFork:false, updatedAt:'2026-01-01'}
   ];
@@ -64,7 +71,7 @@ window.fetch = async (url, options = {}) => {
 const scripts = [
   'ui.js', 'launcher/app-registry.js', 'launcher/grid-model.js',
   'launcher/persistence.js', 'launcher/widget-registry.js',
-  'launcher/interactions.js', 'launcher/launcher.js', 'workspace.js', 'github.js'
+  'launcher/interactions.js', 'launcher/launcher.js', 'workspace.js', 'drawers.js', 'github.js'
 ];
 for (const file of scripts) window.eval(fs.readFileSync('src/main/resources/static/js/' + file, 'utf8'));
 
@@ -107,8 +114,27 @@ for (const file of scripts) window.eval(fs.readFileSync('src/main/resources/stat
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.ok(requests.some(request => request.method === 'POST'
     && request.url === '/api/v1/github/actions/workflows/11/dispatches?repository=example-org%2Fservice'));
-  console.log('PASS GitHub UI: login, Owner switch, issue comment and workflow dispatch');
+  approvals = [{id:'delete-fixture',operation:'DELETE_RELEASE',repository:'example-org/service',number:5000000000}];
+  window.confirm = () => false;
+  await window.WorkspaceGithub.open('github');
+  const approval = document.querySelector('[data-approval="delete-fixture"]');
+  assert.match(approval.parentElement.textContent, /릴리스 #5000000000/);
+  approval.click();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.ok(!requests.some(request => request.url.endsWith('/approvals/delete-fixture')));
+  window.confirm = () => true;
+  approval.click();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.ok(requests.some(request => request.url.endsWith('/approvals/delete-fixture') && request.method === 'POST'));
+  mobile = true;
+  document.querySelector('.github-scope-trigger').click();
+  assert.ok(document.querySelector('.ui-side-drawer[open] .github-scope'));
+  document.querySelector('.ui-side-drawer [data-tab="issues"]').click();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(document.querySelector('.ui-side-drawer'), null);
+  assert.equal(document.querySelector('[data-tab="issues"]').getAttribute('aria-current'), 'true');
+  console.log('PASS GitHub UI: login, Owner switch, issue comment, workflow dispatch and mobile browse drawer');
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
-}).finally(() => dom.window.close());
+}).finally(() => {window.dispatchEvent(new window.Event('pagehide'));dom.window.close();});

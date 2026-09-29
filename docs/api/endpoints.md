@@ -53,6 +53,7 @@
 | GET | /api/v1/github/owners/{owner}/search | OWNER | Owner 이슈·PR 검색 |
 | GET | /api/v1/github/repositories/detail | OWNER | 저장소 상세 |
 | PATCH | /api/v1/github/repositories | OWNER + CSRF | 저장소 설명·홈페이지 수정 |
+| DELETE | /api/v1/github/repositories | OWNER + CSRF | 승인된 저장소 영구 삭제 |
 | GET | /api/v1/github/repositories/branches | OWNER | Branch 목록 |
 | GET | /api/v1/github/repositories/tags | OWNER | Tag 목록 |
 | GET | /api/v1/github/repositories/contributors | OWNER | Contributor 목록 |
@@ -85,6 +86,8 @@
 | POST | /api/v1/github/actions/workflows/{workflowId}/dispatches | OWNER + CSRF | Workflow 수동 실행 |
 | GET | /api/v1/github/releases | OWNER | Release 목록 |
 | GET | /api/v1/github/releases/{releaseId} | OWNER | Release 상세와 asset metadata |
+| PATCH | /api/v1/github/releases/{releaseId} | OWNER + CSRF | Release 태그·이름·설명 수정 |
+| DELETE | /api/v1/github/releases/{releaseId} | OWNER + CSRF | 승인된 Release 삭제 |
 | POST | /api/v1/github/releases | OWNER + CSRF | Release 생성 |
 | GET | /api/v1/github/approvals | OWNER | GitHub 위험 작업 승인 대기 |
 | POST | /api/v1/github/approvals/{id} | OWNER + CSRF | 일회성 병합 승인 |
@@ -162,6 +165,42 @@ POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로
 
 - POST /api/v1/devices/{id}/remote-setup — OWNER 세션·CSRF, 비동기 자동 구성 및 연결 검증 시작.
 - GET /api/v1/devices/{id}/remote-setup — OWNER 세션, 구성 상태 조회.
+
+## Database Studio
+
+| Method | URL | Auth | 설명 |
+| --- | --- | --- | --- |
+| GET/POST | /api/v1/databases | OWNER / OWNER + CSRF | 연결 목록·생성 |
+| GET/PUT/DELETE | /api/v1/databases/{id} | OWNER / OWNER + CSRF | 연결 조회·수정·삭제 |
+| POST | /api/v1/databases/{id}/test | OWNER + CSRF | 연결 테스트 |
+| POST | /api/v1/databases/test | OWNER + CSRF | 저장 전 연결 설정 테스트 |
+| GET | /api/v1/databases/{id}/schemas | OWNER | schema 목록 |
+| GET | /api/v1/databases/{id}/tables | OWNER | table/view 목록 |
+| GET | /api/v1/databases/{id}/functions | OWNER | function 목록 |
+| GET | /api/v1/databases/{id}/tables/{table} | OWNER | 컬럼·키·인덱스 |
+| GET | /api/v1/databases/{id}/tables/{table}/rows | OWNER | 페이징 데이터 |
+| POST | /api/v1/databases/{id}/query | OWNER + CSRF | SQL 실행 시작 |
+| GET | /api/v1/databases/{id}/query/{executionId} | OWNER | 실행 결과 polling |
+| POST | /api/v1/databases/{id}/query/{executionId}/cancel | OWNER + CSRF | 실행 취소 |
+| GET | /api/v1/databases/history | OWNER | Query History |
+| GET/POST | /api/v1/databases/{id}/favorites | OWNER / OWNER + CSRF | 즐겨찾기 목록·생성 |
+| DELETE | /api/v1/databases/{id}/favorites/{favoriteId} | OWNER + CSRF | 즐겨찾기 삭제 |
+
+## Service Catalog
+
+| Method | URL | Auth | 설명 |
+| --- | --- | --- | --- |
+| GET | /api/v1/services | OWNER | 서비스 목록 |
+| POST | /api/v1/services | OWNER + CSRF | 서비스 생성 |
+| GET | /api/v1/services/{id} | OWNER | 서비스 조회 |
+| PUT | /api/v1/services/{id} | OWNER + CSRF | 서비스 수정 |
+| DELETE | /api/v1/services/{id} | OWNER + CSRF | 서비스와 연결·활동 삭제 |
+| GET | /api/v1/services/{id}/resources | OWNER | 리소스 연결 목록 |
+| POST | /api/v1/services/{id}/resources | OWNER + CSRF | 기존 리소스 연결 |
+| DELETE | /api/v1/services/{id}/resources/{resourceId} | OWNER + CSRF | 연결 해제 |
+| GET | /api/v1/services/{id}/health | OWNER | 연결된 신호의 집계 상태 |
+| GET | /api/v1/services/{id}/context | OWNER | 공통 Service Context |
+| GET | /api/v1/services/{id}/activity | OWNER | 서비스 활동 |
 
 ## 메모장
 

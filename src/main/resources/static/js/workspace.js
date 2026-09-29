@@ -98,6 +98,8 @@
     window.WorkspaceStudio?.open(id).catch(error=>toast(error.message));
     window.WorkspaceGithub?.open(id)?.catch(error=>toast(error.message));
     window.WorkspaceTelemetry?.open(id);
+    window.WorkspaceServices?.open(id);
+    window.WorkspaceDatabases?.open(id);
     activeTab = null;
     $('#runtime-host').hidden = true;
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active',view.id === id));
@@ -118,6 +120,9 @@
     const sessions=tabs.map(tab=>'<article class="os-task '+(activeTab===tab.id?'active':'')+'"><button class="os-task-open" data-tab="'+escape(tab.id)+'" aria-current="'+(activeTab===tab.id)+'"><span class="os-task-icon">'+icon({TERMINAL:'terminal',FILES:'files',REMOTE:'remote',APP:'browser'}[tab.kind]||'apps')+'</span><b>'+escape(tab.title)+'</b><small>'+ (runtimes.get(tab.id)?.connected?'연결됨':'저장된 세션')+'</small></button><button class="os-task-pin" data-action="tab-pin" data-id="'+escape(tab.id)+'" aria-label="세션 고정" aria-pressed="'+Boolean(tab.pinned)+'">'+(tab.pinned?'◆':'◇')+'</button><button class="os-task-close" data-action="tab-close" data-id="'+escape(tab.id)+'" aria-label="'+escape(tab.title)+' 닫기">×</button></article>').join('');
     $('#switcher-apps').innerHTML=home+pages+sessions;
     $('#mobile-current-app').textContent=activeTab?tabs.find(tab=>tab.id===activeTab)?.title||'작업':appRegistry.get(activeView)?.name||'홈';
+    document.body.dataset.activeView=activeTab?'runtime':activeView;
+    document.body.dataset.runtimeFocus=String(Boolean(activeTab&&['TERMINAL','REMOTE','FILES'].includes(tabs.find(tab=>tab.id===activeTab)?.kind)));
+    document.querySelectorAll('.activity-rail [data-view],.os-navigation [data-view]').forEach(button=>{if(button.dataset.view===activeView&&!activeTab)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
     const count=pageTabs.length+tabs.length;$('#os-app-count').textContent=count;$('#os-app-count').hidden=count===0;
   }
 
@@ -233,7 +238,22 @@
     try {
       const listing=await api(`/devices/${tab.targetId}/files?path=${encodeURIComponent(tab.path)}`);
       runtime.listing=listing;
-      root.innerHTML=`<div class="tool-view"><div class="tool-bar"><select data-file-device aria-label="장비">${state.devices.map(item=>`<option value="${item.id}" ${item.id===tab.targetId?'selected':''}>${escape(item.name)}</option>`).join('')}</select><button data-file="parent" aria-label="상위 폴더">↑</button><form class="path-form"><input name="path" class="path" value="${escape(tab.path)}" aria-label="경로"><button type="submit">이동</button></form><button data-file="reload" title="새로고침">↻</button><button data-file="bookmark" title="즐겨찾기">☆</button><label class="upload-button">업로드<input type="file" data-upload hidden></label><button data-file="mkdir">새 폴더</button></div><div class="file-layout"><aside><b>즐겨찾기</b>${state.bookmarks.filter(item=>item.deviceId===tab.targetId).map(item=>`<div class="bookmark-item"><button data-file="navigate" data-path="${escape(item.path)}">${escape(item.path)}</button><button data-action="bookmark-delete" data-id="${item.id}" aria-label="즐겨찾기 삭제">×</button></div>`).join('') || '<small>아직 없습니다.</small>'}<b>최근</b>${state.activity.filter(item=>item.kind==='FILES' && item.targetId===tab.targetId).slice(0,6).map(item=>`<button data-file="navigate" data-path="${escape(item.path)}">${escape(item.path)}</button>`).join('')}</aside><div class="file-table"><div class="file-row head"><span>이름</span><span>수정</span><span>크기</span><span>동작</span></div>${listing.entries.map(item=>`<div class="file-row"><button data-file="${item.directory?'navigate':'download'}" data-path="${escape(item.path)}"><span>${item.directory?'📁':'📄'}</span> ${escape(item.name)}</button><span>${timestamp(item.modifiedAt)}</span><span>${item.directory?'—':bytes(item.size)}</span><span class="file-actions"><button data-file="rename" data-path="${escape(item.path)}" data-name="${escape(item.name)}">이름</button><button data-file="delete" data-path="${escape(item.path)}">삭제</button></span></div>`).join('') || empty('비어 있는 폴더입니다.')}</div></div></div>`;
+      root.innerHTML=`<div class="tool-view"><div class="tool-bar">
+        <button type="button" class="ui-drawer-trigger file-places-trigger" data-drawer-target=".file-layout aside" data-drawer-title="파일 탐색" aria-label="즐겨찾기와 최근 경로" aria-expanded="false" aria-haspopup="dialog">${window.WorkspaceUI.icon('menu')}</button>
+        <select data-file-device aria-label="장비">${state.devices.map(item=>`<option value="${item.id}" ${item.id===tab.targetId?'selected':''}>${escape(item.name)}</option>`).join('')}</select>
+        <button data-file="parent" aria-label="상위 폴더" title="상위 폴더">${window.WorkspaceUI.icon('up')}<span class="file-action-label">상위</span></button>
+        <form class="path-form"><input name="path" class="path" value="${escape(tab.path)}" aria-label="경로"><button type="submit" aria-label="경로로 이동" title="경로로 이동">${window.WorkspaceUI.icon('arrowRight')}<span class="file-action-label">이동</span></button></form>
+        <button data-file="reload" aria-label="새로고침" title="새로고침">${window.WorkspaceUI.icon('refresh')}<span class="file-action-label">새로고침</span></button>
+        <button data-file="bookmark" aria-label="즐겨찾기 추가" title="즐겨찾기 추가">${window.WorkspaceUI.icon('star')}<span class="file-action-label">즐겨찾기</span></button>
+        <button data-file="upload" aria-label="파일 업로드" title="파일 업로드">${window.WorkspaceUI.icon('upload')}<span class="file-action-label">업로드</span></button><input type="file" data-upload hidden>
+        <button data-file="mkdir" aria-label="새 폴더" title="새 폴더">${window.WorkspaceUI.icon('folderPlus')}<span class="file-action-label">새 폴더</span></button>
+      </div><div class="file-layout"><aside><b>즐겨찾기</b>${state.bookmarks.filter(item=>item.deviceId===tab.targetId).map(item=>`<div class="bookmark-item"><button data-file="navigate" data-path="${escape(item.path)}">${escape(item.path)}</button><button data-action="bookmark-delete" data-id="${item.id}" aria-label="즐겨찾기 삭제">×</button></div>`).join('') || '<small>아직 없습니다.</small>'}<b>최근</b>${state.activity.filter(item=>item.kind==='FILES' && item.targetId===tab.targetId).slice(0,6).map(item=>`<button data-file="navigate" data-path="${escape(item.path)}">${escape(item.path)}</button>`).join('')}</aside>
+      <div class="file-table"><div class="file-row head"><span>이름</span><span>수정</span><span>크기</span><span>동작</span></div>${listing.entries.map(item=>`<div class="file-row">
+        <button class="file-row-open" data-file="${item.directory?'navigate':'download'}" data-path="${escape(item.path)}"><span class="file-row-icon" aria-hidden="true">${window.WorkspaceUI.icon(item.directory?'folder':'file')}</span><span class="file-row-copy"><b>${escape(item.name)}</b><small class="file-mobile-meta">${item.directory?'폴더':bytes(item.size)} · ${timestamp(item.modifiedAt)}</small></span></button>
+        <span class="file-modified">${timestamp(item.modifiedAt)}</span><span class="file-size">${item.directory?'—':bytes(item.size)}</span>
+        <span class="file-actions"><button data-file="rename" data-path="${escape(item.path)}" data-name="${escape(item.name)}">이름</button><button data-file="delete" data-path="${escape(item.path)}">삭제</button></span>
+        <details class="ui-menu file-mobile-actions"><summary aria-label="${escape(item.name)} 작업" title="파일 작업">${window.WorkspaceUI.icon('more')}</summary><div class="ui-menu-content"><button data-file="rename" data-path="${escape(item.path)}" data-name="${escape(item.name)}">이름 변경</button><button data-file="delete" data-path="${escape(item.path)}">삭제</button></div></details>
+      </div>`).join('') || empty('비어 있는 폴더입니다.')}</div></div></div>`;
       $('.path-form',root).addEventListener('submit',event=>{event.preventDefault();tab.path=new FormData(event.target).get('path');saveTabs();loadFiles(tab);});
       $('[data-file-device]',root).addEventListener('change',event=>openResource('FILES',event.target.value).catch(error=>toast(error.message)));
       $('[data-upload]',root).addEventListener('change',async event=>{
@@ -248,8 +268,11 @@
   async function fileAction(button) {
     const tab=tabs.find(item=>item.id===button.closest('[data-runtime]').dataset.runtime); const action=button.dataset.file;
     const path=button.dataset.path;
+    const menu=button.closest('.file-mobile-actions');if(menu)menu.open=false;
+    if(button.closest('.ui-side-drawer'))window.WorkspaceDrawers?.close();
     if(action==='navigate'||action==='parent'||action==='root') {tab.path=action==='root'?'/':action==='parent'?tab.path.slice(0,tab.path.lastIndexOf('/'))||'/':path;saveTabs();await loadFiles(tab);}
     if(action==='reload') await loadFiles(tab);
+    if(action==='upload') $('[data-upload]',runtimes.get(tab.id).element).click();
     if(action==='bookmark'){await api('/bookmarks','POST',{deviceId:tab.targetId,path:tab.path});await refresh();await loadFiles(tab);}
     if(action==='download') {const link=document.createElement('a');link.href=`/api/v1/devices/${tab.targetId}/files/content?path=${encodeURIComponent(path)}`;link.download='';link.click();}
     if(action==='mkdir'||action==='rename') editor(action==='mkdir'?'새 폴더':'이름 변경',fields.input('name','이름',button.dataset.name || '','text','required maxlength="255"'),async form=>{await api(`/devices/${tab.targetId}/files${action==='mkdir'?'/folders':''}`,action==='mkdir'?'POST':'PATCH',{path:action==='mkdir'?tab.path:path,name:form.get('name')});await loadFiles(tab);});
@@ -257,13 +280,13 @@
   }
   async function loadInspection(tab) {
     const root=runtimes.get(tab.id).element;
-    root.innerHTML=`<div class="terminal"><div class="terminal-head"><b>${escape(tab.title)}</b><div><button data-runtime-action="reload">새로고침</button>${tab.kind==='DOCKER'?'<button data-runtime-action="docker">컨테이너 제어</button>':''}</div></div><pre class="inspection-output">조회 중...</pre></div>`;
+    root.innerHTML=`<div class="terminal"><div class="terminal-head"><b>${escape(tab.title)}</b><div class="runtime-actions"><button data-runtime-action="reload" aria-label="새로고침" title="새로고침">${window.WorkspaceUI.icon('refresh')}<span class="runtime-action-label">새로고침</span></button>${tab.kind==='DOCKER'?`<button data-runtime-action="docker" aria-label="컨테이너 제어" title="컨테이너 제어">${window.WorkspaceUI.icon('server')}<span class="runtime-action-label">컨테이너 제어</span></button>`:''}</div></div><pre class="inspection-output">조회 중...</pre></div>`;
     try {const result=await api(`/devices/${tab.targetId}/${tab.kind.toLowerCase()}`);$('.inspection-output',root).textContent=result.output || '출력이 없습니다.';}
     catch(error){$('.inspection-output',root).textContent=error.message;}
   }
   async function connectRuntime(tab) {
     const runtime=runtimes.get(tab.id); const root=runtime.element;
-    root.innerHTML=`<div class="terminal live-runtime"><div class="terminal-head"><span><i class="dot amber"></i><b>${escape(tab.title)}</b><small class="connection-state">연결 중...</small></span><div class="actions"><button data-runtime-action="reconnect">다시 연결</button><button data-runtime-action="new">새 세션</button>${tab.kind!=='TERMINAL'?'<button data-runtime-action="fullscreen">전체 화면</button><button data-runtime-action="paste">텍스트 전송</button>':''}</div></div><div class="stream-area" tabindex="0" aria-label="${tab.kind==='TERMINAL'?'서버 터미널':'원격 화면'}"></div></div>`;
+    root.innerHTML=`<div class="terminal live-runtime"><div class="terminal-head"><span><i class="dot amber"></i><b>${escape(tab.title)}</b><small class="connection-state">연결 중...</small></span><div class="actions runtime-actions"><button data-runtime-action="reconnect" aria-label="다시 연결" title="다시 연결">${window.WorkspaceUI.icon('refresh')}<span class="runtime-action-label">다시 연결</span></button><button data-runtime-action="new" aria-label="새 세션" title="새 세션">${window.WorkspaceUI.icon('plus')}<span class="runtime-action-label">새 세션</span></button>${tab.kind!=='TERMINAL'?`<button data-runtime-action="fullscreen" aria-label="전체 화면" title="전체 화면">${window.WorkspaceUI.icon('maximize')}<span class="runtime-action-label">전체 화면</span></button><button data-runtime-action="paste" aria-label="텍스트 전송" title="텍스트 전송">${window.WorkspaceUI.icon('clip')}<span class="runtime-action-label">텍스트 전송</span></button>`:''}</div></div><div class="stream-area" tabindex="0" aria-label="${tab.kind==='TERMINAL'?'서버 터미널':'원격 화면'}"></div></div>`;
     const status=message=>{runtime.connected=message==='연결됨';if($('.connection-state',root))$('.connection-state',root).textContent=message;renderTabs();};
     try {
       const session=await api('/sessions','POST',{kind:tab.kind,targetId:tab.targetId,width:Math.max(320,Math.min(1920,Math.round(root.clientWidth))),height:Math.max(240,Math.min(1080,Math.round(root.clientHeight-42)))});
@@ -317,11 +340,30 @@
     if(action==='docker') editor('컨테이너 제어',fields.input('container','컨테이너 이름 또는 ID','','text','required')+fields.select('action','동작','restart',[['start','시작'],['stop','중지'],['restart','재시작']]),async form=>{const result=await api(`/devices/${tab.targetId}/docker`,'POST',Object.fromEntries(form));await loadInspection(tab);toast(result.output || '요청을 실행했습니다.');},'실행');
   }
   let searchTimer, searchVersion=0;
-  async function search() {const version=++searchVersion;const serverResults=await api(`/search?query=${encodeURIComponent($('#paletteInput').value)}`);const query=$('#paletteInput').value.trim().toLowerCase(),seen=new Set();const results=[...serverResults,...state.activity.filter(item=>`${item.label} ${item.path||''}`.toLowerCase().includes(query))].filter(item=>{const key=[item.kind,item.targetId,item.path||'/'].join('|');if(seen.has(key))return false;seen.add(key);return true;}).slice(0,80);if(version!==searchVersion)return;appRegistry.sync(state);const appResults=appRegistry.search($('#paletteInput').value).map(app=>`<button ${appRegistry.attributes(app)}><span>${window.WorkspaceUI.icon(app.icon)}</span><b>${escape(app.name)}</b><small>앱</small></button>`).join('');$('#search-results').innerHTML=appResults+results.map(item=>`<button ${openAttrs(item.kind,item.targetId,item.path)}><span>${icons[item.kind]}</span><b>${escape(item.label)}</b><small>${labels[item.kind]}</small></button>`).join('')||empty('검색 결과가 없습니다.');}
+  async function search() {
+    const version=++searchVersion;
+    const text=$('#paletteInput').value,query=text.trim().toLowerCase();
+    const [server,services,databases]=await Promise.allSettled([api(`/search?query=${encodeURIComponent(text)}`),api('/services'),api('/databases')]);
+    const serverResults=server.status==='fulfilled'?server.value:[],seen=new Set();
+    const results=[...serverResults,...state.activity.filter(item=>`${item.label} ${item.path||''}`.toLowerCase().includes(query))]
+      .filter(item=>{const key=[item.kind,item.targetId,item.path||'/'].join('|');if(seen.has(key))return false;seen.add(key);return true;}).slice(0,80);
+    if(version!==searchVersion)return;
+    appRegistry.sync(state);
+    const appResults=appRegistry.search(text).map(app=>`<button ${appRegistry.attributes(app)}><span>${window.WorkspaceUI.icon(app.icon)}</span><b>${escape(app.name)}</b><small>앱</small></button>`).join('');
+    const serviceResults=(services.status==='fulfilled'?services.value:[]).filter(item=>item.name.toLowerCase().includes(query)).slice(0,15)
+      .map(item=>`<button data-service-open="${escape(item.id)}"><span>${window.WorkspaceUI.icon(item.icon)}</span><b>${escape(item.name)}</b><small>Service</small></button>`).join('');
+    const databaseResults=(databases.status==='fulfilled'?databases.value:[]).filter(item=>item.name.toLowerCase().includes(query)).slice(0,15)
+      .map(item=>`<button data-database-open="${escape(item.id)}"><span>${window.WorkspaceUI.icon('disk')}</span><b>${escape(item.name)}</b><small>Database</small></button>`).join('');
+    const actionResults=state.devices.filter(item=>item.name.toLowerCase().includes(query)).slice(0,8)
+      .map(item=>`<button data-open="TERMINAL" data-target="${escape(item.id)}"><span>${window.WorkspaceUI.icon('terminal')}</span><b>${escape(item.name)} 터미널 열기</b><small>Action</small></button>`).join('');
+    $('#search-results').innerHTML=appResults+serviceResults+databaseResults+actionResults+results
+      .map(item=>`<button ${openAttrs(item.kind,item.targetId,item.path)}><span>${icons[item.kind]}</span><b>${escape(item.label)}</b><small>${labels[item.kind]}</small></button>`).join('')||empty('검색 결과가 없습니다.');
+  }
   function palette() {$('#palette-dialog').showModal();$('#paletteInput').focus();search().catch(error=>toast(error.message));}
   $('#paletteInput').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>search().catch(error=>toast(error.message)),180);});
   document.addEventListener('keydown',event=>{
     if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();palette();}
+    if(event.altKey&&event.key==='ArrowLeft'&&!['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)){event.preventDefault();navigateBack().catch(error=>toast(error.message));}
     if($('#palette-dialog').open && event.key==='ArrowDown'){event.preventDefault();const buttons=[...$('#search-results').querySelectorAll('button')];buttons[(buttons.indexOf(document.activeElement)+1)%buttons.length]?.focus();}
     if($('#palette-dialog').open && event.key==='Enter' && document.activeElement===$('#paletteInput')){event.preventDefault();$('#search-results button')?.click();}
   });

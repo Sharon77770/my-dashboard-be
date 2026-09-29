@@ -424,6 +424,7 @@ GET `/api/v1/notes/{id}`가 이전 MCP 문단 형태의 Markdown을 처음 읽�
 | GET `/owners/{owner}/search` | `query`: 필수 1~100자, 따옴표·역슬래시 불가 | 200 `SearchResult` |
 | GET `/repositories/detail` | `repository` | 200 `RepositoryDetail` |
 | PATCH `/repositories` | `repository`; `{description?: string(≤1000), homepage?: http(s) URL(≤2000), topics?: string[](≤20)}` 최소 한 필드 | 200 `RepositoryDetail` |
+| DELETE `/repositories` | `repository`, `approvalId`: 승인 UUID | 204; 같은 저장소의 `DELETE_REPOSITORY` 브라우저 승인 1회 소비 |
 | GET `/repositories/branches`, `/tags`, `/contributors` | `repository` | 200 `Branch[]`/`Tag[]`/`Contributor[]`, 첫 100개 |
 | GET `/repositories/languages` | `repository` | 200 `{언어명: int 바이트}` |
 | GET `/repositories/tree` | `repository`, `ref`: 필수 브랜치/태그/커밋 1~200자 | 200 `FileEntry[]`; 응답 1 MiB 초과는 502 |
@@ -453,6 +454,8 @@ GET `/api/v1/notes/{id}`가 이전 MCP 문단 형태의 Markdown을 처음 읽�
 | POST `/actions/workflows/{workflowId}/dispatches` | `repository`; `{ref: string(1..200), inputs?: object<string,string(≤1000)>}` 최대 25개 | 202 |
 | GET `/releases` | `repository` | 200 `Release[]` 최근 30 |
 | GET `/releases/{releaseId}` | `repository` | 200 `Release` 및 assets |
+| PATCH `/releases/{releaseId}` | `repository`; `{tag?: string(1..100), name?: string(≤256), body?: string(≤60000)}` 최소 한 필드 | 200 `Release`; Release 참조 태그 변경, Git 태그 자체 이름 변경 아님 |
+| DELETE `/releases/{releaseId}` | `repository`, `approvalId`: 승인 UUID | 204; 같은 Release의 `DELETE_RELEASE` 브라우저 승인 1회 소비, Git 태그 유지 |
 | POST `/releases` | `repository`; `{tag: string(1..100), name?: string(≤256), body?: string(≤60000), draft: boolean, prerelease: boolean, generateNotes: boolean}` | 201 `Release` |
 | GET `/approvals` | 없음 | 200 승인 전 `Approval[]` |
 | POST `/approvals/{id}` | body 없음; 만료 전 승인 ID | 200 `Approval`; ID 없음/만료 404 |
@@ -463,7 +466,7 @@ GET `/api/v1/notes/{id}`가 이전 MCP 문단 형태의 Markdown을 처음 읽�
 
 `Issue={number:int,title:string,state:string,url:string,updatedAt:string}`. `PullRequest={number:int,title:string,state:string,url:string,updatedAt:string,isDraft:boolean}`. `IssueDetail={number:int,title:string,state:string,url:string,body?:string,author?:string,updatedAt:string,labels:string[],assignees:string[],milestone?:string}`. `PullRequestDetail={number:int,title:string,state:string,url:string,body?:string,author?:string,base:string,head:string,headSha:string,isDraft:boolean,mergeable?:boolean,updatedAt:string}`. `DiscussionComment={author:string,body:string,path?:string,url?:string,createdAt:string}`. `CheckRun={name:string,status:string,conclusion?:string,url?:string}`. `PullRequestContext={pullRequest:PullRequestDetail,files:ChangedFile[],commits:Commit[],conversation:DiscussionComment[],reviewComments:DiscussionComment[],checks:CheckRun[]}`. `Activity={type:string,actor?:string,repository?:string,action?:string,url?:string,createdAt:string}`. `OwnerOverview={owner:Owner,repositories:Repository[],openIssues:Issue[],openPullRequests:PullRequest[],memberCount?:int,recentActivity?:Activity[]}`; 회원·이벤트 권한 또는 외부 오류가 있으면 각 선택 필드는 null이다. `MyWork={assignedIssues:Issue[],reviewRequests:PullRequest[]}`. `SearchResult={issues:Issue[],pullRequests:PullRequest[]}`.
 
-`Workflow={id:long,name:string,path:string,state:string,url?:string}`. `WorkflowRun={id:long,name?:string,status?:string,conclusion?:string,branch?:string,event?:string,commit?:string,url?:string,createdAt?:string,updatedAt?:string}`. `WorkflowStep={name:string,status?:string,conclusion?:string,number:int}`. `WorkflowJob={id:long,name:string,status?:string,conclusion?:string,url?:string,steps:WorkflowStep[]}`. `WorkflowArtifact={id:long,name:string,size:long,expired:boolean,createdAt?:string,expiresAt?:string}`. `WorkflowAnalysis={run:WorkflowRun,failedJobs:WorkflowJob[],failedLogs:string}`. `Release={id:long,name?:string,tag:string,body?:string,url?:string,isDraft:boolean,isPrerelease:boolean,publishedAt?:string,assets:ReleaseAsset[]}`. `ReleaseAsset={name:string,size:long,contentType?:string,downloadUrl?:string}`. `DevelopmentContext={repository:RepositoryDetail,branches:Branch[],recentCommits:Commit[],openPullRequests:PullRequest[],openIssues:Issue[],recentWorkflowRuns:WorkflowRun[],recentReleases:Release[]}`. `Approval={id:UUID,operation:MERGE_PULL_REQUEST|ARCHIVE_REPOSITORY,repository:owner/name,number:int (ARCHIVE는 0),expiresAt:ISO-8601,approved:boolean}`.
+`Workflow={id:long,name:string,path:string,state:string,url?:string}`. `WorkflowRun={id:long,name?:string,status?:string,conclusion?:string,branch?:string,event?:string,commit?:string,url?:string,createdAt?:string,updatedAt?:string}`. `WorkflowStep={name:string,status?:string,conclusion?:string,number:int}`. `WorkflowJob={id:long,name:string,status?:string,conclusion?:string,url?:string,steps:WorkflowStep[]}`. `WorkflowArtifact={id:long,name:string,size:long,expired:boolean,createdAt?:string,expiresAt?:string}`. `WorkflowAnalysis={run:WorkflowRun,failedJobs:WorkflowJob[],failedLogs:string}`. `Release={id:long,name?:string,tag:string,body?:string,url?:string,isDraft:boolean,isPrerelease:boolean,publishedAt?:string,assets:ReleaseAsset[]}`. `ReleaseAsset={name:string,size:long,contentType?:string,downloadUrl?:string}`. `DevelopmentContext={repository:RepositoryDetail,branches:Branch[],recentCommits:Commit[],openPullRequests:PullRequest[],openIssues:Issue[],recentWorkflowRuns:WorkflowRun[],recentReleases:Release[]}`. `Approval={id:UUID,operation:MERGE_PULL_REQUEST|ARCHIVE_REPOSITORY|DELETE_REPOSITORY|DELETE_RELEASE,repository:owner/name,number:long (저장소 작업은 0, Release는 ID),expiresAt:ISO-8601,approved:boolean}`.
 
 GitHub API 403/404와 네트워크 오류는 현재 CLI adapter에서 안전한 502로 합쳐진다. 계정 권한에 따라 Organization 회원·팀·저장소가 일부만 표시되거나 요청이 실패할 수 있다. 조직 검색은 GitHub Search 첫 100개까지이며 `overview` 숫자는 그 범위의 표시 개수다. 로그인 시작·polling·취소는 기존 `/api/v1/studio/jobs`의 `github-login` action을 사용한다.
 
@@ -495,11 +498,16 @@ MCP tool 목록과 입력 계약:
 | `open_app` | `id`: string ≤36 | 사용자 browser 설정에 따라 등록 앱 열기 event |
 | `list_calendar_events` | `from`, `to`: ISO date; `to`는 배타 | 1~366일의 일정 목록 |
 | `create_calendar_event` | `title` ≤120, `start`, `end`: local ISO date-time | `allDay` boolean=false, `location` ≤200, `notes` ≤4000, `color` `#RRGGBB` 기본 `#6b8afd`; 기존 일정 검증 적용 |
+| `update_calendar_event` | `id` ≤36, `title`, `start`, `end`, `allDay`, `location`, `notes`, `color` | 일정 전체 필드 전달. `location`/`notes`는 빈 문자열 허용; 없음 404 |
+| `delete_calendar_event` | `id` ≤36 | 일정 삭제, `{deleted:true}`; 없음 404; DANGEROUS |
 | `list_notes` | 없음 | 메모 Entry 목록, 본문 제외 |
 | `read_note` | `id`: string ≤36 | Entry와 검증된 블록 본문; 이전 MCP Markdown의 첫 조회 변환 시 revision 증가 가능 |
 | `create_note_folder` | `title` ≤200 | `parentId`: null 또는 string ≤36; 빈 폴더 생성 |
 | `create_note` | `title` ≤200, `text` ≤100000 | `parentId`: null 또는 string ≤36; Markdown을 편집 가능한 메모 블록으로 변환해 생성 |
 | `append_note` | `id` ≤36, `text` ≤100000, `revision`: 0 이상 정수 | 현재 revision과 일치할 때 Markdown 블록을 이어 붙임, 불일치 409 |
+| `update_note_metadata` | `id` ≤36, `revision`: 0 이상 정수 | `title` ≤200, `parentId`: null 또는 폴더 ID; 생략 필드 유지, 최소 한 변경 필드, revision 불일치 409 |
+| `replace_note_text` | `id` ≤36, `revision`: 0 이상 정수, `text` ≤100000 | Markdown으로 문서 블록 전체 교체. 기존 이미지·서식 블록 제거, revision 불일치 409; DANGEROUS |
+| `delete_note` | `id` ≤36, `revision`: 0 이상 정수 | 문서 또는 빈 폴더 삭제, `{deleted:true}`; 비어 있지 않은 폴더·revision 불일치 409; DANGEROUS |
 | `github_status` | 없음 | `{authenticated: boolean}` |
 | `list_github_repositories` | 없음 | `{repositories: array}`; 최대 50개 |
 | `list_github_pull_requests` | `repository`: owner/name 문자열 ≤201 | `{pullRequests: array}`; 최대 50개 열린 PR |
@@ -527,6 +535,9 @@ MCP tool 목록과 입력 계약:
 | `github.list_workflow_artifacts` | `repository`, `runId` ≥1 | WorkflowArtifact[]; READ |
 | `github.list_releases` | `repository` | Release[]; READ |
 | `github.get_release` | `repository`, `releaseId` | Release와 asset metadata; READ |
+| `github.update_release` | `repository`, `releaseId` | `tag` ≤100, `name` ≤256, `body` ≤60000 중 최소 한 필드; Release; WRITE. Git 태그 자체는 변경하지 않음 |
+| `github.request_delete_release` | `repository`, `releaseId` | 일회성 Approval 생성; WRITE, 삭제 실행 없음 |
+| `github.delete_release` | `repository`, `releaseId`, `approvalId` UUID | `{deleted:true}`; DANGEROUS, 동일 Release 브라우저 승인 필요, Git 태그 유지 |
 | `github.create_issue` | `repository`, `title` ≤256 | `body` ≤60000; IssueDetail; WRITE |
 | `github.update_issue` | `repository`, `number` | `title`, `body`, `state`, `labels`, `assignees`, `milestone`; IssueDetail; WRITE |
 | `github.comment_issue` | `repository`, `number`, `body` ≤60000 | IssueDetail; WRITE |
@@ -541,5 +552,61 @@ MCP tool 목록과 입력 계약:
 | `github.merge_pull_request` | `repository`, `number`, `approvalId` UUID | `{merged:true}`; DANGEROUS, 대시보드 브라우저 승인 필요 |
 | `github.request_archive` | `repository` | 일회성 Approval 생성; WRITE, 보관 실행 없음 |
 | `github.archive_repository` | `repository`, `approvalId` UUID | RepositoryDetail; DANGEROUS, 대시보드 브라우저 승인 필요 |
+| `github.request_delete_repository` | `repository` | 일회성 Approval 생성; WRITE, 삭제 실행 없음 |
+| `github.delete_repository` | `repository`, `approvalId` UUID | `{deleted:true}`; DANGEROUS, 동일 저장소 브라우저 승인 필요 |
 
-Tool 오류는 MCP `CallToolResult.isError=true` 및 text content로 반환한다. 도구는 WorkspaceException의 검증 오류를 안전하게 전달하고 예상하지 못한 예외 세부 내용은 숨긴다. `open_page` navigation 이벤트는 owner 세션 browser만 GET으로 polling한다. MCP tool 자체는 삭제·임의 파일·셸 작업을 제공하지 않는다.
+Tool 오류는 MCP `CallToolResult.isError=true` 및 text content로 반환한다. 도구는 WorkspaceException의 검증 오류를 안전하게 전달하고 예상하지 못한 예외 세부 내용은 숨긴다. `open_page` navigation 이벤트는 owner 세션 browser만 GET으로 polling한다. 일정·메모 삭제는 정확한 ID와 메모 revision을 요구한다. GitHub 저장소·릴리스 삭제는 10분 유효 브라우저 승인을 소비한다. 임의 파일·셸 작업은 제공하지 않는다.
+
+## Database Studio API
+
+모든 경로는 OWNER 세션이 필요하다. 쓰기·테스트·취소 요청에는 CSRF 토큰이 필요하다. 미인증 401, 권한 부족/READ_ONLY 쓰기 403, 잘못된 입력 400, 없는 연결/테이블/실행 404, 위험 SQL 미확인 또는 활성 쿼리 중 연결 삭제 409, 대기열 초과 429, 외부 DB 조회 오류 502. 실패 응답은 `{message}`이고 원본 JDBC 예외를 포함하지 않는다. [보안·수명 계약](../database-studio.md).
+
+| Method | URL | Request | Response | Success |
+| --- | --- | --- | --- | --- |
+| GET/POST | `/api/v1/databases` | POST `ConnectionRequest` | `ConnectionView[]` / `ConnectionView` | 200/201 |
+| GET/PUT/DELETE | `/api/v1/databases/{id}` | PUT `ConnectionRequest` | `ConnectionView` / 없음 | 200/204 |
+| POST | `/api/v1/databases/{id}/test` | 없음 | `TestResult` | 200 |
+| POST | `/api/v1/databases/test?id={id?}` | `ConnectionRequest`, id 선택(기존 credential 유지) | `TestResult`; 저장 없음 | 200 |
+| GET | `/api/v1/databases/{id}/schemas` | 없음 | `Schema[]` | 200 |
+| GET | `/api/v1/databases/{id}/tables?schema=...` | schema | `Table[]` | 200 |
+| GET | `/api/v1/databases/{id}/functions?schema=...` | schema | `Function[]` | 200 |
+| GET | `/api/v1/databases/{id}/tables/{table}?schema=...` | schema | `TableDetail` | 200 |
+| GET | `/api/v1/databases/{id}/tables/{table}/rows` | schema, page=0, size=50, sort, direction=ASC, filterColumn, filter | `Page` | 200 |
+| POST | `/api/v1/databases/{id}/query` | `{sql,confirmed:false}` | `QueryResult` RUNNING + executionId | 202 |
+| GET | `/api/v1/databases/{id}/query/{executionId}` | 없음 | `QueryResult` | 200 |
+| POST | `/api/v1/databases/{id}/query/{executionId}/cancel` | 없음 | `QueryResult` CANCELLED | 200 |
+| GET | `/api/v1/databases/history` | 없음 | 최신 100 `History[]` | 200 |
+| GET/POST | `/api/v1/databases/{id}/favorites` | POST `{name,sql}` | `Favorite[]` / `Favorite` | 200/201 |
+| DELETE | `/api/v1/databases/{id}/favorites/{favoriteId}` | 없음 | 없음 | 204 |
+
+`ConnectionRequest`: `name` 필수 1~100자, `type` POSTGRESQL/MYSQL/MARIADB/SQLITE, `host` 선택 최대 255자(서버형 필수), `port` 선택 1~65535(기본 PostgreSQL 5432/MySQL·MariaDB 3306), `databaseName` 필수 최대 500자(SQLite는 기존 local 파일의 절대 경로), `username` 선택 최대 100자, `credential` 선택 최대 500자(수정 시 빈 값이면 유지), `sslMode` DISABLE/REQUIRE, `accessMode` READ_ONLY/READ_WRITE, `metadata` 선택적 문자열 map(최대 20항목, 짧은 비밀이 아닌 값만). SQLite는 host/username/credential/SSL/port를 사용하지 않는다. 응답 `ConnectionView`에는 `id`, 이름·종류·host·port·databaseName·username·sslMode·accessMode, `passwordConfigured`, `metadata`, 생성·수정 epoch ms만 포함한다. 암호문과 평문은 반환하지 않는다. `TestResult`는 `connected/version/latencyMs/errorType`이다.
+
+`TableDetail`은 table, columns(name/type/nullable/primaryKey), foreignKeys, indexes를 가진다. `Page`는 columns, rows, total(-1이면 count 불가), page, size를 가진다. `QueryResult`는 executionId, state RUNNING/SUCCEEDED/FAILED/CANCELLED, resultType QUERY/MUTATION/빈 값, columns, rows, affectedRows, durationMs, errorType을 가진다. 결과는 최대 200행, binary는 placeholder다. `History`는 connection ID(nullable), 연결 이름 snapshot, sql, timestamp, durationMs, resultType, success, errorType을 가진다. `Favorite`는 ID, 연결 ID, name, sql, createdAt을 가진다.
+
+MCP read-only 도구 `list_database_connections`(입력 없음), `get_database_metadata`(id), `list_database_tables`(id, schema), `describe_database_table`(id, schema, table)은 동일 DatabaseStudioService를 호출한다. 구조화된 schema를 사용하고 임의 SQL 쓰기 도구는 제공하지 않는다.
+
+## Service Catalog API
+
+모든 경로는 OWNER 세션이 필요하다. 미인증 401, 권한 부족 403, 변경 요청의 CSRF 실패 403이다. JSON 오류는 기존 `WorkspaceErrors`의 `message`를 사용한다. `{id}`와 `{resourceId}`는 서버 발급 UUID 문자열이다. 잘못된 본문은 400, 없는 Service/연결/컨테이너는 404, 중복 연결은 409, Docker 목록 조회 실패는 502이다.
+
+| Method | URL | Request | Response | Success |
+| --- | --- | --- | --- | --- |
+| GET | `/api/v1/services` | 없음 | `ServiceView[]` | 200 |
+| POST | `/api/v1/services` | `ServiceRequest` | `ServiceView` | 201 |
+| GET | `/api/v1/services/{id}` | 없음 | `ServiceView` | 200 |
+| PUT | `/api/v1/services/{id}` | `ServiceRequest` | `ServiceView` | 200 |
+| DELETE | `/api/v1/services/{id}` | 없음 | 없음 | 204 |
+| GET | `/api/v1/services/{id}/resources` | 없음 | `Resource[]` | 200 |
+| POST | `/api/v1/services/{id}/resources` | `ResourceRequest` | `Resource` | 201 |
+| DELETE | `/api/v1/services/{id}/resources/{resourceId}` | 없음 | 없음 | 204 |
+| GET | `/api/v1/services/{id}/health` | 없음 | `Health` | 200 |
+| GET | `/api/v1/services/{id}/context` | 없음 | `Context` | 200 |
+| GET | `/api/v1/services/{id}/activity` | 없음 | `Activity[]`, 최신순 최대 50 | 200 |
+
+`ServiceRequest`: `name` 필수 문자열 1~100자, `icon` 필수 소문자/숫자/하이픈 1~32자, `environment` 필수 문자열 1~40자, `description` 선택 문자열 최대 500자(null이면 빈 문자열). `ServiceView`: `id` 문자열 UUID, `name/icon/environment/description` 문자열, `createdAt/updatedAt` epoch ms 정수. 모든 응답 필드는 null이 아니다.
+
+`ResourceRequest`: `type` 필수 enum `GITHUB_REPOSITORY`, `GITHUB_ORGANIZATION`, `DEVICE`, `DOCKER_CONTAINER`, `TELEMETRY`, `ENDPOINT`, `FILE`, `DATABASE`; `reference` 필수 문자열 최대 500자; `deviceId` 선택 문자열 최대 36자(DOCKER_CONTAINER에서는 필수, FILE에서는 선택, 그 외 빈 문자열); `label` 선택 문자열 최대 100자. `Resource`: `id/serviceId/type/reference/deviceId/label` 문자열, `createdAt` epoch ms 정수, `orphaned` boolean. 선택 입력은 저장 시 빈 문자열로 정규화되고 응답은 null이 아니다. 유효하지 않은 참조나 URL/경로는 400 또는 404로 거부된다.
+
+`Health`: `state` enum `HEALTHY/DEGRADED/DOWN/UNKNOWN`, `checkedAt` epoch ms, `signals[]`. 각 Signal은 `source/reference/state/detail` 문자열이며 signal state는 `HEALTHY/DEGRADED/DOWN/UNKNOWN`. `Context`: `service` ServiceView, `resources` Resource[], `health` Health, `github/runtime/telemetry/databases`는 참조별 데이터 map, `activity` Activity[]. 외부 모듈 조회 실패 시 해당 map 원소만 생략한다. `Activity`: `id/source/type/severity/title` 문자열, `timestamp` epoch ms, `metadata` JSON object. null 필드는 없다.
+
+MCP read-only 도구 `list_services`(입력 없음), `get_service`, `get_service_context`, `get_service_health`(각각 `id` 필수 문자열 최대 36자)는 동일 ServiceCatalogService를 호출한다. 반환 필드는 각각 `services`, `service+resources`, `context`, `health`다. 기존 `/api/v1/mcp` bearer 인증과 OWNER 컨텍스트를 그대로 사용한다.

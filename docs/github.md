@@ -25,10 +25,10 @@ Codex ── Dashboard MCP ────────┘
 | 등급 | 도구 |
 | --- | --- |
 | READ | Owner·Organization·저장소·이슈·PR·커밋·파일·Workflow·Release 조회, 조직 검색, 내 작업, Overview, 개발 컨텍스트, 실패 Workflow 분석 |
-| WRITE | 저장소 생성/설명 수정, 이슈 생성/수정/댓글, PR 생성/수정/리뷰, Workflow 재실행/취소/수동 실행, Release 생성, 위험 작업 승인 요청 |
-| DANGEROUS | PR 병합, 저장소 Archive |
+| WRITE | 저장소 생성/설명·토픽 수정, 이슈 생성/수정/댓글, PR 생성/수정/리뷰, Workflow 재실행/취소/수동 실행, Release 생성·태그/설명 수정, 위험 작업 승인 요청 |
+| DANGEROUS | PR 병합, 저장소 Archive·삭제, Release 삭제 |
 
-병합은 `github.request_merge`, Archive는 `github.request_archive`로 10분 유효 UUID를 만든다. 사용자가 대시보드 GitHub 화면의 **GitHub 승인 대기**에서 정확한 대상과 작업을 보고 승인해야 한다. 승인 후 실행 도구가 같은 대상·작업·UUID를 요구한다. 승인은 일회성이며 외부 호출 전에 소비된다. 만료나 불일치 시 403이다. 저장소 삭제, 가시성 변경, 브랜치 삭제는 도구로 노출하지 않는다.
+병합·Archive·저장소 삭제·Release 삭제는 각 `github.request_*` 도구로 10분 유효 UUID를 만든다. 사용자가 대시보드 GitHub 화면의 **GitHub 승인 대기**에서 정확한 대상과 작업을 보고 승인해야 한다. 삭제 승인에는 브라우저 재확인도 요구한다. 승인 후 실행 도구가 같은 대상·작업·UUID를 요구한다. 승인은 일회성이며 외부 호출 전에 소비된다. 만료나 불일치 시 403이다. Release 삭제는 Git 태그를 남기며 Release `tag_name` 수정도 Git 태그 자체를 바꾸지 않는다. 가시성 변경과 브랜치 삭제는 도구로 노출하지 않는다.
 
 ## 새 기능 추가
 

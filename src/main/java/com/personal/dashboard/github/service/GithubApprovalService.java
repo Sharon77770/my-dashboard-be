@@ -17,7 +17,7 @@ public class GithubApprovalService {
       String id,
       String operation,
       String repository,
-      int number,
+      long number,
       Instant expiresAt,
       boolean approved) {}
 
@@ -29,7 +29,15 @@ public class GithubApprovalService {
     return request("ARCHIVE_REPOSITORY", repository, 0);
   }
 
-  private Approval request(String operation, String repository, int number) {
+  public Approval requestDeleteRepository(String repository) {
+    return request("DELETE_REPOSITORY", repository, 0);
+  }
+
+  public Approval requestDeleteRelease(String repository, long releaseId) {
+    return request("DELETE_RELEASE", repository, releaseId);
+  }
+
+  private Approval request(String operation, String repository, long number) {
     cleanup();
     Approval approval =
         new Approval(
@@ -77,7 +85,15 @@ public class GithubApprovalService {
     consume(id, "ARCHIVE_REPOSITORY", repository, 0);
   }
 
-  private void consume(String id, String operation, String repository, int number) {
+  public void consumeDeleteRepository(String id, String repository) {
+    consume(id, "DELETE_REPOSITORY", repository, 0);
+  }
+
+  public void consumeDeleteRelease(String id, String repository, long releaseId) {
+    consume(id, "DELETE_RELEASE", repository, releaseId);
+  }
+
+  private void consume(String id, String operation, String repository, long number) {
     cleanup();
     Approval approval = approvals.get(id);
     if (approval == null

@@ -1,8 +1,8 @@
-﻿# Launcher와 디자인 시스템
+# Launcher와 디자인 시스템
 
 ## 사용자 동작
 
-홈은 앱 바로가기, 폴더, 위젯을 같은 격자에 배치하는 Launcher다. 모든 앱은 Dock의 **모든 앱**, 시스템 도구 모음 또는 Ctrl/Cmd+K에서 접근한다. 장비·파일·터미널·원격·앱 관리·캘린더·시간표·코드 에디터·최근 작업·클립보드·브라우저 설정·설정 기능을 유지한다. 등록한 외부 웹앱도 같은 앱 목록에 추가된다.
+홈은 앱 바로가기, 폴더, 위젯을 같은 저장 모델로 관리하는 Launcher다. 모든 앱은 App Library, Activity Rail 또는 Ctrl/Cmd+K에서 접근한다. 장비·파일·터미널·원격·앱 관리·캘린더·시간표·코드 에디터·최근 작업·클립보드·브라우저 설정·설정 기능을 유지한다. 등록한 외부 웹앱도 같은 앱 목록에 추가된다.
 
 - **홈 편집**: 앱/위젯/폴더/페이지 추가, 드래그 이동, 항목 메뉴, 위젯 모서리 크기 조절. 일반 모드에서는 홈 항목이 움직이지 않는다. 레이아웃 잠금은 편집·추가·제거·Dock 변경을 차단한다.
 - **배치**: 항목 메뉴의 위치/페이지/크기 폼은 드래그의 키보드 대안이다. 편집 중 항목에 초점을 두고 방향키로 한 칸씩 이동하며 Enter로 메뉴를 연다. 이동 대상에 앱을 놓으면 폴더를 만들고, 폴더 위에 놓으면 내부로 이동한다. 일반 충돌은 기존 항목을 빈 공간으로 재배치한다.
@@ -52,56 +52,28 @@ Launcher → 레지스트리/격자/저장 모듈 방향으로 의존한다. 업
 
 ## Desktop / Mobile
 
-Desktop은 44px 앱 아이콘과 작은 라벨, OS 상태바와 카드형 실행 앱 전환기, 우클릭 메뉴, 마우스 드래그, 툴팁을 사용한다. IDE는 Explorer | Editor | Git/Codex이며 구분선을 마우스 또는 방향키로 조절한다. 좁은 데스크톱에서는 패널 폭을 제한하고 Files / Git·Codex 버튼으로 패널을 접을 수 있다.
+Desktop shell은 작은 global bar와 54px activity rail, 앱 콘텐츠로 구성한다. rail은 Home·검색·Services·Studio·장비·Database Studio·App Library·최근 작업만 표시한다. 고정 앱은 Home의 compact quick bar에 표시한다. 실행 중인 앱/탭은 기존 전환기에서 다시 열거나 닫고, 뒤로 이동은 global bar와 Alt+Left 이력으로 제공한다.
 
-Mobile은 4열 홈, 길게 누르기 메뉴, 수평 스와이프, 하단 Dock, 전체 화면 Drawer, 하단 Context/Widget/App Switcher sheet를 사용한다. 모든 앱 목록의 일반 터치 스와이프는 스크롤로 처리하며 앱을 드래그하거나 홈 편집 모드로 전환하지 않는다. 터치 드래그는 홈 편집 모드에서만 가능하고, 일반 모드에서는 탭으로 앱 실행, 길게 누르기로 메뉴 열기를 지원한다. 마우스의 Drawer 드래그는 기존대로 지원한다. 상단에는 현재 앱을 표시하고 열린 앱 전환기를 제공한다. IDE는 Editor가 기본이며 Files와 Git/Codex는 전체 보조 화면으로 전환한다. 터미널은 불필요한 외곽을 제거하고 `100dvh`/VisualViewport 및 기존 fit/ResizeObserver로 키보드 크기 변경에 대응한다. safe-area를 헤더/Dock/sheet에 적용한다.
+Mobile shell은 44px app bar(이전 작업·현재 작업·검색·메뉴)와 48px Home·검색·앱·최근 작업 탐색을 사용한다. Notes, Assistant, Studio, Database Studio, 터미널/원격/파일 실행 화면은 콘텐츠 집중 모드에서 하단 탐색을 접는다. 현재 작업 버튼으로 전환기를, 상단 검색 버튼으로 palette를 연다. Safe area와 VisualViewport 높이를 반영한다.
 
-`manifest.webmanifest`는 standalone 이름/시작 경로/아이콘을 제공한다. 인증 세션으로 manifest를 가져온다. 서비스 워커, 오프라인 업무 데이터, push 알림은 도입하지 않는다. 브라우저별 설치 조건은 다를 수 있다.
+두 shell은 같은 앱 레지스트리, HomeItem, page tab, 실행 tab, 검색 계약을 사용한다. 모바일은 Desktop의 축소판이 아니라 Notes·Studio·Database·파일에서 한 pane에 집중한다. OS 화면을 흉내 내는 우측 도구 막대나 하단 뒤로/홈/최근 앱 3버튼은 없다.
 
-## 시각 규칙
+## 표현과 편집
 
-색상 값은 `design-system.css`에만 둔다. 기능 CSS는 배경(surface), 텍스트, 경계, accent, 상태 토큰을 사용한다. 사용자가 지정한 일정/과목 색상은 데이터로서 테두리 표시를 유지한다. 본문은 테마 텍스트 색상으로 읽히므로 임의의 사용자 색상이 글자 대비를 깨뜨리지 않는다. 브랜드 SVG/manifest는 독립 배포 자산이다.
+일반 Home은 이어하기·서비스·오늘·인프라를 기존 최근 작업과 widget renderer에서 구성한다. 저장된 앱·폴더는 **내 작업 공간**의 compact 목록에, 위젯은 별도의 **위젯** 구역에 기본적으로 닫힌 disclosure 행으로 나타난다. 위젯을 펼치면 같은 열 안에서 기존 렌더러와 동작이 보인다. 편집 모드에는 모두 원래 배치 좌표로 나타난다. 홈 편집은 기존 8열/4열 투영, 드래그, 페이지, 폴더, 크기 조절을 유지한다. 편집하지 않을 때 아이콘 격자나 대형 위젯이 Home을 지배하지 않는다.
 
-Dark Theme은 cold charcoal 앱 배경(`#111318`)에서 surface(`#1a1d24`), elevated(`#20242c`), hover(`#272b34`) 순으로 밝아진다. Light Theme은 앱 배경(`#f5f6f8`), sidebar(`#eff1f4`), 흰 surface와 연회색 hover를 사용한다. 일반 경계는 각 surface보다 조용하게 두고 focus와 선택 상태에만 indigo accent를 사용한다. Primary 버튼은 흰 글자 대비가 4.5:1 이상이 되도록 요청된 indigo 예시보다 어두운 solid 값을 쓴다. Launcher의 앱 아이콘은 동일한 컨테이너에 `--app-*-bg`/`--app-*-fg`만 다르게 적용하며 Home·Drawer·Dock·폴더에 공유한다. Telemetry 상태점은 glow 없이 semantic 상태색을 사용하고 차트 막대는 단색 indigo다. Studio Codex의 사용자 말풍선, 코드 블록, 입력창은 surface 깊이로 구분한다.
+App Drawer는 App Library overlay가 된다. 고정·개발·서비스와 인프라·생산성·기타 그룹으로 표시하고 기존 앱 검색/홈 추가/길게 누르기/드래그를 보존한다. Mobile에서는 전체 화면으로 연다. Folder는 저장된 HomeItem과 폴더 dialog를 그대로 사용한다.
 
-공통 Button(primary/secondary/ghost/danger, sm/md), IconButton, Input/Select/Textarea/Checkbox, Panel, Toolbar, Badge, Dialog, details 기반 Dropdown, Tooltip, Empty/Loading/Error, Splitter를 사용한다. spacing 기준은 4/8/12/16/24/32px, 기본 컨트롤 28/32px, radius 4/6px이다. Launcher 아이콘과 mobile sheet는 별도 형태 토큰에 준하는 12px 모서리를 사용한다. 의미별 색상 토큰은 두 테마에서 같은 이름을 가진다.
-
-primary 버튼은 단일 accent 배경과 inverse 글자 조합으로 고정하고 컨테이너별 덮어쓰기를 제거했다. xterm ANSI/배경/선택, CodeMirror 구문/검색/선택/자동완성, 캘린더/시간표도 토큰을 공유한다. 외부 VNC/RDP 화면 내부는 대상 앱의 테마를 따른다.
+명령 Palette는 앱·최근 작업·서버 검색 결과에 Service와 Database Connection 결과를 더한다. 각각 기존 Service Catalog와 Database Studio 화면으로 이동한다. 새로운 검색 서버나 별도 색인은 없다.
 
 ## 앱/위젯 추가
 
-1. 기존 앱 화면/실행 기능을 구현하고 `app-registry.js`의 builtins에 ID, 이름, 아이콘, 기존 route/action 또는 실행 kind를 등록한다. 임의 외부 URL은 앱 관리 API로 등록하면 자동 결합된다.
-2. 위젯이 필요하면 해당 앱의 `widgets`에 ID를 추가하고 `widget-registry.js`에 크기/설명과 요약 렌더러를 등록한다. 업무 데이터를 새로 조회해야 한다면 기존 인증 API helper를 사용한다.
-3. Home/Drawer/Dock/Search를 각각 수정하지 않는다. 새 앱을 모든 사용자의 Home에 강제로 추가하지 않는다.
-4. 격자/등록부/DOM 회귀 검사와 양쪽 테마 대비 검사를 실행한다. API 변경이 있으면 별도로 서비스·계약 검사를 추가한다.
+1. 기존 앱 화면/실행 기능을 구현하고 `app-registry.js`의 builtins에 ID, 이름, 아이콘, 기존 route/action 또는 실행 kind를 등록한다. 외부 URL은 앱 관리 API로 등록하면 자동 결합된다.
+2. 위젯은 `widget-registry.js`에 크기·요약 렌더러를 등록한다. 업무 데이터는 기존 인증 API helper를 사용한다.
+3. Home/Library/Search/rail을 별도 등록부로 복제하지 않는다. 변경 시 저장 배치와 keyboard/drag 회귀를 검사한다.
 
-## 검증과 남은 제약
+## 검증과 제약
 
-`tools/launcher/test.cjs`: 격자 충돌/투영, 등록부 escape, 앱 탭/전환, 페이지, Drawer, 폴더 생성/해제/드래그 순서, 위젯/크기, 잠금, 공통 검색, 계정 저장.
-`tools/launcher/planner-test.cjs`: 일정/학기/수업 CRUD 회귀.
-`tools/launcher/responsive-test.cjs`: 1440/1280/1024/768/700/390px CSS 규칙과 IDE 모드 선택.
-`tools/launcher/theme-test.cjs`: 양쪽 테마 텍스트 4.5:1, 주요 컨트롤 경계 3:1, 기능 CSS의 고정 색상 방지.
-앱 아이콘 전경/배경 대비도 양쪽 테마에서 4.5:1 이상 검사한다.
-`tools/studio-editor/test.cjs`: 실제 CodeMirror 번들, 파일 저장/수정 보호, Codex 인증 안내/Enter 실행/취소/결과 유지, 모바일 패널 상태.
+`tools/launcher/test.cjs`는 좌표/폴더/페이지/위젯/잠금/검색/전환/계정 저장을 확인한다. `responsive-test.cjs`는 1440/1280/1024/768/700/430/390/360px에서 shell·Home·Notes 폭·집중 모드 규칙을 확인한다. `theme-test.cjs`는 양쪽 테마의 대비를 확인한다. `drawers-test.cjs`, `github-test.cjs`, `assistant-test.cjs`, `tools/studio-editor/test.cjs`는 주요 앱 동작을 검사한다. JS DOM 검사는 실제 시각적 레이아웃·터치·가상 키보드가 아니며 브라우저/기기 검증과 구분한다.
 
-jsdom은 화면 배치와 실제 터치·가상 키보드를 렌더링하지 않는다. 이번 환경에는 연결 가능한 브라우저가 없어 실제 viewport/스크린샷 검증은 미완료다. 실제 기기에서 모바일 키보드와 드래그, 저해상도 패널 폭, 설치 UX를 추가 확인해야 한다.
-
-테스트 실행은 `tools/studio-editor`의 잠금 파일에 맞춰 `npm ci` 후 저장소 루트에서 `NODE_PATH`를 해당 `node_modules`로 지정하고 각 `.cjs` 파일을 `node`로 실행한다. Java 검사는 `mvn verify`, Linux 전용 검사를 포함한 배포 검사는 Dockerfile의 `mvn verify`를 사용한다.
-
-IDE 공간 배치: 큰 제목과 상단 연결 폼을 한 줄 명령 모음으로 통합했다. 실행 대상은 직접 선택하고, 경로 입력·폴더 열기는 폴더 메뉴에 배치한다. 초기 안내는 미연결 상태에만 표시한다. 작업 결과는 하단 접이식 영역으로 제공하며 IDE는 앱의 남은 높이를 사용한다. Codex 첨부는 ＋ 메뉴, 모델·추론·전송은 하단 입력창에 표시한다.
-
-## OS 에뮬레이터 프레임
-
-상단 웹 탭은 제거하고 현재 앱 이름·실제 시각·시스템 메뉴를 표시한다. 데스크톱 우측 도구 막대는 앱 목록, 검색, 전체 화면, 설정을 제공한다. 하단의 뒤로·홈·실행 중인 앱 버튼은 모든 앱에서 접근할 수 있다. 모바일에서는 우측 막대를 감추고 하단에 앱 목록 버튼을 추가한다. 전체 화면은 브라우저 Fullscreen API가 지원될 때만 동작한다.
-
-앱 전환기는 아이콘·이름·상태를 표시하는 카드이며 실제 화면 캡처를 흉내 내지 않는다. 기존 앱 닫기·서버 세션 종료·고정 기능을 유지한다. 뒤로는 열린 다이얼로그와 메뉴를 먼저 닫고, 이후 최근 방문한 앱 화면으로 돌아간다. 닫힌 앱은 건너뛰며 기록이 없으면 홈으로 이동한다. 방문 기록은 현재 페이지 메모리에 최대 50개 유지하고 외부 브라우저 방문 기록을 변경하지 않는다.
-
-메모장 앱(`notes`)은 앱 목록/검색에서 열 수 있으며 사용자가 홈과 Dock에 추가한다. 기존 홈 배치는 자동 변경하지 않는다. 조직·프로젝트 폴더와 8개 문서 템플릿은 [메모장 안내](notes.md)를 따른다.
-
-## Tailwind 전역 UI와 모바일 탐색
-
-홈·로그인·오류 화면은 `vendor/workspace-ui.css`를 사용한다. `tools/ui/workspace.css`에서 Tailwind CSS 4로 빌드하며 CDN을 사용하지 않는다. `npm ci --prefix tools/ui` 후 `npm run build --prefix tools/ui`를 실행하고 생성 CSS도 함께 반영한다. 색상 토큰은 기존 밝은/어두운 테마를 공유한다. 기존 기능별 배치 CSS는 base 레이어로 유지하고 새 공통 스타일은 Tailwind 유틸리티와 `@apply`로 작성한다. Preflight는 앱과 내장 에디터의 기존 초기화 스타일 보존을 위해 제외한다.
-
-중립적인 표면 색상, 얇은 테두리, 공통 모서리와 버튼 간격을 사용한다. 800px 이하에서는 메모장·드라이브·파일 탐색·IDE 패널을 본문 상단에 펼치지 않고 좌측 모달 사이드바로 표시한다. IDE의 Git/Codex 패널은 우측에서 열린다. 앱 목록도 모바일에서는 좌측에서 열린다. 배경은 약하게 흐려지고 이동 감소 설정에서는 등장 애니메이션을 끈다.
-
-`js/drawers.js`는 원래 패널 DOM을 해당 앱 내부의 네이티브 dialog로 이동한다. 문서 초안과 이벤트 연결을 보존한다. 닫기·Escape·배경 클릭·화면 전환·화면 크기 변경 시 복원하며 포커스와 배경 스크롤을 되돌린다. `tools/launcher/drawers-test.cjs`는 상태 보존과 복원을, `responsive-test.cjs`는 생성된 CSS의 반응형 규칙을 검사한다. 테스트 실행 전 `tools/ui` 의존성도 설치한다. 실제 브라우저 렌더링과 터치 검증은 별도로 필요하다.
+`npm ci --prefix tools/ui`, `npm run build --prefix tools/ui`로 Tailwind 4 bundle을 생성한다. Preflight는 내장 editor의 스타일 보존을 위해 제외한다. 공통 색상과 typography는 [디자인 시스템](design-system.md)을 따른다.

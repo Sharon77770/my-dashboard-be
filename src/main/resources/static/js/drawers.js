@@ -34,7 +34,7 @@ window.WorkspaceDrawers=(()=>{
  function scan(){
   if(disposed)return;
   addTrigger(document.querySelector('.cloud-header'),'.cloud-sidebar','드라이브');
-  document.querySelectorAll('.file-layout').forEach(layout=>{if(layout.querySelector('aside'))addTrigger(layout,'.file-layout aside','파일 탐색');});
+  document.querySelectorAll('.file-layout').forEach(layout=>{if(layout.querySelector('aside'))addTrigger(layout.closest('.tool-view')?.querySelector('.tool-bar'),'.file-layout aside','파일 탐색');});
   document.querySelectorAll('[data-notes-action="sidebar"],[data-pane="explorer"],[data-pane="inspector"]').forEach(button=>{button.setAttribute('aria-haspopup','dialog');if(!button.hasAttribute('aria-expanded'))button.setAttribute('aria-expanded','false');});
  }
  document.addEventListener('click',event=>{

@@ -44,7 +44,7 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  d.querySelector('.studio-connect').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();
  assert.deepEqual(calls.slice(0,3).map(c=>c.action),['setup','list','git-status']);
  assert.ok(calls.slice(0,3).every(c=>c.deviceId==='local'));
- assert.equal(d.querySelector('.studio-connection').textContent,'서버 자체 · 로컬 실행');
+ assert.equal(d.querySelector('.studio-connection').textContent,'서버 자체 · 로컬 편집');
  assert.equal(d.querySelector('.studio-workbench').hidden,false);
  assert.match(d.querySelector('#studio-changes').textContent,/해결이 필요한 충돌/);assert.match(d.querySelector('#studio-changes').textContent,/커밋에 포함될 변경/);assert.match(d.querySelector('#studio-changes').textContent,/작업 폴더 변경/);assert.equal(d.querySelector('[data-studio="git-stage-all"]')!==null,true);
  click('[data-studio="folder-options"]');await tick();assert.equal(d.querySelector('#studio-folder-options option').value,'/app/data/files/project');assert.match(d.querySelector('#studio-folder-status').textContent,/폴더를 검색/);

@@ -11,10 +11,11 @@
 </head>
 <body class="login-page">
   <main class="login-card">
-    <p class="eyebrow" th:text="${status}">오류</p>
+    <div class="brand-mark" aria-hidden="true">◈</div>
+    <p th:text="${status}">오류</p>
     <h1>요청을 완료하지 못했습니다.</h1>
-    <p class="muted">페이지를 다시 열어 주세요. 로그인이 만료되었다면 다시 로그인해 주세요.</p>
-    <a th:href="@{/}">대시보드로 이동</a>
+    <p class="muted">로그인 상태를 확인하고 다시 시도해 주세요.</p>
+    <a th:href="@{/}">Workspace로 돌아가기</a>
   </main>
 </body>
 </html>

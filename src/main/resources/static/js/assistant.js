@@ -94,13 +94,28 @@
     }
   }
 
+  function recordMcpCall(calls, item) {
+    if (item?.type !== 'mcpToolCall' || typeof item.server !== 'string' || typeof item.tool !== 'string'
+        || !item.server || !item.tool) return;
+    const existing = item.id ? calls.find(call => call.id === item.id) : null;
+    if (existing) existing.status = item.status || existing.status;
+    else if (calls.length < 30) calls.push({id: item.id || '', server: item.server.slice(0, 100),
+      tool: item.tool.slice(0, 120), status: item.status || ''});
+  }
+
+  function mcpCallsFromItems(items) {
+    const calls = [];
+    for (const item of items || []) recordMcpCall(calls, item);
+    return calls;
+  }
+
   function renderConversation() {
     const interactionCards = [...messages.querySelectorAll('.assistant-interaction')];
     messages.replaceChildren();
     if (!conversation.length) {
       const welcome = document.createElement('div');
       welcome.className = 'assistant-welcome';
-      welcome.innerHTML = '<span class="assistant-welcome-mark">✦</span><h2>대시보드에서 무엇을 도와드릴까요?</h2><p>일정과 노트, 서버 GitHub 저장소를 확인하고 대시보드 화면을 열 수 있어요.</p><div class="assistant-suggestions"><button type="button" data-assistant-prompt="오늘 일정 보여줘">오늘 일정 보기</button><button type="button" data-assistant-prompt="내 GitHub 저장소를 보여줘">GitHub 저장소</button><button type="button" data-assistant-prompt="최근 노트를 찾아줘">노트 찾기</button></div>';
+      welcome.innerHTML = '<span class="assistant-welcome-mark">✦</span><h2>무엇을 함께 처리할까요?</h2><p>일정과 메모, GitHub 작업을 한 대화에서 조회·작성·수정·삭제할 수 있어요.</p><div class="assistant-suggestions"><button type="button" data-assistant-prompt="오늘 일정과 관련 메모를 함께 정리해 줘">오늘 할 일 정리</button><button type="button" data-assistant-prompt="내 GitHub 저장소와 열린 이슈를 요약해 줘">GitHub 작업 보기</button></div>';
       messages.append(welcome);
       messages.append(...interactionCards);
       return;
@@ -116,6 +131,17 @@
       label.textContent = entry.role === 'user' ? '나' : '대시보드 도우미';
       const body = document.createElement('div');
       body.className = 'assistant-message-body';
+      article.append(label);
+      if (entry.role === 'assistant' && entry.notices?.length) {
+        const notices = document.createElement('div');
+        notices.className = 'assistant-message-notices';
+        for (const notice of entry.notices) {
+          const line = document.createElement('div');
+          window.AssistantMarkdown.render(line, notice);
+          notices.append(line);
+        }
+        article.append(notices);
+      }
       if (entry.pending && !entry.text) {
         const progress = document.createElement('span');
         progress.className = 'assistant-progress';
@@ -136,7 +162,28 @@
         if (entry.role === 'assistant') window.AssistantMarkdown.render(body, entry.text);
         else body.textContent = entry.text;
       }
-      article.append(label, body);
+      article.append(body);
+      if (entry.role === 'assistant' && entry.mcpCalls?.length) {
+        const report = document.createElement('details');
+        report.className = 'assistant-tool-report';
+        const heading = document.createElement('summary');
+        heading.textContent = `실제 MCP 호출 · ${entry.mcpCalls.length}개${entry.mcpCalls.length === 30 ? ' (최대 30개 표시)' : ''}`;
+        const list = document.createElement('ul');
+        for (const call of entry.mcpCalls) {
+          const row = document.createElement('li');
+          const name = document.createElement('code');
+          name.textContent = `${call.server} / ${call.tool}`;
+          row.append(name);
+          if (call.status === 'failed') {
+            const state = document.createElement('span');
+            state.textContent = ' · 실패';
+            row.append(state);
+          }
+          list.append(row);
+        }
+        report.append(heading, list);
+        article.append(report);
+      }
       if (entry.role === 'user' && Array.isArray(entry.attachments) && entry.attachments.length) {
         const files = document.createElement('small');
         files.className = 'assistant-message-files';
@@ -310,11 +357,14 @@
   function conversationFromThread(thread) {
     const entries = [];
     for (const turn of thread.turns || []) {
+      let lastAssistant = null;
       for (const item of turn.items || []) {
         if ((item.type === 'userMessage' || item.type === 'agentMessage') && item.text) {
           entries.push({ role: item.type === 'userMessage' ? 'user' : 'assistant', text: item.text });
+          if (item.type === 'agentMessage') lastAssistant = entries[entries.length - 1];
         }
       }
+      if (lastAssistant) lastAssistant.mcpCalls = mcpCallsFromItems(turn.items);
       if (turn.error) entries.push({ role: 'assistant', text: turn.error });
     }
     return entries.slice(-60);
@@ -517,11 +567,16 @@
         const connectionResult = await runJob('codex-connections');
         const dashboardMcp = (connectionResult.assistant?.connections || []).find(item => item.name === 'personal-dashboard');
         // Threadless discovery can return null runtimeStatus even with a live tool catalog.
+        const requiredTools = ['list_apps', 'list_calendar_events', 'create_calendar_event',
+          'update_calendar_event', 'delete_calendar_event', 'list_notes', 'read_note', 'create_note',
+          'append_note', 'update_note_metadata', 'replace_note_text', 'delete_note',
+          'github.get_repository', 'github.update_repository', 'github.update_release',
+          'github.delete_repository', 'github.delete_release'];
         if (!dashboardMcp || dashboardMcp.error
             || (dashboardMcp.runtimeStatus != null && dashboardMcp.runtimeStatus !== 'connected')
-            || !dashboardMcp.tools?.includes('list_calendar_events')) {
+            || !requiredTools.every(name => dashboardMcp.tools?.includes(name))) {
           const detail = dashboardMcp?.error ? ' (' + dashboardMcp.error + ')' : '';
-          throw new Error('대시보드 MCP 일정 도구 연결에 실패했습니다. 도구 준비를 다시 실행해 주세요.' + detail);
+          throw new Error('대시보드 비서 도구 연결에 실패했습니다. 도구 준비를 다시 실행해 주세요.' + detail);
         }
         needsMcpRepair = false;
         const modelResult = await runJob('codex-models');
@@ -649,12 +704,19 @@
       setStatus('Codex가 생각하고 있어요…');
     }
     if (update.kind === 'item' && update.item?.type === 'mcpToolCall') {
+      const answer = conversation[responseIndex];
+      if (answer?.role === 'assistant') recordMcpCall(answer.mcpCalls ||= [], update.item);
       setResponsePhase(responseIndex, 'tools');
       setStatus('대시보드 정보를 확인하고 있어요…');
     }
     if (update.kind === 'item' && update.item?.type === 'agentMessage') {
       const answer = conversation[responseIndex];
       if (!answer || answer.role !== 'assistant') return;
+      if (update.item.id && answer.activeMessageId && answer.activeMessageId !== update.item.id) {
+        if (answer.text) (answer.notices ||= []).push(answer.text);
+        answer.text = '';
+      }
+      if (update.item.id) answer.activeMessageId = update.item.id;
       if (!update.item.text) {
         setResponsePhase(responseIndex, 'writing');
         setStatus('답변을 작성하고 있어요…');
@@ -698,9 +760,11 @@
       }
       const message = conversation[responseIndex];
       message.pending = false;
+      const turns = answer.thread?.turns || [];
+      const items = turns.length ? turns[turns.length - 1].items || [] : [];
+      const recordedCalls = mcpCallsFromItems(items);
+      if (recordedCalls.length) message.mcpCalls = recordedCalls;
       if (!message.text) {
-        const turns = answer.thread?.turns || [];
-        const items = turns.length ? turns[turns.length - 1].items || [] : [];
         const finalMessage = items.slice().reverse().find(item => item.type === 'agentMessage');
         message.text = finalMessage?.text || '';
       }
@@ -962,6 +1026,12 @@
   messages.addEventListener('click', event => {
     const suggestion = event.target.closest('[data-assistant-prompt]');
     if (suggestion) sendMessage(suggestion.dataset.assistantPrompt).catch(error => runtime.toast(error.message));
+  });
+  panel.querySelector('.assistant-quick-actions').addEventListener('click', event => {
+    const action = event.target.closest('[data-assistant-draft]');
+    if (!action) return;
+    prompt.value = action.dataset.assistantDraft;
+    prompt.focus();
   });
   setInterval(() => {
     if (opened && panel.classList.contains('active') && !document.hidden && !busy) load(true).catch(() => {});

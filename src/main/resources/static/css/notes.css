@@ -16,3 +16,45 @@
 #notes .bn-container{--bn-colors-editor-text:var(--text-primary);--bn-colors-editor-background:var(--bg-surface);--bn-colors-menu-text:var(--text-primary);--bn-colors-menu-background:var(--bg-elevated);--bn-colors-hovered-background:var(--bg-surface-hover);--bn-colors-hovered-text:var(--text-primary);--bn-colors-border:var(--border-subtle);--bn-font-family:inherit}
 #notes .bn-editor{padding-inline:0;background:transparent;font-size:15px;line-height:1.75;min-height:280px}#notes .bn-editor a{color:var(--accent)}#notes .bn-editor:focus-visible{outline:none}
 @media(max-width:800px){#notes.active{grid-template-columns:minmax(0,1fr)}.notes-sidebar{display:none}#notes.notes-sidebar-open{grid-template-columns:minmax(0,1fr)}#notes.notes-sidebar-open .notes-sidebar{display:flex;max-height:45dvh;border-right:0;border-bottom:1px solid var(--border-subtle)}.notes-sidebar-toggle{display:inline-flex}.notes-document,.notes-welcome{padding:24px 28px 100px}.notes-title{font-size:28px}.notes-toolbar{padding:8px;gap:6px}.notes-tree-menu{opacity:1}.notes-template-grid{grid-template-columns:1fr}.notes-toolbar>[data-notes-path]{min-width:80px}.notes-page-icon{font-size:40px}}
+
+/* Notes keeps a full reading column on phones; structured blocks may use the viewport width. */
+.notes-main{background:var(--bg-app)}
+.notes-toolbar{min-height:42px;flex-wrap:nowrap;padding:5px 10px}
+.notes-document{max-width:860px;padding:24px 30px 100px}
+.notes-page-icon{font-size:27px;margin-bottom:10px}
+.notes-title{font-size:27px;min-height:42px}
+.notes-editor-hint{font-size:10px;margin-bottom:14px}
+.notes-overflow{position:relative}
+.notes-overflow>summary{list-style:none;display:grid;place-items:center;min-width:32px;min-height:32px;cursor:pointer}
+.notes-overflow>summary::-webkit-details-marker{display:none}
+.notes-overflow>div{position:absolute;z-index:35;top:100%;right:0;display:grid;width:max-content;padding:5px;border:1px solid var(--border-default);background:var(--bg-elevated);box-shadow:var(--shadow-soft)}
+.notes-overflow>div button{justify-content:flex-start;min-height:34px}
+#notes .bn-editor{font-size:13px;line-height:1.6}
+#notes [data-notes-editor] pre,#notes [data-notes-editor] table{max-width:100%;overflow-x:auto}
+#notes [data-notes-editor] pre{font:11.5px/1.45 var(--font-mono);white-space:pre}
+#notes [data-notes-editor] table{display:block;width:max-content;min-width:100%}
+#notes [data-notes-editor] img{max-width:100%;height:auto}
+@media(max-width:800px){
+ #notes.active{display:grid;grid-template-columns:minmax(0,1fr);height:100%;min-height:0}
+ #notes .notes-main{min-height:0}
+ .notes-toolbar{padding:3px 8px;min-height:40px;gap:2px}
+ .notes-toolbar>[data-notes-path]{flex:1;min-width:0;font-size:11px}
+ [data-notes-document-actions]{display:flex;flex-wrap:nowrap;gap:0}
+ .notes-toolbar button,.notes-overflow>summary{min-width:36px;min-height:36px;padding:4px}
+ .notes-toolbar [data-notes-action=save],.notes-toolbar [data-notes-action=reload]{font-size:0}
+ .notes-toolbar [data-notes-action=save]::before{content:'✓';font-size:17px}
+ .notes-toolbar [data-notes-action=reload]::before{content:'↻';font-size:17px}
+ .notes-document,.notes-welcome{width:100%;max-width:none;padding:14px 12px calc(24px + env(safe-area-inset-bottom))}
+ .notes-page-icon{font-size:24px;margin-bottom:6px}
+ .notes-title{font-size:21px;min-height:36px;padding-bottom:3px}
+ .notes-editor-hint{display:none}
+ #notes .bn-editor{font-size:12.5px;line-height:1.55;min-height:220px}
+ #notes .bn-block-content,#notes .bn-inline-content{min-width:0}
+ #notes [data-notes-editor] :is(pre,table,blockquote,figure){margin-inline:-10px;max-width:calc(100% + 20px)}
+ #notes [data-notes-editor] pre{width:calc(100% + 20px);padding:8px 10px;overflow-x:auto}
+ #notes [data-notes-editor] table{display:block;overflow-x:auto;max-width:calc(100% + 20px)}
+ #notes [data-notes-editor] blockquote{padding-inline:10px}
+ #notes [data-notes-editor] h1{font-size:21px}#notes [data-notes-editor] h2{font-size:18px}#notes [data-notes-editor] h3{font-size:15.5px}
+ .notes-sidebar-toggle{display:inline-flex}
+}
+@media(max-width:390px){.notes-document,.notes-welcome{padding-inline:10px}}

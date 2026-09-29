@@ -1,0 +1,27 @@
+# Service Catalog
+
+Service는 앱 또는 운영 서비스의 이름, 아이콘, 환경을 소유한다. GitHub, 장비, Docker, Telemetry를 복제하지 않는다. `service_resources`의 타입과 참조를 통해 기존 모듈에 연결한다.
+
+```text
+Service
+ ├─ GitHub Repository / Organization → GithubService → GithubCliAdapter
+ ├─ Device / Docker Container        → CatalogService / DeviceOperations
+ ├─ Telemetry                        → TelemetryService
+ ├─ Endpoint                         → 사용자 브라우저 HTTP(S) 링크
+ ├─ File                             → 기존 Files 화면의 위치
+ └─ Database                         → DatabaseStudioService의 연결 ID
+```
+
+`ServiceCatalogService`는 저장된 연결을 해석하고 Health, Activity, Context를 만든다. `ServiceDto.Context`는 HTTP와 MCP `get_service_context`가 함께 사용한다. MCP는 기존 비공개 bearer 인증을 거치고 OWNER 권한으로 읽는다. UI의 Ask Codex는 선택 서비스 ID를 입력창에 넣어 이 도구 사용을 요청한다. 자격 증명은 Context에 포함하지 않는다. DATABASE binding은 기존 연결 ID를 검증하며 Context에는 이름·종류·모드·접속 여부만 넣는다.
+
+## 연결과 삭제
+
+장비와 Telemetry는 기존 ID를 선택한다. GitHub 저장소는 접근 가능한 `owner/name`을 기존 GithubService로 확인한다. Docker는 기존 장비의 컨테이너 목록에서 선택하고 DeviceOperations로 존재를 검증한다. 컨테이너 재시작도 기존 DeviceOperations를 사용한다. 목록 조회 실패는 502로 응답한다. Endpoint는 HTTP(S) URL이며 서버에서 자동 호출하지 않는다. File은 절대 경로와 선택한 기존 장비 ID를 연결하고 Files 화면으로 전달한다. 같은 Service 안의 같은 type/reference/device 조합은 유일하다.
+
+장비, Telemetry 또는 Database Connection이 삭제되면 연결은 남고 `orphaned=true`로 반환된다. 사용자가 설정에서 해제하거나 다시 유효한 리소스를 선택할 수 있다. Service 삭제는 그 Service의 연결과 카탈로그 활동만 삭제하며 기존 리소스는 삭제하지 않는다. GitHub 권한 변경 또는 외부 삭제는 Context에서 해당 항목을 건너뛰며 다른 데이터 조회를 유지한다.
+
+## 상태와 활동
+
+Device의 ONLINE/REACHABLE은 HEALTHY, 연결 실패는 DOWN이다. Docker `up`은 HEALTHY, 목록에 있고 실행 중이 아니면 DOWN, 조회 실패나 찾지 못한 컨테이너는 UNKNOWN이다. Telemetry의 `Receiving data`는 HEALTHY, 그 외는 UNKNOWN이다. 최근 GitHub Action 성공은 HEALTHY, 실패는 DEGRADED, 미확인은 UNKNOWN이다. Database 연결 테스트 성공은 HEALTHY, 실패는 DEGRADED다. Endpoint는 HTTP probe를 하지 않아 UNKNOWN이다. Orphan도 UNKNOWN이다. 연결하지 않은 타입은 평가하지 않는다. 운영 신호(Device/Docker)에 DOWN이 있고 다른 운영 신호가 HEALTHY면 DEGRADED, 그렇지 않으면 DOWN이다. 운영 신호가 정상이면서 UNKNOWN이 섞이거나 DEGRADED 신호가 있으면 DEGRADED다. HEALTHY만 있으면 HEALTHY, 관측 신호가 없거나 UNKNOWN만 있으면 UNKNOWN이다. GitHub Actions 실패만으로 서비스를 DOWN으로 판단하지 않는다.
+
+활동은 `service_activity`의 연결/수정 이벤트와 기존 GitHub commit/Actions, 장비 최근 작업, Telemetry 마지막 수신 시각을 시간순으로 합친다. Event는 source, type, timestamp, severity, title, metadata를 가진다. 추후 Event Bus가 들어오면 같은 모델을 영속 이벤트 입력으로 확장할 수 있다. Notification과 Automation은 이번 단계에 포함되지 않는다.

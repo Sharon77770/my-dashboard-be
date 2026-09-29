@@ -16,15 +16,17 @@ Compose는 Tailscale, 대시보드, guacd, Chromium 브라우저를 함께 실�
 
 ## 구현 기능
 
-- 홈: 앱·폴더·위젯·여러 페이지를 배치하는 Launcher, Dock, App Drawer. 계정별 브라우저에 배치를 저장합니다. 최근 작업과 클립보드는 독립 앱으로 유지합니다.
+- 홈: 이어하기·서비스·오늘 일정·인프라를 보여 주는 Command Center입니다. 기존 앱·폴더·위젯·페이지·고정 앱 배치는 계정별 브라우저에 그대로 저장되며 편집할 수 있습니다. App Library와 명령 Palette로 앱을 엽니다. [새 화면 구조](docs/design-system.md).
 - 장비: 추가/수정/삭제, SSH/SFTP/RDP/VNC 프로필, 고정, CPU/RAM/DISK 계측, Docker/GPU 조회, Docker start/stop/restart, Wake-on-LAN.
 - 파일: 서버 및 SFTP 루트 탐색, 스트리밍 업로드/다운로드, 새 폴더, 이름 변경, 파일/빈 폴더 삭제, 경로 즐겨찾기.
 - 터미널: 서버 PTY 또는 SSH 셸, 실제 입력/출력, 크기 조절, 독립 세션, 재연결/종료.
 - 원격: guacd RDP/VNC 화면, 마우스/키보드/터치패드, 전체 화면, 텍스트 클립보드 전달.
 - 앱: HTTP(S) URL 등록/수정/삭제/고정. 별도 브라우저 설정 창에서 실행 위치 선택.
-- 작업 공간: 실행 탭 열기/고정/닫기/복원, 서버 검색, Ctrl/Cmd+K, 최근 파일 위치, 모바일 앱 전환기.
+- 작업 공간: 실행 탭 열기/고정/닫기/복원, 서버 검색, Ctrl/Cmd+K, 최근 파일 위치, 모바일 앱 전환기. Desktop은 activity rail, Mobile은 compact app bar와 작업 탐색을 사용합니다.
 - 설정: 다크/라이트, 화면 밀도, 터미널 글자 크기, 기본 클립보드 만료 시간. SQLite에 저장합니다.
 - GitHub: 서버 `gh` 인증을 사용해 USER/Organization Owner, 저장소, 이슈, PR, Actions, Release와 개발 컨텍스트를 조회합니다. 같은 `GithubService`를 대시보드 REST와 Codex MCP 도구가 사용합니다. [구조·도구·권한·확장 방법](docs/github.md).
+- Services: 기존 GitHub 저장소·조직, 장비·Docker, Telemetry, URL, 파일 위치를 하나의 서비스에 연결합니다. Launcher의 Services 앱과 Home 위젯에서 상태를 보고, 상세 Workspace에서 기존 앱과 Codex로 이동합니다. [Service Catalog 구조와 상태 규칙](docs/service-catalog.md).
+- Database Studio: PostgreSQL, MySQL/MariaDB, 서버 파일 영역의 SQLite 연결을 등록하고 schema/table, 제한된 데이터 페이지, SQL 실행·취소·이력·즐겨찾기를 다룹니다. 기존 CredentialVault로 비밀번호를 암호화하며 Service Catalog에 연결할 수 있습니다. [운영·보안 안내](docs/database-studio.md).
 
 ## 브라우저 설정
 
@@ -78,6 +80,7 @@ Wake는 설정한 MAC/브로드캐스트 주소로 UDP 패킷을 보냅니다. D
 | NAS_USERNAME / NAS_PASSWORD | 없음 | dashboard 계정과 분리된 Samba 계정 |
 | NAS_SMB_HOST | 없음 | 클라이언트가 접속할 LAN/VPN 이름 또는 IP |
 | NAS_SMB_BIND_ADDRESS | 없음 | TCP 445를 게시할 LAN/VPN 인터페이스 IP |
+| NAS_SMB_HOST_PORT | 445 | SMB 호스트 포트. Windows 로컬 테스트에서 445가 점유되면 1445 등으로 변경 |
 | CREDENTIAL_KEY_PATH | ./data/credential.key | 영속 32바이트 암호화 키 파일 |
 | UPLOAD_MAX_SIZE | 1GB | 파일 및 요청 업로드 제한 |
 | GUACD_HOST / GUACD_PORT | localhost / 4822 | 원격 게이트웨이, Compose host는 127.0.0.1 |

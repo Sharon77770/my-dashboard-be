@@ -11,7 +11,12 @@
 @import "../../src/main/resources/static/css/planner.css" layer(base);
 @import "../../src/main/resources/static/css/studio.css" layer(base);
 @import "../../src/main/resources/static/css/studio-codex.css" layer(base);
-@import "../../src/main/resources/static/css/os-shell.css" layer(base);
+@import "../../src/main/resources/static/css/telemetry.css" layer(base);
+@import "../../src/main/resources/static/css/assistant.css" layer(base);
+@import "../../src/main/resources/static/css/github.css" layer(base);
+@import "../../src/main/resources/static/css/services.css" layer(base);
+@import "../../src/main/resources/static/css/databases.css" layer(base);
+@import "../../src/main/resources/static/css/shell.css" layer(base);
 @source "../../src/main/resources/templates";
 @source "../../src/main/resources/static/js";
 
@@ -30,38 +35,51 @@
 @layer components {
 /* Shared product presentation: quiet surfaces, consistent controls and overlay navigation. */
 button,.button,input,select,textarea{border-radius:var(--radius-sm);}
-.panel,.device-card,.home-item.widget,.cloud-items,.studio-workbench{border-radius:var(--radius-lg);}
-.page-head h1,.studio-head h1,.launcher-head h1{@apply text-xl [letter-spacing:-.025em] font-semibold;}
+.page-head h1,.studio-head h1,.launcher-head h1{@apply [letter-spacing:-.025em] font-semibold;}
 .dialog,.editor-dialog{border-radius:var(--radius-xl);@apply border-subtle shadow-panel;}
 dialog::backdrop{@apply [background:var(--drawer-overlay)] [backdrop-filter:blur(4px)] [-webkit-backdrop-filter:blur(4px)];}
 .launcher-home{@apply bg-app;}
 .launcher-shortcut .launcher-icon{border-radius:var(--radius-md);@apply shadow-none;}
-.launcher-dock{border-radius:var(--radius-xl);@apply shadow-panel;}
-.os-statusbar,.os-tools,.os-navigation{@apply bg-sidebar;}
-.cloud-selection{@apply bg-transparent [border-bottom:1px_solid_var(--border-subtle)] rounded-none [padding:4px_0_12px];}
+.launcher-dock{@apply shadow-none;}
 .cloud-sidebar button{@apply justify-start border-0 bg-transparent;}.cloud-sidebar button:hover{@apply bg-surface-hover;}
 .notes-tree-row.active,.studio-file-row.selected{@apply bg-selection;}
 .ui-drawer-trigger{@apply hidden;}
 .ui-side-drawer{@apply fixed [inset:0_auto_0_0] m-0 p-0 [width:min(360px,calc(100vw_-_48px))] h-dvh max-w-none max-h-none border-0 [border-right:1px_solid_var(--border-subtle)] rounded-none bg-sidebar text-ink shadow-panel overflow-hidden;}
 .ui-side-drawer[open]{@apply flex flex-col [animation:drawer-enter-left_.22s_cubic-bezier(.2,.8,.2,1)];}
 .ui-side-drawer[data-side=right]{@apply [inset:0_0_0_auto] [border-right:0] [border-left:1px_solid_var(--border-subtle)] [width:min(440px,calc(100vw_-_40px))] [animation-name:drawer-enter-right];}
+.ui-side-drawer[data-side=bottom]{@apply [inset:auto_0_0_0] w-full h-auto [max-height:min(70dvh,440px)] [border-right:0] [border-top:1px_solid_var(--border-subtle)] [border-radius:12px_12px_0_0] [animation-name:drawer-enter-bottom];}
 .ui-drawer-head{@apply flex items-center justify-between gap-3 [padding:calc(12px_+_env(safe-area-inset-top))_16px_12px] [border-bottom:1px_solid_var(--border-subtle)] shrink-0;}
+.ui-side-drawer[data-side=bottom] .ui-drawer-head{@apply [padding:10px_12px];}
 .ui-drawer-head button{@apply bg-transparent border-0 min-w-9 min-h-9 [font-size:22px];}.ui-drawer-head strong{@apply [font-size:13px] font-semibold;}
 .ui-side-drawer>.notes-sidebar,.ui-side-drawer>.cloud-sidebar,.ui-side-drawer>.studio-explorer,.ui-side-drawer>.studio-inspector,.file-layout .ui-side-drawer>aside{@apply flex! flex-col flex-1 min-h-0 max-h-none w-full border-0 overflow-auto [padding-bottom:env(safe-area-inset-bottom)];}
 .ui-side-drawer>.cloud-sidebar{@apply items-stretch gap-2.5 p-4;}.ui-side-drawer>.cloud-sidebar p{@apply mt-auto w-auto;}.ui-side-drawer .notes-tree-menu{@apply opacity-100;}
 @keyframes drawer-enter-left{from{transform:translateX(-100%);opacity:.6}to{transform:translateX(0);opacity:1}}
 @keyframes drawer-enter-right{from{transform:translateX(100%);opacity:.6}to{transform:translateX(0);opacity:1}}
+@keyframes drawer-enter-bottom{from{transform:translateY(100%);opacity:.6}to{transform:translateY(0);opacity:1}}
 @media(max-width:800px){
  .ui-drawer-trigger,.notes-sidebar-toggle{@apply inline-flex min-w-9 min-h-9 justify-center bg-transparent border-0;}
  #notes.active,#notes.notes-sidebar-open{@apply [grid-template-columns:minmax(0,1fr)] [grid-template-rows:minmax(0,1fr)];}
  #notes>.notes-sidebar,#notes.notes-sidebar-open>.notes-sidebar,#cloud>.cloud-sidebar{@apply hidden;}
  #cloud.active{@apply [grid-template-rows:minmax(0,1fr)];}
- .file-layout{@apply relative;}.file-layout>aside{@apply hidden;}.file-layout>.ui-drawer-trigger{@apply [align-self:flex-start] shrink-0;}
- .studio-workbench{@apply [grid-template-columns:minmax(0,1fr)]!;}.studio-workbench>.studio-explorer,.studio-workbench>.studio-inspector,.studio-workbench>.ui-splitter{@apply hidden!;}.studio-workbench>.studio-editor{@apply flex! [grid-column:1];}
- .launcher-dialog#app-drawer{@apply fixed m-0 max-w-none [inset:0_auto_0_0] [width:min(380px,calc(100vw_-_40px))] h-dvh max-h-none rounded-none [border-right:1px_solid_var(--border-subtle)] [animation:drawer-enter-left_.22s_cubic-bezier(.2,.8,.2,1)];}
- #app-drawer .drawer-apps{@apply [grid-template-columns:repeat(3,minmax(0,1fr))] p-4 gap-3;}
- .notes-toolbar,.cloud-toolbar{@apply gap-1.5;}.notes-document,.notes-welcome{@apply px-6;}.cloud-main{@apply p-3;}
+ .file-layout{@apply relative [grid-template-columns:minmax(0,1fr)];}.file-layout>aside{@apply hidden;}.tool-bar>.file-places-trigger{@apply shrink-0;}
+ .notes-toolbar{@apply gap-1.5;}
  .dialog:not(#app-drawer):not(.ui-side-drawer){@apply [max-height:calc(100dvh_-_32px)];}
+}
+@media(max-width:700px){.tool-bar>.file-places-trigger{@apply grid place-items-center min-w-11 min-h-11;}}
+@media(max-width:700px){
+ #editor-dialog{position:fixed;inset:auto 0 0;margin:0;width:100%;max-width:none;max-height:calc(var(--viewport-height,100dvh) - env(safe-area-inset-top) - 8px);border-radius:12px 12px 0 0;border-inline:0;border-bottom:0;overflow:hidden;}
+ #editor-dialog[open]{display:flex;flex-direction:column;}
+ #editor-dialog .dialog-head{position:static;flex:none;min-height:48px;padding:4px 12px;}
+ #editor-dialog .dialog-head h2{min-width:0;margin:0;font-size:14px;overflow-wrap:anywhere;}
+ #editor-dialog .dialog-head>button{flex:none;min-width:44px;min-height:44px;padding:0;}
+ #editor-form{display:flex;flex-direction:column;flex:1;min-height:0;padding:0;overflow:hidden;}
+ #editor-fields{min-height:0;padding:12px;overflow:auto;overscroll-behavior:contain;}
+ #editor-fields label{gap:6px;margin-bottom:12px;}
+ #editor-fields input:not([type=checkbox]),#editor-fields select,#editor-fields textarea{font-size:16px;}
+ #editor-error{flex:none;margin:0;padding:8px 12px;overflow-wrap:anywhere;}
+ #editor-error:empty{display:none;}
+ #editor-form .dialog-actions{flex:none;gap:8px;margin:0;padding:8px 12px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--border-subtle);}
+ #editor-form .dialog-actions button{min-height:44px;min-width:72px;}
 }
 @media(prefers-reduced-motion:reduce){.ui-side-drawer[open],.launcher-dialog#app-drawer{@apply fixed m-0 max-w-none animate-none;}button,.button{@apply transition-none;}}
 
