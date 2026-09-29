@@ -46,6 +46,8 @@
 
 .assistant-window .assistant-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .assistant-window .assistant-brand > div { display: grid; gap: 2px; min-width: 0; }
+.assistant-window #assistant-delete-current { flex: 0 0 auto; min-height: 28px; padding: 3px 8px; border: 0; background: transparent; color: var(--text-muted); font-size: 11px; }
+.assistant-window #assistant-delete-current:hover:not(:disabled),.assistant-history-head #assistant-delete-open:hover:not(:disabled) { color: var(--danger); }
 .assistant-window .assistant-mark,.assistant-window .assistant-welcome-mark { display: grid; place-items: center; flex: 0 0 auto; color: var(--accent); }
 .assistant-window .assistant-mark { width: 34px; height: 34px; border-radius:var(--radius-md); background: var(--accent-subtle); font-size: 18px; }
 .assistant-window-head strong { font-size: 13px; font-weight: 600; }
@@ -94,6 +96,19 @@
 .assistant-window .assistant-message-label { padding: 0 4px; color: var(--text-muted); font-size: 10px; }
 .assistant-window .assistant-message[data-role="user"] .assistant-message-label { text-align: right; }
 .assistant-window .assistant-message-body { color: var(--text-primary); font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.assistant-window .assistant-message[data-role="assistant"] .assistant-message-body { white-space: normal; }
+.assistant-window .assistant-message-body > :first-child { margin-top: 0; }
+.assistant-window .assistant-message-body > :last-child { margin-bottom: 0; }
+.assistant-window .assistant-message-body p, .assistant-window .assistant-message-body ul, .assistant-window .assistant-message-body ol, .assistant-window .assistant-message-body blockquote, .assistant-window .assistant-message-body pre { margin: 0 0 12px; }
+.assistant-window .assistant-message-body h1, .assistant-window .assistant-message-body h2, .assistant-window .assistant-message-body h3, .assistant-window .assistant-message-body h4, .assistant-window .assistant-message-body h5, .assistant-window .assistant-message-body h6 { margin: 18px 0 7px; font-size: 1.15em; font-weight: 650; line-height: 1.4; }
+.assistant-window .assistant-message-body ul, .assistant-window .assistant-message-body ol { padding-left: 24px; }
+.assistant-window .assistant-message-body li + li { margin-top: 3px; }
+.assistant-window .assistant-message-body blockquote { padding-left: 12px; border-left: 3px solid var(--border-subtle); color: var(--text-secondary); }
+.assistant-window .assistant-message-body pre { max-width: 100%; overflow-x: auto; padding: 12px; border-radius: var(--radius-md); background: var(--bg-elevated); white-space: pre; }
+.assistant-window .assistant-message-body :not(pre) > code { padding: 1px 4px; border-radius: 4px; background: var(--bg-elevated); }
+.assistant-window .assistant-message-body a { color: var(--accent); text-decoration: underline; }
+.assistant-window .assistant-message-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 0 0 12px; }
+.assistant-window .assistant-message-body th, .assistant-window .assistant-message-body td { padding: 6px 10px; border: 1px solid var(--border-subtle); text-align: left; white-space: nowrap; }
 .assistant-window .assistant-message[data-role="user"] .assistant-message-body { justify-self: end; max-width: 80%; padding: 10px 14px; border-radius: 14px 14px 4px 14px; background: var(--bg-elevated); }
 .assistant-window .assistant-message-files { justify-self:end; max-width:80%; color:var(--text-muted); font-size:10px; overflow-wrap:anywhere; }
 .assistant-window .assistant-message[data-pending="true"] .assistant-message-body { color: var(--text-muted); }
@@ -141,6 +156,24 @@
 .assistant-settings .assistant-model-bar label { display:grid; gap:6px; font-size:11px; color:var(--text-secondary); }.assistant-settings .assistant-model-bar select { width:100%; min-width:0; }
 .assistant-settings .assistant-limits { display:flex; gap:var(--space-2); align-items:center; font-size:11px; color:var(--text-secondary); }.assistant-settings #assistant-limits-text { flex:1; min-width:0; }.assistant-settings .assistant-limits button { min-height:28px; }
 .assistant-settings-actions { display:flex; flex-wrap:wrap; gap:var(--space-2); }.assistant-settings-actions button { min-height:34px; }
+.assistant-delete-dialog { width:min(520px,calc(100% - 24px)); max-height:min(720px,calc(100dvh - 32px)); padding:0; border:1px solid var(--border-subtle); border-radius:var(--radius-xl); background:var(--bg-app); color:var(--text-primary); box-shadow:var(--shadow); }
+.assistant-delete-dialog::backdrop { background:var(--overlay); }
+.assistant-delete-content { padding:16px 20px; }
+.assistant-delete-content > p { margin:0 0 12px; color:var(--text-secondary); font-size:12px; }
+.assistant-delete-list { max-height:min(390px,45dvh); overflow:auto; display:grid; gap:5px; }
+.assistant-delete-list > p { margin:10px 0; color:var(--text-muted); font-size:12px; }
+.assistant-delete-row { display:flex; align-items:center; gap:10px; min-width:0; padding:10px; border:1px solid var(--border-subtle); border-radius:var(--radius-md); background:var(--bg-surface); cursor:pointer; }
+.assistant-delete-row:has(input:checked) { border-color:var(--accent); background:var(--accent-subtle); }
+.assistant-delete-row input { flex:0 0 auto; }
+.assistant-delete-row span { display:grid; gap:3px; min-width:0; }
+.assistant-delete-row strong,.assistant-delete-row small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.assistant-delete-row strong { font-size:12px; }.assistant-delete-row small { color:var(--text-muted); font-size:10px; }
+.assistant-delete-content #assistant-delete-more { width:100%; margin:10px 0 0; }
+.assistant-delete-content #assistant-delete-status { min-height:16px; margin:10px 0 0; color:var(--text-secondary); }
+.assistant-delete-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:12px 20px; border-top:1px solid var(--border-subtle); }
+.assistant-delete-actions span { margin-right:auto; color:var(--text-muted); font-size:11px; }
+.assistant-delete-actions button { min-height:32px; font-size:11px; }
+.assistant-delete-actions #assistant-delete-selected { color:var(--danger); }
 
 @media (max-width: 700px) {
   .assistant-shell { display:block; position:relative; }

@@ -35,7 +35,7 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 | `src/main/resources/templates/` | Thymeleaf 로그인·대시보드·오류 |
 | `src/main/resources/static/css/workspace.css` | 앱 콘텐츠와 실행 화면 레이아웃 (테마는 design-system.css) |
 | `src/main/resources/static/js/workspace.js` | UI 조작, API/WS 전송과 화면 상태 |
-| `src/main/resources/static/js/assistant.js`, `css/assistant.css` | IDE와 분리된 대시보드 전용 Codex 대화 화면 |
+| `src/main/resources/static/js/assistant.js`, `js/assistant-markdown.js`, `css/assistant.css` | IDE와 분리된 대시보드 전용 Codex 대화 화면과 안전한 Markdown 표시 |
 | `src/main/resources/static/vendor/` | 자체 제공 xterm/Guacamole JS와 라이선스 |
 | `src/test/java/` | 인증·메타데이터·파일·실행 세션 테스트 |
 | `docker/browser/` | Chromium+VNC 이미지 및 진입 스크립트 |

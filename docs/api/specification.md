@@ -218,10 +218,10 @@ FileEntry: `{name:String,path:String,directory:boolean,size:long,modifiedAt:long
 ### GET /ws/runtime/{id} (WebSocket Upgrade)
 - OWNER 로그인과 같은 origin, 해당 로그인에서 생성한 핸들이 필요하다. query/body 없음. 성공 101 Upgrade.
 - 최초 1개 소켓만 attach 가능하다. remote/APP은 `guacamole` subprotocol, TERMINAL은 subprotocol 없음.
-- TERMINAL client->server JSON: `{type:"input",data:String}` 또는 `{type:"resize",columns:int,rows:int}`. columns는 20~300, rows는 5~120으로 clamp한다. 서버->client는 UTF-8 터미널 텍스트.
+- TERMINAL client->server JSON: `{type:"input",data:String}` 또는 `{type:"resize",columns:int,rows:int}`. columns는 20~300, rows는 5~120으로 clamp한다. 서버->client는 셸 연결과 입력 바인딩 완료 후 `{type:"ready"}` 텍스트 프레임을 먼저 보내고, 이후 UTF-8 터미널 출력을 보낸다. 클라이언트는 ready 수신 후 입력과 크기 변경을 전송한다.
 - REMOTE/APP 양방향은 Guacamole 1.6 프로토콜 instruction 문자열이다. 초기 빈 opcode는 터널 UUID, 내부 ping은 echo한다.
 - 한 메시지 최대 64KiB, 송신 buffer 1MiB, 10초 송신 제한. 초기 생성 요청의 viewport와 remote resize/scale에 따라 화면을 표시한다.
-- 연결/프로토콜 실패는 WS 1011과 일반 안내 문구. 계정/접속정보를 close reason에 포함하지 않는다.
+- 연결/프로토콜 실패는 WS 1011과 연결 유형별 안전한 안내 문구, 정상 셸 종료는 WS 1000과 종료 안내 문구를 보낸다. 계정/접속정보를 close reason에 포함하지 않는다. 핸드셰이크 실패로 close reason이 없으면 클라이언트는 로그인과 프록시 WebSocket 설정을 확인하도록 안내한다.
 - 소켓 종료·DELETE·로그아웃·로그인 만료·서버 종료는 리소스를 정리한다. UI 재연결은 새 POST로 새 핸들을 만든다.
 
 ## 외부 연동 계약
@@ -482,7 +482,7 @@ GitHub API 403/404와 네트워크 오류는 현재 CLI adapter에서 안전한 
 
 `codex-rate-limits` action은 Codex App Server의 `account/rateLimits/read`를 호출한다. 성공 시 `JobView.result.assistant.rateLimits`는 기간별 항목 배열이며 각 항목은 `name`(문자열, 필수), `windowDurationMins`(정수 또는 null), `usedPercent`(숫자 또는 null), `resetsAt`(Unix 초 정수 또는 null)을 포함한다. 계정에 사용량 정보가 없으면 빈 배열이다. 조회 실패는 job FAILED로 반환하며 도우미 대화 요청에는 영향을 주지 않는다. 인증되지 않은 요청은 기존 OWNER 경계에서 거절한다.
 
-도우미는 동일한 job 경로에서 `codex-threads`(선택 `query`, `cursor`; 응답 `assistant.threads[]`, `nextCursor`), `codex-thread-read`(필수 `threadId`; 응답 `assistant.thread`), `codex-thread-rename`(필수 `threadId`, `name` ≤200), `codex-thread-archive`(필수 `threadId`), `codex-login`, `codex-logout`을 사용한다. 각 job은 세션 소유권·CSRF 검사를 그대로 적용하고 완료 전에는 RUNNING 상태를 반환한다. `codex-run`의 `args.context`는 최대 16개이고 새 `upload` 항목은 `kind="upload"`, `name`(허용 텍스트 확장자, ≤200자), `content`(비어 있지 않은 UTF-8 텍스트, ≤64,000자)를 받는다. Python helper는 이름·크기·본문 합계 128,000자를 다시 검증한다. `image` 항목은 PNG/JPEG/WebP data URL ≤3,000,000자다. 전체 context 입력 크기는 4 MB 이하이며 초과 시 413, 형식 오류는 FAILED job의 400/413으로 전달한다. 파일 본문과 data URL은 응답·DB·브라우저 저장소에 보관하지 않는다.
+도우미는 동일한 job 경로에서 `codex-threads`(선택 `query`, `cursor`; 응답 `assistant.threads[]`, `nextCursor`), `codex-thread-read`(필수 `threadId`; 응답 `assistant.thread`), `codex-thread-rename`(필수 `threadId`, `name` ≤200), `codex-thread-archive`(필수 `threadId`), `codex-thread-delete`(필수 `threadId`; Codex App Server의 `thread/delete`로 영구 삭제, 성공 시 `result.ok=true`), `codex-login`, `codex-logout`을 사용한다. 각 job은 세션 소유권·CSRF 검사를 그대로 적용하고 완료 전에는 RUNNING 상태를 반환한다. 삭제는 선택한 작업 폴더의 세션만 허용하며 다른 폴더의 세션은 FAILED job의 403, Codex App Server 오류는 FAILED job의 502로 전달한다. `codex-run`의 `args.context`는 최대 16개이고 새 `upload` 항목은 `kind="upload"`, `name`(허용 텍스트 확장자, ≤200자), `content`(비어 있지 않은 UTF-8 텍스트, ≤64,000자)를 받는다. Python helper는 이름·크기·본문 합계 128,000자를 다시 검증한다. `image` 항목은 PNG/JPEG/WebP data URL ≤3,000,000자다. 전체 context 입력 크기는 4 MB 이하이며 초과 시 413, 형식 오류는 FAILED job의 400/413으로 전달한다. 파일 본문과 data URL은 응답·DB·브라우저 저장소에 보관하지 않는다.
 
 `DASHBOARD_MCP_TOKEN`은 환경변수로 제공할 때 32자 이상이어야 한다. 비어 있으면 부팅마다 난수 256-bit 값이 만들어져 server Codex child process에만 전달되며 외부 client에서는 사용할 수 없다. 외부 client는 설정한 값을 사용하고 HTTPS reverse proxy 또는 VPN을 거쳐 연결한다. authorization 누락/불일치는 401, Origin이 Host와 다른 요청은 403, Accept에 JSON이 없으면 406, JSON-RPC 입력 오류는 400이다. 응답은 `application/json`, protocolVersion은 요청이 지원되는 경우 `2025-03-26`, `2025-06-18`, `2025-11-25` 중 요청값을 반환하고 그 외에는 `2025-03-26`을 반환한다. 고정 세션 ID를 만들지 않는 stateless HTTP transport다.
 

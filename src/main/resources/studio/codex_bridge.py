@@ -300,6 +300,7 @@ def codex_action(root, action, args, dashboard=False):
         bridge.thread_id = ident
         if action == 'codex-thread-read': return dict(assistant=dict(thread=assistant_thread(thread)))
         methods = {'codex-thread-rename':'thread/name/set', 'codex-thread-archive':'thread/archive',
+                   'codex-thread-delete':'thread/delete',
                    'codex-thread-unarchive':'thread/unarchive', 'codex-thread-fork':'thread/fork',
                    'codex-thread-compact':'thread/compact/start', 'codex-thread-rollback':'thread/rollback'}
         if action in methods:

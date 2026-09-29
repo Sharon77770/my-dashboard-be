@@ -278,8 +278,17 @@
         let ready=false;
         terminal.onData(data=>{if(socket.readyState===1 && ready)socket.send(JSON.stringify({type:'input',data}));});
         terminal.onResize(size=>{if(socket.readyState===1 && ready)socket.send(JSON.stringify({type:'resize',columns:size.cols,rows:size.rows}));});
-        socket.onmessage=event=>{terminal.write(event.data);if(!ready){ready=true;fit.fit();socket.send(JSON.stringify({type:'resize',columns:terminal.cols,rows:terminal.rows}));}status('연결됨');};
-        socket.onclose=event=>status(event.reason || '연결 종료 · 다시 연결할 수 있습니다.');socket.onerror=()=>status('연결 실패');
+        socket.onopen=()=>status('셸 준비 중...');
+        socket.onmessage=event=>{
+          if(event.data==='{"type":"ready"}'){
+            ready=true;fit.fit();socket.send(JSON.stringify({type:'resize',columns:terminal.cols,rows:terminal.rows}));status('연결됨');return;
+          }
+          terminal.write(event.data);
+          if(!ready){ready=true;fit.fit();socket.send(JSON.stringify({type:'resize',columns:terminal.cols,rows:terminal.rows}));}
+          status('연결됨');
+        };
+        socket.onclose=event=>status(event.reason || (ready?'연결 종료 · 다시 연결할 수 있습니다.':'WebSocket 연결이 끊겼습니다. 로그인과 프록시의 WebSocket 설정을 확인하세요.'));
+        socket.onerror=()=>status('WebSocket 연결 실패');
         runtime.resizeObserver=new ResizeObserver(()=>{if(!root.hidden)fit.fit();});runtime.resizeObserver.observe(area);fit.fit();terminal.focus();
       } else {
         const tunnel=new Guacamole.WebSocketTunnel(endpoint);const client=new Guacamole.Client(tunnel);runtime.guacamole=client;

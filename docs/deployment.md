@@ -25,6 +25,22 @@ NAS_SMB_BIND_ADDRESS=192.168.1.20
 
 Compose의 호스트 포트는 `${DASHBOARD_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT}:8080`이며 dashboard가 소유한다. 서버 IP로 직접 접속하려면 DASHBOARD_BIND_ADDRESS=0.0.0.0을 설정한다. 같은 서버에서 실행하는 HTTPS 역방향 프록시가 `127.0.0.1:8080`으로 전달하도록 구성한다. 프록시에는 WebSocket Upgrade 지원(터미널·원격 화면) 및 파일 업로드 크기/시간 제한이 필요하다. 다른 컨테이너에서 프록시를 실행하는 경우 그 컨테이너의 localhost는 이 서버가 아니므로 네트워크 연결을 별도로 구성한다. 도메인·인증서·프록시 설정은 이 Compose가 제공하지 않는다.
 
+HTTPS 프록시가 다른 서버의 HTTP 대시보드로 전달할 때는 `Host`와 `X-Forwarded-Proto`를 함께 전달해야 한다. 애플리케이션은 신뢰 가능한 내부 프록시의 전달 헤더를 해석해 WebSocket 동일 출처 검사를 수행한다. Nginx의 대시보드 `location /` 안에 아래 설정이 필요하다. `proxy_pass` 주소는 실제 대시보드 내부 주소로 바꾼다. WebSocket이 연결 직후 403으로 끝나면 먼저 전달 헤더와 Upgrade 응답(101)을 확인한다.
+
+```nginx
+location / {
+    proxy_pass http://DASHBOARD_INTERNAL_HOST:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 1h;
+    proxy_send_timeout 1h;
+}
+```
+
 NAS 전환 시 기존 `dashboard-data` Docker 볼륨을 유지하고 실제 cloud/files 경로와 owner/group/mode를 확인한다. UID/GID 10001과 다른 기존 파일 권한을 조사 없이 변경하지 않는다. 전환 및 클라이언트 확인 절차는 [NAS 안내](nas.md)에 있다. `docker compose down -v`를 사용하지 않는다.
 
 HTTP로 직접 접속할 때만 `SESSION_COOKIE_SECURE=false`를 사용한다. HTTP에서 true이면 로그인 쿠키가 전송되지 않아 로그인 유지가 안 된다. Tailscale HTTP 접속도 브라우저 기준으로 HTTP이므로 동일하다. 인터넷 공개 운영에는 HTTPS와 true를 사용한다. Tailscale은 웹 설정에서 로그인 시작 후 표시된 URL을 사용자 브라우저에서 직접 열어 인증한다. 서비스 시작 시 자동 인증을 하지 않으며 기존 TAILSCALE_AUTHKEY 값은 사용하지 않는다.

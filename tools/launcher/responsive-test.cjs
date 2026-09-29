@@ -6,11 +6,16 @@ const sheet=postcss.parse(fs.readFileSync(path.join(base,'static/vendor/workspac
 function match(query,width){if(query.includes('prefers-reduced-motion'))return false;const max=/(?:max-width:\s*|width\s*<=\s*)([\d.]+)(px|rem)/.exec(query),min=/(?:min-width:\s*|width\s*>=\s*)([\d.]+)(px|rem)/.exec(query);const pixels=m=>Number(m[1])*(m[2]==='rem'?16:1);return (!max||width<=pixels(max))&&(!min||width>=pixels(min));}
 // jsdom does not implement cascade layers: expand ordered layers for DOM regression checks.
 function flatten(node,width){return (node.nodes||[]).map(rule=>rule.type==='atrule'?(rule.name==='layer'||rule.name==='media'&&match(rule.params,width)?flatten(rule,width):''):rule.type==='rule'&&!rule.nodes.some(n=>n.type==='rule'||n.type==='atrule')?rule.toString():'').join('\n');}
-for(const width of [1440,1280,1024,768,700,390]){
+for(const width of [1440,1280,1024,768,700,390,320]){
  const dom=new JSDOM(fs.readFileSync(path.join(base,'templates/home.html'),'utf8'),{runScripts:'outside-only',url:'http://localhost'}),w=dom.window,d=w.document;
  const style=d.createElement('style');style.textContent=flatten(sheet,width);d.head.append(style);
  w.WorkspaceCodeEditor=()=>({load(){},focus(){}});w.eval(fs.readFileSync(path.join(base,'static/js/studio-panels.js'),'utf8'));w.eval(fs.readFileSync(path.join(base,'static/js/studio-codex.js'),'utf8'));w.eval(fs.readFileSync(path.join(base,'static/js/studio.js'),'utf8'));w.WorkspaceStudio.init({escape:String});
  const workbench=d.querySelector('.studio-workbench');workbench.hidden=false;
+ w.eval(fs.readFileSync(path.join(base,'static/js/cloud-drive.js'),'utf8'));w.WorkspaceCloud.init({escape:String,api:async()=>({entries:[]}),editor(){},confirmAction(){}});
+ const cloudMain=d.querySelector('.cloud-main'),cloudItems=d.querySelector('.cloud-items');
+ assert.equal(w.getComputedStyle(cloudMain).overflow,'hidden');
+ assert.equal(w.getComputedStyle(cloudItems).overflow,'auto');
+ if(width<=800){assert.equal(w.getComputedStyle(d.querySelector('.cloud-header')).display,'grid');assert.equal(w.getComputedStyle(d.querySelector('.cloud-create')).overflowX,'auto');}
  if(width<=700){assert.equal(d.querySelector('#tabs'),null);assert.equal(w.getComputedStyle(d.querySelector('.os-tools')).display,'none');assert.equal(w.getComputedStyle(d.querySelector('#mobile-current-app')).display,'block');assert.equal(w.getComputedStyle(d.querySelector('.studio-editor')).display,'flex');assert.equal(w.getComputedStyle(d.querySelector('.studio-explorer')).display,'none');workbench.dataset.mobilePane='explorer';assert.equal(w.getComputedStyle(d.querySelector('.studio-editor')).display,'flex');assert.equal(w.getComputedStyle(d.querySelector('.studio-explorer')).display,'none');workbench.dataset.mobilePane='inspector';assert.equal(w.getComputedStyle(d.querySelector('.studio-inspector')).display,'none');}
  else{assert.equal(d.querySelector('#tabs'),null);assert.equal(w.getComputedStyle(d.querySelector('.os-tools')).display,'flex');assert.equal(w.getComputedStyle(workbench).display,'grid');assert.equal(w.getComputedStyle(d.querySelector('#mobile-current-app')).display,'block');}
  assert.equal(d.querySelector('#sidebar'),null);dom.window.close();console.log(`PASS ${width}px: CSS parsed, shell and IDE mode rules`);

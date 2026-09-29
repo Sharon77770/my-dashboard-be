@@ -37,6 +37,9 @@ for line in sys.stdin:
  elif m=='thread/read':
   if p['threadId']=='foreign': thread['cwd']='/other-project'
   result={'thread':thread}
+ elif m=='thread/delete':
+  assert p['threadId']=='thread-1'
+  open('thread-deleted','w').close()
  elif m=='turn/start':
   open('turn-started','w').close()
   turn=dict(id='turn-1',status='inProgress',items=[])
@@ -82,6 +85,16 @@ class CodexBridgeTest(unittest.TestCase):
         result = remote.codex_action(self.root, 'codex-models', {})
         self.assertEqual(result['assistant']['models'][0]['id'], 'fixture')
         self.assertEqual(result['assistant']['models'][0]['efforts'][0]['reasoningEffort'], 'medium')
+
+    def test_thread_delete_checks_folder_and_calls_app_server(self):
+        with patch.dict(remote.env, DASHBOARD_MCP_URL='http://127.0.0.1:8080/api/v1/mcp', DASHBOARD_MCP_TOKEN='f' * 32):
+            result = remote.codex_action(self.root, 'codex-thread-delete', dict(threadId='thread-1'), dashboard=True)
+            self.assertTrue(result['ok'])
+            self.assertTrue((self.root / 'thread-deleted').exists())
+            (self.root / 'thread-deleted').unlink()
+            with self.assertRaises(remote.Failure):
+                remote.codex_action(self.root, 'codex-thread-delete', dict(threadId='foreign'), dashboard=True)
+            self.assertFalse((self.root / 'thread-deleted').exists())
 
     def test_rate_limits_project_both_windows_without_credentials(self):
         result = remote.codex_action(self.root, 'codex-rate-limits', {})

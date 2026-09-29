@@ -24,7 +24,7 @@ credential.key가 없으면 32바이트 키를 생성한다. 기존 키는 재�
 ## 실행
 POST 세션(OWNER/CSRF) -> 런타임 UUID 및 로그인 소유권 기록 -> 같은 origin WebSocket -> 최초 attach 검증 -> 실제 셸/SSH/guacd 연결.
 브라우저 선택이 CLIENT면 서버 연결을 만들지 않고 등록된 URL을 반환한다. SERVER/REMOTE는 해당 Chromium DevTools에 새 URL 탭을 요청하고 VNC 화면을 연다.
-터미널 입력은 실제 셸에 전달되며 output은 WS로 전달된다. remote mouse/keyboard/clipboard는 Guacamole 프로토콜로 전달한다.
+터미널의 셸 연결과 입력 바인딩이 끝나면 서버가 ready 프레임을 보내고, 클라이언트가 입력과 크기 변경을 시작한다. 셸 출력은 별도 WS 프레임으로 전달된다. 셸이 종료되거나 연결이 실패하면 close code와 안전한 사유를 표시한다. remote mouse/keyboard/clipboard는 Guacamole 프로토콜로 전달한다.
 종료/탭 닫기/로그아웃 이벤트가 자원을 정리한다. 연결 중 탭이 닫혀도 뒤늦게 생성한 자원을 즉시 닫는다. 서버 연결 실패는 안전한 1011 메시지 또는 502 API 오류다.
 
 ## 장비 관리
@@ -79,7 +79,7 @@ SSH 장비의 프로젝트 열기 → Codex 탭 → 원격 model/list 및 accoun
 
 전역 Codex assistant: 내장 `대시보드 도우미` 앱 열기 → server-local setup/MCP 연결 및 계정·모델 확인 → 사용자 turn을 assistant job으로 실행 → MCP tools/call로 페이지 이동·일정·노트 작업 → app-server usage/item/interaction 이벤트를 채팅에 표시 → navigation queue를 브라우저가 polling해 내부 페이지 또는 등록 앱을 연다. 앱을 벗어나도 실행 중인 job과 세션 대화는 유지되고 다시 열면 해당 세션 대화를 표시한다. 프로젝트 편집기 job endpoint는 사용하지 않는다. 로그인 만료, 설치 오류와 MCP 도구 오류는 채팅 상태로 표시하고 삭제·셸 도구는 제공하지 않는다.
 
-사이드바는 동일한 서버 Codex 계정의 thread/list를 검색·페이지네이션하고, 선택 시 thread/read 결과의 사용자/답변 item만 대화에 복원한다. 새 채팅은 저장 전 draft이고 첫 turn 후 목록에 나타난다. 설정 창의 로그인·로그아웃, 모델·추론 설정과 대화 이름 변경·보관은 기존 assistant job action을 사용한다. 첨부 이미지와 UTF-8 텍스트는 전송 전 브라우저 메모리에만 두고, 전송 시 검증된 context로 turn에 전달한다. 실패 시 입력과 첨부는 재시도를 위해 유지한다.
+사이드바는 동일한 서버 Codex 계정의 thread/list를 검색·페이지네이션하고, 선택 시 thread/read 결과의 사용자/답변 item만 대화에 복원한다. 새 채팅은 저장 전 draft이고 첫 turn 후 목록에 나타난다. 설정 창의 로그인·로그아웃, 모델·추론 설정과 대화 이름 변경·보관은 기존 assistant job action을 사용한다. 사이드바 삭제 모달은 별도의 thread/list 페이지를 표시하고 선택한 세션을 각 thread/delete job으로 영구 삭제한다. 현재 대화 제목 옆 삭제 버튼도 같은 action을 사용하며 성공하면 세션 저장소의 현재 ID를 지우고 빈 대화로 이동한다. 실패한 세션은 목록에 남긴다. 첨부 이미지와 UTF-8 텍스트는 전송 전 브라우저 메모리에만 두고, 전송 시 검증된 context로 turn에 전달한다. 실패 시 입력과 첨부는 재시도를 위해 유지한다.
 
 assistant UI는 응답 대기 중 진행 말풍선을 표시하고 turn/reasoning, MCP 도구, agentMessage 이벤트에 따라 단계 문구를 갱신한다. 내용 없는 agentMessage 시작 이벤트는 빈 답변으로 확정하지 않는다. 첫 실제 답변 텍스트 또는 job 완료/실패가 진행 표시를 종료한다. 새로고침 뒤 sessionStorage에 남은 미완료 표시도 완료 상태의 재시도 안내로 바꾼다.
 

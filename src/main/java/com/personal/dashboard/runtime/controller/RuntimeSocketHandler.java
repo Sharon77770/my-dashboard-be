@@ -1,6 +1,7 @@
 package com.personal.dashboard.runtime.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.personal.dashboard.global.WorkspaceException;
 import com.personal.dashboard.runtime.adapter.*;
 import com.personal.dashboard.runtime.service.RuntimeService;
 import java.io.*;
@@ -54,10 +55,12 @@ public class RuntimeSocketHandler extends TextWebSocketHandler implements SubPro
     String path = socket.getUri().getPath();
     String id = path.substring(path.lastIndexOf('/') + 1);
     boolean attached = false;
+    String connectionKind = "";
     try {
       String owner = (String) socket.getAttributes().get("HTTP.SESSION.ID");
       var runtime = service.attach(id, owner);
       attached = true;
+      connectionKind = runtime.kind;
       socket.setTextMessageSizeLimit(65536);
       if (runtime.kind.equals("TERMINAL")) {
         var terminal = terminals.open(runtime.device);
@@ -69,12 +72,14 @@ public class RuntimeSocketHandler extends TextWebSocketHandler implements SubPro
             })) return;
         if (!socket.isOpen()) return;
         bindings.put(socket.getId(), new Binding(socket, runtime, terminal, null));
+        socket.sendMessage(new TextMessage("{\"type\":\"ready\"}"));
         try (Reader reader = new InputStreamReader(terminal.output(), StandardCharsets.UTF_8)) {
           char[] buffer = new char[4096];
           int count;
           while (socket.isOpen() && (count = reader.read(buffer)) != -1)
             socket.sendMessage(new TextMessage(new String(buffer, 0, count)));
         }
+        if (socket.isOpen()) socket.close(new CloseStatus(1000, "셸이 종료되었습니다."));
       } else {
         var remote = remotes.open(runtime.device, runtime.width, runtime.height);
         if (!service.bind(
@@ -92,7 +97,15 @@ public class RuntimeSocketHandler extends TextWebSocketHandler implements SubPro
       }
     } catch (Exception exception) {
       try {
-        if (socket.isOpen()) socket.close(new CloseStatus(1011, "서버 연결 실패 또는 종료. 장비 설정을 확인하세요."));
+        if (socket.isOpen()) {
+          String reason =
+              exception instanceof WorkspaceException && connectionKind.equals("TERMINAL")
+                  ? "SSH 연결 실패. 장비 인증과 호스트 키를 확인하세요."
+                  : connectionKind.equals("TERMINAL")
+                      ? "터미널 시작 실패. 서버 실행 환경을 확인하세요."
+                      : "실행 세션 연결 실패. 연결 설정을 확인하세요.";
+          socket.close(new CloseStatus(1011, reason));
+        }
       } catch (Exception ignored) {
       }
     } finally {

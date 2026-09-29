@@ -25,6 +25,11 @@
   const search = document.querySelector('#assistant-search');
   const moreButton = document.querySelector('#assistant-more');
   const settings = document.querySelector('#assistant-settings');
+  const deleteDialog = document.querySelector('#assistant-delete-dialog');
+  const deleteList = document.querySelector('#assistant-delete-list');
+  const deleteStatus = document.querySelector('#assistant-delete-status');
+  const deleteMore = document.querySelector('#assistant-delete-more');
+  const deleteSelected = document.querySelector('#assistant-delete-selected');
   const closeSettings = () => { if (typeof settings.close === 'function' && settings.open) settings.close(); else settings.removeAttribute('open'); };
   const settingsLogin = document.querySelector('#assistant-settings-login');
   const settingsLogout = document.querySelector('#assistant-settings-logout');
@@ -52,6 +57,10 @@
   let models = [];
   let threads = [];
   let threadCursor = null;
+  let deleteThreads = [];
+  let deleteCursor = null;
+  let deletingSessions = false;
+  const selectedDeleteIds = new Set();
   let currentThreadTitle = '';
   let attachments = [];
   let firstHistoryLoad = false;
@@ -124,7 +133,8 @@
         progress.append(label, dots);
         body.append(progress);
       } else {
-        body.textContent = entry.text;
+        if (entry.role === 'assistant') window.AssistantMarkdown.render(body, entry.text);
+        else body.textContent = entry.text;
       }
       article.append(label, body);
       if (entry.role === 'user' && Array.isArray(entry.attachments) && entry.attachments.length) {
@@ -145,8 +155,9 @@
     sendButton.disabled = value;
     stopButton.hidden = !value;
     fileInput.disabled = value;
-    document.querySelectorAll('#assistant-sessions button, #assistant-new, #assistant-header-new, #assistant-more, #assistant-settings-logout, #assistant-archive, #assistant-rename').forEach(button => { button.disabled = value; });
+    document.querySelectorAll('#assistant-sessions button, #assistant-new, #assistant-header-new, #assistant-more, #assistant-settings-logout, #assistant-archive, #assistant-rename, #assistant-delete-open, #assistant-delete-current').forEach(button => { button.disabled = value; });
     if (!value) renderThreads();
+    renderDeleteThreads();
     if (value) setStatus('대시보드 기능을 확인하고 있어요…');
   }
 
@@ -190,6 +201,98 @@
     document.querySelector('#assistant-chat-title').textContent = current?.name || current?.preview || currentThreadTitle || '새 채팅';
     document.querySelector('#assistant-rename').disabled = busy || !threadId;
     document.querySelector('#assistant-archive').disabled = busy || !threadId;
+    document.querySelector('#assistant-delete-current').disabled = busy || !threadId;
+  }
+
+  function renderDeleteThreads() {
+    deleteList.replaceChildren();
+    if (!deleteThreads.length) {
+      const empty = document.createElement('p');
+      empty.textContent = '삭제할 대화가 없습니다.';
+      deleteList.append(empty);
+    }
+    for (const item of deleteThreads) {
+      const row = document.createElement('label');
+      row.className = 'assistant-delete-row';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = item.id;
+      checkbox.checked = selectedDeleteIds.has(item.id);
+      checkbox.disabled = busy || deletingSessions;
+      const detail = document.createElement('span');
+      const title = document.createElement('strong');
+      title.textContent = item.name || item.preview || '제목 없는 대화';
+      const date = document.createElement('small');
+      date.textContent = item.updatedAt ? new Date(item.updatedAt * 1000).toLocaleDateString('ko-KR') : '저장된 대화';
+      detail.append(title, date);
+      row.append(checkbox, detail);
+      deleteList.append(row);
+    }
+    document.querySelector('#assistant-delete-count').textContent = `${selectedDeleteIds.size}개 선택`;
+    deleteSelected.disabled = busy || deletingSessions || !selectedDeleteIds.size;
+    deleteMore.hidden = !deleteCursor;
+    deleteMore.disabled = busy || deletingSessions;
+    document.querySelector('#assistant-delete-close').disabled = busy || deletingSessions;
+    document.querySelector('#assistant-delete-cancel').disabled = busy || deletingSessions;
+  }
+
+  async function loadDeleteThreads(more = false) {
+    if (busy || deletingSessions) return;
+    deleteStatus.textContent = '대화 목록을 불러오는 중…';
+    try {
+      const result = await runJob('codex-threads', { cursor: more ? deleteCursor : undefined });
+      const page = result.assistant || {};
+      deleteThreads = more ? [...deleteThreads, ...(page.threads || [])] : page.threads || [];
+      deleteCursor = page.nextCursor || null;
+      deleteStatus.textContent = '';
+      renderDeleteThreads();
+    } catch (error) {
+      deleteStatus.textContent = error.message;
+    }
+  }
+
+  async function deleteCurrentThread() {
+    if (!threadId || busy || !window.confirm('현재 대화를 영구 삭제할까요? 삭제 후 복구할 수 없습니다.')) return;
+    const id = threadId;
+    try {
+      await runJob('codex-thread-delete', { threadId: id });
+      selectedDeleteIds.delete(id);
+      newChat();
+      await refreshThreads();
+      setStatus('대화를 삭제했습니다.');
+    } catch (error) { setStatus(error.message, 'error'); }
+  }
+
+  async function deleteSelectedThreads() {
+    if (busy || deletingSessions || !selectedDeleteIds.size) return;
+    deletingSessions = true;
+    renderDeleteThreads();
+    const ids = [...selectedDeleteIds];
+    let removed = 0;
+    const failed = [];
+    for (const id of ids) {
+      deleteStatus.textContent = `${removed + failed.length + 1}/${ids.length} 대화 삭제 중…`;
+      try {
+        await runJob('codex-thread-delete', { threadId: id });
+        selectedDeleteIds.delete(id);
+        deleteThreads = deleteThreads.filter(item => item.id !== id);
+        if (threadId === id) newChat();
+        removed++;
+      } catch (error) {
+        failed.push(error.message);
+      }
+    }
+    deletingSessions = false;
+    renderDeleteThreads();
+    try { await refreshThreads(); } catch (error) { failed.push(error.message); }
+    if (failed.length) {
+      deleteStatus.textContent = `${removed}개 삭제됨 · ${failed.length}개 실패: ${failed[0]}`;
+      setStatus(deleteStatus.textContent, 'error');
+    } else {
+      deleteDialog.close?.();
+      deleteDialog.removeAttribute('open');
+      setStatus(`${removed}개 대화를 삭제했습니다.`);
+    }
   }
 
   async function refreshThreads(more = false) {
@@ -779,6 +882,35 @@
   settingsLogin.addEventListener('click', () => { closeSettings(); login(); });
   settingsLogout.addEventListener('click', logout);
   document.querySelector('#assistant-history-refresh').addEventListener('click', () => refreshThreads().catch(error => setStatus(error.message, 'error')));
+  document.querySelector('#assistant-delete-open').addEventListener('click', () => {
+    if (busy) return;
+    setSidebar(false);
+    selectedDeleteIds.clear();
+    deleteThreads = [];
+    deleteCursor = null;
+    renderDeleteThreads();
+    if (typeof deleteDialog.showModal === 'function') deleteDialog.showModal();
+    else deleteDialog.setAttribute('open', '');
+    loadDeleteThreads();
+  });
+  const closeDeleteDialog = () => {
+    if (busy || deletingSessions) return;
+    if (typeof deleteDialog.close === 'function') deleteDialog.close();
+    else deleteDialog.removeAttribute('open');
+  };
+  document.querySelector('#assistant-delete-close').addEventListener('click', closeDeleteDialog);
+  document.querySelector('#assistant-delete-cancel').addEventListener('click', closeDeleteDialog);
+  deleteDialog.addEventListener('cancel', event => { if (busy || deletingSessions) event.preventDefault(); });
+  deleteMore.addEventListener('click', () => loadDeleteThreads(true));
+  deleteList.addEventListener('change', event => {
+    const checkbox = event.target.closest('input[type="checkbox"]');
+    if (!checkbox || busy || deletingSessions) return;
+    if (checkbox.checked) selectedDeleteIds.add(checkbox.value);
+    else selectedDeleteIds.delete(checkbox.value);
+    renderDeleteThreads();
+  });
+  deleteSelected.addEventListener('click', deleteSelectedThreads);
+  document.querySelector('#assistant-delete-current').addEventListener('click', deleteCurrentThread);
   moreButton.addEventListener('click', () => refreshThreads(true).catch(error => setStatus(error.message, 'error')));
   let searchTimer;
   search.addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => refreshThreads().catch(error => setStatus(error.message, 'error')), 280); });

@@ -49,6 +49,7 @@ HTTP 오류: 익명401, 권한/CSRF403, 미존재/다른 세션 작업404, 잘�
 | codex-thread-read | threadId | thread |
 | codex-thread-rename | threadId, name(200자) | 기존 result.ok |
 | codex-thread-archive / unarchive | threadId | 기존 result.ok |
+| codex-thread-delete | threadId | result.ok. 선택한 작업 폴더의 저장된 세션을 영구 삭제 |
 | codex-thread-fork | threadId | thread |
 | codex-thread-compact | threadId | 기존 result.ok, 압축 완료까지 RUNNING |
 | codex-thread-rollback | threadId | thread. 마지막 1 turn 기록 제거, 파일 복구 없음 |

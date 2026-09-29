@@ -52,6 +52,7 @@ public class StudioService {
           "codex-thread-new",
           "codex-thread-rename",
           "codex-thread-archive",
+          "codex-thread-delete",
           "codex-thread-unarchive",
           "codex-thread-fork",
           "codex-thread-compact",
