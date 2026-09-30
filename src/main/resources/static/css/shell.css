@@ -26,6 +26,13 @@
 .os-navigation{display:none}
 .os-app-count{position:absolute;top:2px;right:1px;min-width:13px;font:9px var(--font-ui);color:var(--text-primary)}
 .view{padding:18px 22px}.view.active{min-height:100%}
+.view.active.view-entering{animation:workspace-view-enter var(--motion-base) var(--motion-ease) both}
+@keyframes workspace-view-enter{from{opacity:.45;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.workspace-activity{position:fixed;top:46px;right:18px;z-index:180;min-width:180px;max-width:min(340px,calc(100vw - 24px));padding:10px 14px 10px 29px;border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--bg-elevated);box-shadow:var(--shadow-soft);color:var(--text-secondary);font-size:12px}
+.workspace-activity::before{content:'';position:absolute;left:10px;top:12px;width:11px;height:11px;border:2px solid var(--accent);border-right-color:transparent;border-radius:50%;animation:ui-spin .8s linear infinite}
+.workspace-activity-track{position:absolute;left:0;right:0;bottom:0;height:2px;overflow:hidden;background:var(--accent-subtle)}
+.workspace-activity-track::after{content:'';display:block;width:36%;height:100%;background:var(--accent);animation:workspace-progress 1.2s ease-in-out infinite alternate}
+@keyframes workspace-progress{to{transform:translateX(180%)}}
 .page-head,.launcher-head{margin-bottom:16px}
 .page-head h1,.launcher-head h1{font-size:17px;line-height:1.3;font-weight:650;letter-spacing:-.02em}
 .eyebrow,.section-hint{display:none}
@@ -72,6 +79,7 @@
  .workspace-bar .ui-menu>summary{min-width:40px;min-height:40px}
  .activity-rail{display:none}
  .main>.content{grid-column:1;grid-row:2}
+ .workspace-activity{top:calc(44px + env(safe-area-inset-top));right:8px}
  .os-navigation{grid-column:1;grid-row:3;display:grid;grid-template-columns:repeat(4,1fr);align-items:stretch;padding:0 4px env(safe-area-inset-bottom);border-top:1px solid var(--border-subtle);background:var(--bg-sidebar)}
  .os-navigation button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-height:44px;padding:0;border:0;border-radius:0;background:transparent;color:var(--text-secondary);font-size:19px;line-height:1}
  .os-navigation button[aria-current=page]{color:var(--accent)}
@@ -102,7 +110,7 @@
 }
 @media(max-width:390px){.view,html[data-compact=false] .view{padding-inline:10px}}
 @media(max-width:360px){.view,html[data-compact=false] .view{padding-inline:10px}.workspace-bar{padding-inline:4px}}
-@media(prefers-reduced-motion:reduce){.view.active{animation:none}}
+@media(prefers-reduced-motion:reduce){.view.active,.workspace-activity-track::after{animation:none}}
 
 /* Existing feature selectors keep their behavior while sharing the new workstation density. */
 .assistant-window #assistant-send{background:var(--accent-solid);border-radius:4px}

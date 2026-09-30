@@ -5,13 +5,14 @@ const dom=new JSDOM(fs.readFileSync(path.join(root,'src/main/resources/templates
 const w=dom.window,d=w.document;let narrow=false,mediaChange;
 w.matchMedia=()=>({get matches(){return narrow;},addEventListener(type,handler){mediaChange=handler;}});
 w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
-w.ResizeObserver=class{observe(){}disconnect(){}};w.setInterval=()=>0;
+w.ResizeObserver=class{observe(){}disconnect(){}};let workspaceRefresh;w.setInterval=(callback,interval)=>{if(interval===60000)workspaceRefresh=callback;return 0;};
 w.workspaceInitial={devices:[],applications:[{id:'external',name:'<img src=x> Tool',url:'https://example.test',pinned:false}],clips:[],bookmarks:[],activity:[],preferences:{theme:'dark',compact:true,terminalFont:13,clipMinutes:60},browserSettings:{mode:'CLIENT'},tabs:[]};
 const calls=[];w.fetch=async(url,opt={})=>{const method=opt.method||'GET',body=opt.body?JSON.parse(opt.body):null;calls.push({url,method,body});let data=[];
 if(url==='/api/v1/workspace')data=w.workspaceInitial;
 if(url==='/api/v1/preferences'){Object.assign(w.workspaceInitial.preferences,body);data=body;}
 if(url.startsWith('/api/v1/devices/device-1/files?'))data={entries:[{name:'test.txt',path:'/test.txt',directory:false,size:1024,modifiedAt:Date.now()},{name:'folder',path:'/folder',directory:true,size:0,modifiedAt:Date.now()}]};
 if(url==='/api/v1/devices/device-1/docker')data={output:'running'};
+if(url==='/api/v1/devices/device-1/status')data={state:'ONLINE',cpu:24,memory:35,disk:40,details:'healthy'};
 return {ok:true,status:200,headers:{get:()=> 'application/json'},json:async()=>data};};
 const tick=()=>new Promise(resolve=>setTimeout(resolve,25));
 const click=selector=>{const node=d.querySelector(selector);assert.ok(node,selector);node.click();};
@@ -19,6 +20,9 @@ const load=()=>JSON.parse(w.localStorage.getItem(w.HomePersistence.key()));
 (async()=>{
 for(const file of ['ui.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js','workspace.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
 await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,16);
+const homeItemBeforeRefresh=d.querySelector('.home-item');
+workspaceRefresh();await tick();
+assert.equal(d.querySelector('.home-item'),homeItemBeforeRefresh,'unchanged background refresh preserves Home DOM');
 for(const selector of ['.mobile-search-button','.workspace-mark','.home-command>span:first-child','.os-navigation [data-view="home"]>span:first-child','.os-navigation [data-action="palette"]>span:first-child','.os-navigation [data-launcher="drawer"]>span:first-child','.os-navigation [data-action="app-switcher"]>span:first-child','#devices [data-action="refresh-status"]','#apps [data-action="app-add"]'])assert.ok(d.querySelector(selector+' .ui-icon'),`${selector} uses a shared SVG icon`);
 assert.ok(d.querySelector('.os-navigation [data-action="app-switcher"] #os-app-count'),'recent app count survives icon hydration');
 assert.equal(d.querySelector('#devices [data-action="device-add"]').getAttribute('aria-label'),'SSH로 장비 연결');
@@ -26,6 +30,10 @@ assert.equal(d.querySelectorAll('#home-grid .home-widget-disclosure').length,0,'
 assert.equal(d.querySelectorAll('#home-widgets .home-widget-disclosure').length,6);
 assert.equal(d.querySelectorAll('#home-widgets .home-widget-disclosure[open]').length,0);
 assert.ok(d.querySelector('.overview-continue .overview-empty'));
+w.workspaceInitial={...w.workspaceInitial,activity:[{kind:'TERMINAL',targetId:'local',label:'최근 터미널',path:'/',occurredAt:Date.now()}]};
+workspaceRefresh();await tick();
+assert.equal(d.querySelector('.home-item'),homeItemBeforeRefresh,'activity polling preserves Home shortcuts');
+assert.match(d.querySelector('.overview-continue').textContent,/최근 터미널/);
 assert.ok(d.querySelector('.home-command[data-action="palette"]'));
 assert.equal(d.querySelectorAll('#launcher-dock-apps').length,1);
 assert.equal(w.WorkspaceApps.all().length,23);assert.equal(d.querySelectorAll('#home-grid img').length,0);
@@ -100,8 +108,14 @@ click('#app-drawer [data-launcher="close"]');click('[data-action="palette"]');aw
 const key=w.HomePersistence.key();d.body.dataset.account='another';assert.notEqual(w.HomePersistence.key(),key);d.body.dataset.account='';
 const clean=grid.sanitize({version:1,pages:2,dock:['missing','terminal'],items:[{id:'x',type:'folder',apps:[],page:0,x:0,y:0},{id:'y',type:'app',appId:'missing'}]},w.WorkspaceApps,w.WorkspaceWidgets);assert.equal(clean.items.length,0);assert.equal(clean.dock.length,1);
 // Mobile runtime tools keep file navigation and actions reachable without overlapping columns.
-w.workspaceInitial.devices.push({id:'device-1',name:'Spark',host:'localhost',remoteProtocol:'NONE'});
-w.workspaceInitial.bookmarks.push({id:'bookmark-1',deviceId:'device-1',path:'/saved'});
+w.workspaceInitial={...w.workspaceInitial,devices:[...w.workspaceInitial.devices,{id:'device-1',name:'Spark',host:'localhost',remoteProtocol:'NONE'}],bookmarks:[...w.workspaceInitial.bookmarks,{id:'bookmark-1',deviceId:'device-1',path:'/saved'}]};
+workspaceRefresh();await tick();
+const deviceCard=d.querySelector('#device-grid .device-card');
+deviceCard.querySelector('details').open=true;
+deviceCard.querySelector('[data-action="status"]').click();await tick();
+assert.equal(d.querySelector('#device-grid .device-card'),deviceCard,'status polling preserves the device card');
+assert.equal(deviceCard.querySelector('details').open,true,'status polling preserves expanded details');
+assert.match(deviceCard.textContent,/온라인/);
 w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js/drawers.js'),'utf8'));
 const launch=d.createElement('button');launch.dataset.open='FILES';launch.dataset.target='device-1';d.body.append(launch);launch.click();await tick();
 let fileRuntime=d.querySelector('#runtime-host .runtime-pane');assert.ok(fileRuntime);

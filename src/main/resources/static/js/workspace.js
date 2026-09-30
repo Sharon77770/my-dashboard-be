@@ -37,7 +37,10 @@
     $('#toast').textContent = message; $('#toast').classList.add('show');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.remove('show'), 5500);
   }
-  async function api(path, method = 'GET', body) {
+  async function api(path, method = 'GET', body, options = {}) {
+    const isBackgroundRequest = options.quiet || path.startsWith('/assistant/events?') || path.startsWith('/studio/jobs/');
+    const finishTask = isBackgroundRequest ? () => {} : window.WorkspaceUI.beginTask(method === 'GET' ? '데이터를 불러오는 중…' : '변경사항을 저장하는 중…');
+    try {
     const headers = {};
     if (method !== 'GET') headers[$('meta[name=csrf-header]').content] = $('meta[name=csrf-token]').content;
     if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
@@ -47,9 +50,26 @@
       const error = await response.json().catch(() => ({}));
       throw new Error(error.message || (response.status === 403 ? '요청 권한 또는 CSRF 토큰이 만료되었습니다. 페이지를 다시 열어 주세요.' : '요청을 완료하지 못했습니다.'));
     }
-    return response.status === 204 || !response.headers.get('content-type')?.includes('json') ? null : response.json();
+    return response.status === 204 || !response.headers.get('content-type')?.includes('json') ? null : await response.json();
+    } finally { finishTask(); }
   }
-  async function refresh() { state = await api('/workspace'); render(); }
+  async function refresh(options = {}) {
+    const nextState = await api('/workspace', 'GET', undefined, options);
+    if (options.quiet && JSON.stringify(state) === JSON.stringify(nextState)) return;
+    if (options.quiet && Object.keys({...state,...nextState}).every(key => ['activity','clips'].includes(key) || JSON.stringify(state[key]) === JSON.stringify(nextState[key]))) {
+      const activityChanged = JSON.stringify(state.activity) !== JSON.stringify(nextState.activity);
+      const clipsChanged = JSON.stringify(state.clips) !== JSON.stringify(nextState.clips);
+      state = nextState;
+      if (activityChanged) {
+        $('#all-recent').innerHTML = recent(state.activity);
+        window.WorkspaceLauncher?.updateActivity(state);
+      }
+      if (clipsChanged) renderClips();
+      return;
+    }
+    state = nextState;
+    render();
+  }
   function metric(value) { return value === null || value === undefined ? '—' : `${value.toFixed(0)}%`; }
   function metricTile(name, value, symbol) {
     const tone=value==null?'accent':value>=90?'danger':value>=75?'warning':'accent';
@@ -62,6 +82,9 @@
   function recent(items) {
     return items.map(item => `<button ${openAttrs(item.kind,item.targetId,item.path || '/')}><span class="type">${icons[item.kind] || '◇'}</span><span class="main-copy"><b>${escape(item.label)}</b><small>${escape(item.path || labels[item.kind])}</small></span><time>${timestamp(item.occurredAt)}</time></button>`).join('') || empty('아직 실행한 작업이 없습니다.');
   }
+  function renderClips() {
+    $('#clip-list').innerHTML = state.clips.filter(item => item.expiresAt > Date.now()).map(item => `<div class="clip-item"><button data-action="clip-view" data-id="${item.id}"><b>${escape(item.content)}</b><small>${Math.max(1,Math.ceil((item.expiresAt-Date.now())/60000))}분 후 만료</small></button><button data-action="clip-delete" data-id="${item.id}" aria-label="삭제">×</button></div>`).join('') || empty('텍스트를 저장해 다른 세션에서 이어 쓰세요.');
+  }
   function render() {
     document.documentElement.dataset.theme = state.preferences.theme;
     document.documentElement.dataset.compact = state.preferences.compact;
@@ -69,7 +92,7 @@
     for (const runtime of runtimes.values()) if (runtime.terminal) {runtime.terminal.options.fontSize = state.preferences.terminalFont; runtime.terminal.options.theme=window.WorkspaceUI.terminalTheme();}
     window.WorkspaceLauncher?.sync(state,statuses);
     $('#all-recent').innerHTML = recent(state.activity);
-    $('#clip-list').innerHTML = state.clips.filter(item => item.expiresAt > Date.now()).map(item => `<div class="clip-item"><button data-action="clip-view" data-id="${item.id}"><b>${escape(item.content)}</b><small>${Math.max(1,Math.ceil((item.expiresAt-Date.now())/60000))}분 후 만료</small></button><button data-action="clip-delete" data-id="${item.id}" aria-label="삭제">×</button></div>`).join('') || empty('텍스트를 저장해 다른 세션에서 이어 쓰세요.');
+    renderClips();
     $('#device-grid').innerHTML = state.devices.map(item => {
       const status = statuses.get(item.id);
       const stateTone=status?.state==='ONLINE'?'success':status?.state==='OFFLINE'?'danger':'warning';
@@ -83,9 +106,24 @@
     $('#apps-list').innerHTML = state.applications.map(item => `<div class="app-item"><button ${openAttrs('APP',item.id)}><span class="app-icon">${escape(item.name.slice(0,3))}</span><span><b>${escape(item.name)} ${item.pinned ? '★' : ''}</b><small>${escape(item.url)}</small></span><em>${modes[state.browserSettings.mode]}</em></button><button data-action="app-edit" data-id="${item.id}" aria-label="앱 설정">⚙</button><button data-action="app-delete" data-id="${item.id}" aria-label="앱 삭제">×</button></div>`).join('') || empty('앱 추가로 자주 사용하는 웹사이트를 등록하세요.');
     renderTabs();
   }
-  async function checkStatus(id) { statuses.set(id, await api(`/devices/${id}/status`)); render(); }
-  async function refreshStatuses() { for (let offset = 0; offset < state.devices.length; offset += 3) await Promise.all(state.devices.slice(offset,offset+3).map(item => checkStatus(item.id).catch(error => toast(error.message)))); }
+  async function checkStatus(id, options = {}) {
+    const status = await api(`/devices/${id}/status`, 'GET', undefined, options);
+    statuses.set(id, status);
+    const card = $('#device-grid')?.children[state.devices.findIndex(item => item.id === id)];
+    if (card) {
+      const stateTone = status.state === 'ONLINE' ? 'success' : status.state === 'OFFLINE' ? 'danger' : 'warning';
+      const stateLabel = status.state === 'ONLINE' ? '온라인' : status.state === 'OFFLINE' ? '오프라인' : '미확인';
+      const label = $('.ui-status', card);
+      label.textContent = stateLabel;
+      label.dataset.state = stateTone;
+      $('.metrics', card).innerHTML = metricTile('CPU', status.cpu, 'cpu') + metricTile('RAM', status.memory, 'memory') + metricTile('Disk', status.disk, 'disk');
+      $('.device-extra p', card).textContent = status.details || '새로고침으로 상태를 확인하세요.';
+    }
+    window.WorkspaceLauncher?.updateStatuses(statuses);
+  }
+  async function refreshStatuses(options = {}) { for (let offset = 0; offset < state.devices.length; offset += 3) await Promise.all(state.devices.slice(offset,offset+3).map(item => checkStatus(item.id, options).catch(error => toast(error.message)))); }
   function showView(id) {
+    if (!document.getElementById(id)) return;
     window.WorkspaceDrawers?.close();
     rememberScreen(id,null);
     if(id!=='home' && !pageTabs.includes(id)){pageTabs.push(id);savePageTabs();}
@@ -103,6 +141,12 @@
     activeTab = null;
     $('#runtime-host').hidden = true;
     document.querySelectorAll('.view').forEach(view => view.classList.toggle('active',view.id === id));
+    const content = $('.main>.content');
+    if (content && activeTab === null) content.scrollTop = 0;
+    const activePane = document.getElementById(id);
+    activePane.classList.remove('view-entering');
+    void activePane.offsetWidth;
+    activePane.classList.add('view-entering');
     for (const runtime of runtimes.values()) runtime.element.hidden = true;
     renderTabs(); window.WorkspaceLauncher?.opened();
     window.dispatchEvent(new CustomEvent('workspace:view', {detail:{id}}));
@@ -160,9 +204,16 @@
     if(!runtime) {
       const element = document.createElement('section'); element.className = 'runtime-pane'; element.dataset.runtime = id;
       $('#runtime-host').append(element); runtime = {element}; runtimes.set(id,runtime);
-      if(tab.kind === 'FILES') await loadFiles(tab);
-      else if(['DOCKER','GPU'].includes(tab.kind)) await loadInspection(tab);
-      else await connectRuntime(tab);
+      element.innerHTML = '<p class="loading" role="status">작업 공간을 준비하는 중…</p>';
+      renderTabs();
+      try {
+        if(tab.kind === 'FILES') await loadFiles(tab);
+        else if(['DOCKER','GPU'].includes(tab.kind)) await loadInspection(tab);
+        else await connectRuntime(tab);
+      } catch(error) {
+        element.innerHTML = `<div class="error-state" role="alert">${escape(error.message)}</div>`;
+        throw error;
+      }
     }
     runtime.element.hidden = false; renderTabs();
     requestAnimationFrame(()=>{ runtime.fit?.fit(); runtime.scale?.(); });
@@ -423,5 +474,5 @@
     confirm(message){return new Promise(resolve=>{let accepted=false;const dialog=$('#editor-dialog');dialog.addEventListener('close',()=>resolve(accepted),{once:true});editor('Codex 확인',`<p>${escape(message)}</p>`,async()=>{accepted=true;},'확인');});}
   };
   window.visualViewport?.addEventListener('resize',()=>{document.documentElement.style.setProperty('--viewport-height',window.visualViewport.height+'px');for(const runtime of runtimes.values()){runtime.fit?.fit();runtime.scale?.();}});
-  render();refreshStatuses();setInterval(()=>{if(!document.hidden)refresh().catch(error=>toast(error.message));},60000);
+  render();refreshStatuses({quiet:true});setInterval(()=>{if(!document.hidden)refresh({quiet:true}).catch(error=>toast(error.message));},60000);
 })();

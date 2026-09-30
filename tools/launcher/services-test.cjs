@@ -62,6 +62,18 @@ const submit = form => form.dispatchEvent(new window.Event('submit', { bubbles: 
   environmentFilter.dispatchEvent(new window.Event('change', { bubbles: true }));
   assert.deepEqual([...document.querySelectorAll('.service-tile b')].map(node => node.textContent), ['Example']);
 
+  const createDialog = document.querySelector('#service-create-dialog');
+  createDialog.showModal = function () { this.open = true; };
+  createDialog.close = function () { this.open = false; this.dispatchEvent(new window.Event('close')); };
+  const createButton = document.createElement('button');
+  createButton.dataset.services = 'create';
+  document.querySelector('#services').append(createButton);
+  createButton.click();
+  assert.equal(createDialog.open, true);
+  assert.equal(document.querySelectorAll('.service-tile').length, 1);
+  createDialog.querySelector('[data-services="cancel-create"]').click();
+  assert.equal(createDialog.open, false);
+
   await window.WorkspaceServices.openService('one');
   assert.match(document.querySelector('.service-overview').textContent, /연결된 리소스/);
   document.querySelector('.service-connection[data-service-tab="GitHub"]').click();
@@ -70,6 +82,7 @@ const submit = form => form.dispatchEvent(new window.Event('submit', { bubbles: 
   document.querySelector('[data-service-tab="Runtime"]').click();
   await tick();
   const deviceForm = document.querySelector('#service-bind-device');
+  assert.equal(deviceForm.closest('details').open, false);
   assert.equal(deviceForm.querySelector('[name=reference]').value, '');
   deviceForm.querySelector('[name=reference]').value = 'device-1';
   submit(deviceForm);
@@ -117,6 +130,8 @@ const submit = form => form.dispatchEvent(new window.Event('submit', { bubbles: 
   document.querySelector('[data-service-tab="Settings"]').click();
   await tick();
   const search = document.querySelector('#service-repository-search');
+  assert.equal(document.querySelector('#service-edit').closest('details').open, false);
+  assert.equal(document.querySelector('#service-bind').closest('details').open, false);
   assert.ok(search);
   search.value = 'second';
   search.dispatchEvent(new window.Event('input', { bubbles: true }));

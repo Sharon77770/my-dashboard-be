@@ -48,6 +48,38 @@ window.WorkspaceUI = (() => {
   };
   const emptyState = (title, detail = '', symbol = 'apps') => `<div class="ui-empty">${icon(symbol)}<strong>${escape(title)}</strong>${detail ? `<small>${escape(detail)}</small>` : ''}</div>`;
   const skeleton = (count = 2) => Array.from({length:Math.max(1,Math.min(5,count))}, () => '<div class="ui-skeleton-row"><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>').join('');
+  let pendingTasks = 0;
+  let activityTimer;
+  let activityHideTimer;
+  let activityShownAt = 0;
+  function beginTask(message = '불러오는 중…') {
+    pendingTasks++;
+    let indicator = document.querySelector('#workspace-activity');
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.id = 'workspace-activity';
+      indicator.className = 'workspace-activity';
+      indicator.setAttribute('role', 'status');
+      indicator.setAttribute('aria-live', 'polite');
+      indicator.hidden = true;
+      indicator.innerHTML = '<span class="workspace-activity-track" aria-hidden="true"></span><span class="workspace-activity-message"></span>';
+      document.body.append(indicator);
+    }
+    indicator.querySelector('.workspace-activity-message').textContent = message;
+    clearTimeout(activityTimer);
+    clearTimeout(activityHideTimer);
+    if (indicator.hidden) activityTimer = setTimeout(() => { if (pendingTasks) { indicator.hidden = false; activityShownAt = Date.now(); } }, 220);
+    let ended = false;
+    return () => {
+      if (ended) return;
+      ended = true;
+      pendingTasks = Math.max(0, pendingTasks - 1);
+      if (!pendingTasks) {
+        clearTimeout(activityTimer);
+        activityHideTimer = setTimeout(() => { if (!pendingTasks) indicator.hidden = true; }, indicator.hidden ? 0 : Math.max(0, 400 - (Date.now() - activityShownAt)));
+      }
+    };
+  }
   function hydrateIcons() {
     const targets = [
       ['.activity-rail [data-view=home]','home'],['.activity-rail [data-action=palette]','search'],
@@ -105,5 +137,5 @@ window.WorkspaceUI = (() => {
   function showTooltip(event){const target=event.target.closest('[data-tooltip]');if(!target)return;hideTooltip();tooltip=document.createElement('div');tooltip.className='ui-tooltip';tooltip.role='tooltip';tooltip.textContent=target.dataset.tooltip;document.body.append(tooltip);const box=target.getBoundingClientRect();tooltip.style.left=Math.max(8,Math.min(box.left,innerWidth-tooltip.offsetWidth-8))+'px';tooltip.style.top=Math.min(box.bottom+6,innerHeight-tooltip.offsetHeight-8)+'px';}
   document.addEventListener('pointerover',showTooltip);document.addEventListener('focusin',showTooltip);document.addEventListener('pointerout',hideTooltip);document.addEventListener('focusout',hideTooltip);document.addEventListener('pointerdown',hideTooltip);
   function uuid(){if(typeof crypto.randomUUID==='function')return crypto.randomUUID();const bytes=crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;const hex=Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('');return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);}
-  return {escape,icon,token,terminalTheme,progress,ring,emptyState,skeleton,uuid};
+  return {escape,icon,token,terminalTheme,progress,ring,emptyState,skeleton,beginTask,uuid};
 })();

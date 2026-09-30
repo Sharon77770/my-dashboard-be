@@ -12,12 +12,12 @@ window.WorkspaceLauncher = (() => {
   function save(){try{window.HomePersistence.save(layout);}catch{helpers.toast('홈 배치를 저장하지 못했습니다. 브라우저 저장 공간과 권한을 확인하세요. 현재 배치는 이 창에서 유지됩니다.');}render();}
   function transaction(change){try{const next=JSON.parse(JSON.stringify(layout));change(next);if(next.items.length>160)throw new Error('홈에는 최대 160개 항목을 배치할 수 있습니다.');if(next.items.some(item=>item.type==='folder'&&item.apps.length>60))throw new Error('폴더에는 최대 60개 앱을 배치할 수 있습니다.');layout=next;save();}catch(error){helpers.toast(error.message);}}
   function iconLabel(app,attrs=''){return `<button class="launcher-shortcut" data-app-icon="${e(app.id)}" ${attrs} aria-label="${e(app.name)}"><span class="launcher-icon">${icon(app.icon)}</span><span class="launcher-label">${e(app.name)}</span></button>`;}
+  const recentActivity=()=>(state.activity||[]).slice(0,5).map(item=>`<button class="overview-row" data-open="${e(item.kind)}" data-target="${e(item.targetId)}" data-path="${e(item.path||'/')}"><span>${icon(({TERMINAL:'terminal',FILES:'files',REMOTE:'remote',APP:'browser'})[item.kind]||'recent')}</span><b>${e(item.label)}</b><small>${e(item.path||item.kind)}</small></button>`).join('')||'<p class="overview-empty">최근 작업이 없습니다.</p>';
   /** The overview composes existing recent activity and widget summaries without changing HomeItem storage. */
   function renderOverview(){
-    const recent=(state.activity||[]).slice(0,5).map(item=>`<button class="overview-row" data-open="${e(item.kind)}" data-target="${e(item.targetId)}" data-path="${e(item.path||'/')}"><span>${icon(({TERMINAL:'terminal',FILES:'files',REMOTE:'remote',APP:'browser'})[item.kind]||'recent')}</span><b>${e(item.label)}</b><small>${e(item.path||item.kind)}</small></button>`).join('')||'<p class="overview-empty">최근 작업이 없습니다.</p>';
     const module=(title,appId,widgetId)=>`<section class="overview-module"><header><h2>${title}</h2><button data-view="${appId}" aria-label="${title} 열기">${icon('arrowRight')}</button></header><div>${widgets.render({widgetId,h:2},state,statuses)}</div></section>`;
     $('#home-date').textContent=new Date().toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'});
-    $('#home-overview').innerHTML=`<section class="overview-module overview-continue"><header><h2>이어하기</h2><button data-action="app-switcher" aria-label="최근 작업 모두 보기">${icon('arrowRight')}</button></header><div>${recent}</div></section>${module('서비스','services','services-status')}${module('오늘','calendar','today')}${module('인프라','devices','device-status')}`;
+    $('#home-overview').innerHTML=`<section class="overview-module overview-continue"><header><h2>이어하기</h2><button data-action="app-switcher" aria-label="최근 작업 모두 보기">${icon('arrowRight')}</button></header><div>${recentActivity()}</div></section>${module('서비스','services','services-status')}${module('오늘','calendar','today')}${module('인프라','devices','device-status')}`;
   }
   function render(){
     if(!layout)return;
@@ -130,6 +130,16 @@ window.WorkspaceLauncher = (() => {
       window.addEventListener('studio-state',event=>{widgets.updateStudio(event.detail);render();});render();refreshWidgets();
     },
     sync(nextState,nextStatuses){state=nextState;statuses=nextStatuses;apps.sync(state);if(layout){layout=grid.sanitize(layout,apps,widgets);render();}},
+    updateActivity(nextState){state=nextState;const list=$('#home-overview .overview-continue>div');if(list)list.innerHTML=recentActivity();},
+    updateStatuses(nextStatuses){
+      statuses=nextStatuses;
+      const overview=$('#home-overview .overview-module:last-child>div');
+      if(overview)overview.innerHTML=widgets.render({widgetId:'device-status',h:2},state,statuses);
+      document.querySelectorAll('#home-widgets [data-widget="device-status"] .widget-body,#home-grid [data-widget="device-status"] .widget-body').forEach(body=>{
+        const item=layout?.items.find(entry=>entry.id===body.closest('[data-home-item]')?.dataset.homeItem);
+        if(item)body.innerHTML=widgets.render(item,state,statuses);
+      });
+    },
     opened(){document.body.dataset.home=$('#home').classList.contains('active');if(document.body.dataset.home==='true')refreshWidgets();},
     refreshWidgets,
     drawer

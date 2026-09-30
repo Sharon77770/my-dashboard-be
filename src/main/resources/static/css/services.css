@@ -69,11 +69,21 @@
 .service-row button:has(.ui-icon){width:34px;min-width:34px;padding:0;border:0;background:transparent}
 .service-metrics{display:grid;gap:8px}
 .service-create,.service-settings form,.service-runtime form,.service-telemetry form{display:grid;gap:9px;max-width:440px}
-.service-create{margin:20px auto!important;padding:20px!important;max-width:520px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-surface)}
+.service-create-dialog{width:min(520px,calc(100vw - 24px));overflow:hidden}
+.service-create-dialog[open]{display:flex;flex-direction:column}
+.service-create-dialog .service-create{display:flex;flex-direction:column;flex:1;margin:0;padding:0;max-width:none;min-height:0;overflow:hidden}
+.service-create-fields{display:grid;gap:10px;min-height:0;padding:16px 20px;overflow:auto}
 .service-create h2{margin:0;font-size:19px}
 .service-create p{margin:0 0 5px;color:var(--text-secondary);font-size:12px;line-height:1.5}
+.service-create .form-error{color:var(--danger)}
+.service-form-disclosure{padding:8px 0;border-top:1px solid var(--border-subtle)}
+.service-form-disclosure>summary{display:flex;align-items:center;justify-content:space-between;min-height:40px;padding:6px 8px;color:var(--text-primary);font-weight:600;cursor:pointer;list-style:none}
+.service-form-disclosure>summary::-webkit-details-marker{display:none}
+.service-form-disclosure>summary::after{content:'+';font-size:18px;font-weight:400;color:var(--text-muted)}
+.service-form-disclosure[open]>summary::after{content:'−'}
+.service-form-disclosure>form,.service-form-disclosure>.panel{margin:6px 8px 12px}
 .service-create .service-eyebrow{color:var(--text-muted);font-size:10px}
-.service-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.service-form-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--border-subtle);background:var(--bg-elevated)}
 .service-form-actions button{min-height:36px}
 .service-create label,.service-settings label,.service-runtime label,.service-telemetry label{display:grid;gap:4px}
 .service-runtime form+ h3{margin-top:22px}
@@ -97,6 +107,10 @@
 .service-telemetry-item b{font-size:12px}
 @media(max-width:700px){
  #services{padding:8px 11px}
+ .service-create-dialog{position:fixed;inset:auto 0 0;margin:0;width:100%;max-width:none;max-height:calc(var(--viewport-height,100dvh) - env(safe-area-inset-top) - 8px);border-radius:12px 12px 0 0;border-bottom:0}
+ .service-create-fields{padding:12px 16px}
+ .service-create-fields input,.service-create-fields select,.service-create-fields textarea{font-size:16px}
+ .service-form-actions{padding:10px 16px calc(10px + env(safe-area-inset-bottom))}
  #services.service-detail-open,#services.service-form-open{padding-top:0}
  #services.service-form-open>.page-head{display:none}
  #services>.page-head{min-height:36px;margin-bottom:4px}

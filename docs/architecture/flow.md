@@ -101,6 +101,10 @@ SSH 장비의 프로젝트 열기 → Codex 탭 → 원격 model/list 및 accoun
 
 Service Onboarding: 자연어 서비스 요청 → thread ID로 등록 리소스 탐색 → 결정적 correlation과 기존 Service 중복 단서 → 애매한 Compose/리소스 경계 질문 → 임시 Draft 작성·수정 → 채팅의 구조화된 카드 미리보기 → 브라우저 OWNER/CSRF 최종 승인 → `ServiceCatalogService` transaction으로 생성 또는 수정/연결/해제 → 활동 출처 기록과 Service 화면 열기. 일부 탐색 소스가 실패해도 나머지 후보를 보여준다. 승인 전 MCP commit은 403, 동시 Service 변경은 409, 연결 검증 실패 시 transaction rollback이다.
 
+서비스 화면의 수동 생성은 목록의 추가 작업 → 생성 dialog에서 기본 정보 입력 → 저장 중 진행 상태와 중복 제출 방지 → 성공 시 dialog 닫기 및 연결·설정 화면 이동 순서다. 실패하면 입력을 유지하고 폼 안에 오류를 표시한다. 화면 전환과 API 요청에는 공통 진행 상태를 표시한다.
+
+주기적 상태 조회는 변경 범위에 맞춰 화면을 갱신한다. Workspace 백그라운드 조회는 상태가 같으면 기존 DOM을 유지하고, 최근 작업·클립만 바뀌면 해당 목록만 교체한다. 장비 상태는 해당 카드·홈 장비 위젯에 반영한다. Database Studio 쿼리 폴링은 실행 중 상태만 갱신한 뒤 완료 결과를 표시한다. GitHub 승인 폴링은 목록 변경 시에만 승인 행을 갱신한다.
+
 사이드바는 동일한 서버 Codex 계정의 thread/list를 검색·페이지네이션하고, 선택 시 thread/read 결과의 사용자/답변 item만 대화에 복원한다. 새 채팅은 저장 전 draft이고 첫 turn 후 목록에 나타난다. 설정 창의 로그인·로그아웃, 모델·추론 설정과 대화 이름 변경·보관은 기존 assistant job action을 사용한다. 사이드바 삭제 모달은 별도의 thread/list 페이지를 표시하고 선택한 세션을 각 thread/delete job으로 영구 삭제한다. 현재 대화 제목 옆 삭제 버튼도 같은 action을 사용하며 성공하면 세션 저장소의 현재 ID를 지우고 빈 대화로 이동한다. 실패한 세션은 목록에 남긴다. 첨부 이미지와 UTF-8 텍스트는 전송 전 브라우저 메모리에만 두고, 전송 시 검증된 context로 turn에 전달한다. 실패 시 입력과 첨부는 재시도를 위해 유지한다.
 
 assistant UI는 응답 대기 중 진행 말풍선을 표시하고 turn/reasoning, MCP 도구, agentMessage 이벤트에 따라 단계 문구를 갱신한다. 내용 없는 agentMessage 시작 이벤트는 빈 답변으로 확정하지 않는다. 첫 실제 답변 텍스트 또는 job 완료/실패가 진행 표시를 종료한다. 새로고침 뒤 sessionStorage에 남은 미완료 표시도 완료 상태의 재시도 안내로 바꾼다.

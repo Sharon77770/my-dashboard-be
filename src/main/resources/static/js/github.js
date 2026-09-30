@@ -18,6 +18,7 @@
   let workState = 'open', issueRole = 'all', issueLabel = '';
   let failedRunsOnly = false;
   let owners = [], repositories = [], viewToken = 0;
+  let approvalSignature = null;
   const setStatus = (message, tone = 'info') => {$('#github-status').textContent = message; $('#github-status').dataset.state = tone;};
   $('#github-status').classList.add('ui-status');
   const layout = $('.github-layout');
@@ -136,7 +137,10 @@
     await loadOwner();
   }
   async function loadApprovals() {
-    const approvals = await ui.api('/github/approvals');
+    const approvals = await ui.api('/github/approvals', 'GET', undefined, {quiet:true});
+    const signature = JSON.stringify(approvals.map(item => [item.id,item.operation,item.repository,item.number]));
+    if (signature === approvalSignature) return;
+    approvalSignature = signature;
     const list = $('#github-approvals'); list.replaceChildren();
     approvalPanel.hidden = !approvals.length;
     for (const item of approvals) {
