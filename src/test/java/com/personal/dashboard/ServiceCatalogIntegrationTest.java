@@ -9,6 +9,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.personal.dashboard.assistant.service.AssistantMcpService;
+import com.personal.dashboard.services.dto.ServiceDto;
+import com.personal.dashboard.services.dto.ServiceOnboardingDto;
+import com.personal.dashboard.services.service.ServiceCatalogService;
+import com.personal.dashboard.services.service.ServiceOnboardingService;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +39,128 @@ class ServiceCatalogIntegrationTest {
   @Autowired ObjectMapper json;
   @Autowired JdbcTemplate jdbc;
   @Autowired AssistantMcpService mcp;
+  @Autowired ServiceOnboardingService onboarding;
+  @Autowired ServiceCatalogService catalogServices;
+
+  @Test
+  @WithMockUser(username = "owner", roles = "OWNER")
+  void failedAssistantBindingRollsBackServiceAndEarlierBinding() {
+    long before = jdbc.queryForObject("SELECT COUNT(*) FROM services", Long.class);
+    assertThat(
+            org.junit.jupiter.api.Assertions.assertThrows(
+                RuntimeException.class,
+                () ->
+                    catalogServices.applyAssistantDraft(
+                        null,
+                        0,
+                        java.util.Set.of(),
+                        new ServiceDto.Request("Rollback Fixture", "layers", "Development", ""),
+                        List.of(
+                            new ServiceDto.ResourceRequest("DEVICE", "local", "", ""),
+                            new ServiceDto.ResourceRequest(
+                                "TELEMETRY", "missing-service", "", "")))))
+        .isNotNull();
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM services", Long.class)).isEqualTo(before);
+  }
+
+  @Test
+  @WithMockUser(username = "owner", roles = "OWNER")
+  void assistantDraftRemovesOnlyReviewedExistingBinding() throws Exception {
+    String id =
+        catalogServices
+            .save(null, new ServiceDto.Request("Fixture API", "server", "Development", "test"))
+            .id();
+    catalogServices.bind(id, new ServiceDto.ResourceRequest("DEVICE", "local", "", ""));
+    catalogServices.bind(
+        id, new ServiceDto.ResourceRequest("ENDPOINT", "https://example.com/api", "", ""));
+    onboarding.discover("existing-service-thread", "Fixture API");
+    var draft =
+        onboarding.create(
+            new ServiceOnboardingDto.DraftRequest(
+                "existing-service-thread", id, "Fixture API", "test", "Development", null));
+    var changed =
+        onboarding.update(
+            draft.id(),
+            new ServiceOnboardingDto.DraftUpdate(
+                draft.revision(),
+                null,
+                null,
+                null,
+                List.of(new ServiceDto.ResourceRequest("DEVICE", "local", "", ""))));
+    onboarding.approve(changed.id(), changed.revision());
+    onboarding.commit(changed.id(), changed.revision());
+    assertThat(catalogServices.resources(id))
+        .extracting(ServiceDto.Resource::type)
+        .containsExactly("DEVICE");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM service_activity WHERE service_id=? AND source='ASSISTANT' AND type='RESOURCE_REMOVED'",
+                Integer.class,
+                id))
+        .isEqualTo(1);
+  }
+
+  @Test
+  @WithMockUser(username = "owner", roles = "OWNER")
+  void assistantDraftRequiresOwnerCsrfAndExplicitBrowserApproval() throws Exception {
+    String thread = "onboarding-integration";
+    onboarding.discover(thread, "Dashboard Server");
+    var draft =
+        onboarding.create(
+            new ServiceOnboardingDto.DraftRequest(
+                thread,
+                null,
+                "Onboarded Fixture",
+                "",
+                "Development",
+                List.of(
+                    new ServiceDto.ResourceRequest("DEVICE", "local", "", "Dashboard Server"))));
+    String path = "/api/v1/assistant/service-drafts/" + draft.id();
+    String body = json.writeValueAsString(Map.of("revision", draft.revision()));
+    mvc.perform(get(path)).andExpect(status().isOk());
+    mvc.perform(
+            post(path + "/commit")
+                .with(user("owner").roles("OWNER"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post(path + "/approve")
+                .with(user("owner").roles("OWNER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post(path + "/approve")
+                .with(user("owner").roles("OWNER"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isOk());
+    String created =
+        mvc.perform(
+                post(path + "/commit")
+                    .with(user("owner").roles("OWNER"))
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String id = json.readTree(created).path("id").asText();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM service_resources WHERE service_id=?", Integer.class, id))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM service_activity WHERE service_id=? AND source='ASSISTANT'",
+                Integer.class,
+                id))
+        .isEqualTo(2);
+  }
 
   private JsonNode create() throws Exception {
     String result =

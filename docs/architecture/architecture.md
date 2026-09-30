@@ -1,5 +1,7 @@
 # 아키텍처
 
+Workspace Memory: Assistant REST/MCP → `WorkspaceMemoryService` → SQLite repository. Codex bridge는 기존 비공개 MCP로 현재 질문의 제한된 관련 기억만 읽어 turn 입력에 넣는다. `PlannerService`·`NoteService`를 통한 승인 후 승격과 매일 결정적 수명 관리가 같은 service 계층에 있다. [정책](../workspace-memory.md).
+
 Java 21 / Spring Boot 3.5.16 / Thymeleaf / SQLite 단일 웹 애플리케이션이다.
 Thymeleaf가 계정·CSRF·초기 WorkspaceView와 화면 구조를 렌더링하고, 프레임워크 없는 JavaScript가 같은 서버 API/WS를 호출하여 조작·스트림 표시를 담당한다.
 별도 프런트엔드 서버나 클라이언트의 SSH/SFTP 실행은 없다.
@@ -8,6 +10,7 @@ Thymeleaf가 계정·CSRF·초기 WorkspaceView와 화면 구조를 렌더링하
 
 - `catalog/controller -> catalog/service -> catalog/repository -> SQLite`: 장비·앱·클립보드·즐겨찾기·최근 작업·화면 설정·탭.
 - `services/controller -> services/service -> services/repository -> SQLite`: Service 메타데이터·binding·activity를 보유한다. ServiceCatalogService는 기존 CatalogService/DeviceOperations, GithubService, TelemetryService를 조합해 Health와 Context를 만든다. AssistantMcpService의 read-only 도구도 같은 서비스를 호출한다.
+- `ServiceDiscoveryService -> 기존 GithubService/CatalogService/DeviceOperations/DatabaseStudioService/TelemetryService/ServiceCatalogService`: 안전한 후보 metadata를 병렬 수집한다. `ServiceOnboardingService`는 thread 범위 임시 Draft와 브라우저 승인 상태만 메모리에 두며, 최종 쓰기는 `ServiceCatalogService`의 transaction에 위임한다.
 - `database/controller -> database/service -> database/repository`는 Studio 연결 메타데이터·이력·즐겨찾기를 내부 SQLite에 저장한다. `database/service -> database/adapter -> JDBC`는 외부 PostgreSQL/MySQL 또는 기존 local Device의 서버 파일 영역에 있는 SQLite 파일을 요청마다 열고 닫는다. 비밀번호는 기존 CredentialVault를 재사용한다. Service Catalog는 DATABASE binding의 기존 연결 ID만 보관하며 Context에는 credential 없는 요약을 넣는다. MCP는 동일 service의 연결·metadata 읽기 도구만 제공한다.
 - `files/controller -> files/service -> files/adapter -> local filesystem 또는 SshAdapter/SFTP`: 경로 검증, 탐색, 스트리밍 파일 작업.
 - `runtime/controller -> runtime/service -> runtime/adapter`: 실행 세션 생성·소유권·종료, PTY/SSH, Chromium URL 열기, guacd 연결.

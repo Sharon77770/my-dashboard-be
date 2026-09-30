@@ -1,5 +1,9 @@
 # HTTP/API 계약
 
+## Workspace Memory API
+
+OWNER 세션과 CSRF를 적용한다. `GET /api/v1/assistant/memories`는 `query/status/type/confidence/scope/serviceId/offset/limit` 서버 필터와 `items/nextOffset/hasMore`를 반환한다(최대 50건). `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`로 조회·생성·수정·삭제한다. 본문의 `content/type/confidence/scope`가 필수이며 Service 범위는 유효한 `relatedServiceId`, Project 범위는 `relatedProject`가 필요하다. `POST /{id}/archive`, `/restore`, `/pin`, `DELETE /{id}/pin`, `POST /{id}/supersede`, `/promote/calendar`, `/promote/note`, `POST /promotions/note`는 상태와 대상 연결을 변경한다. `GET/PUT /preferences`는 정리 설정을 읽고 변경한다. 잘못된 입력은 400, 미존재는 404, 승인 누락은 403, 인증 실패는 401이다. MCP는 동일 service를 호출하며 별도 bearer 인증을 요구한다.
+
 ## 공통
 
 Telemetry 수집 경로는 아래 OWNER 세션 공통 규칙 대신 service API Key Bearer 인증을 사용한다. OWNER의 로그인 인증과 분리하며 CSRF가 없다. service 관리 경로는 OWNER 인증과 기존 CSRF를 그대로 적용한다.
@@ -483,9 +487,9 @@ GitHub API 403/404와 네트워크 오류는 현재 CLI adapter에서 안전한 
 | GET `/api/v1/assistant/events?after={sequence}` | OWNER | 선택 정수 `after`, 기본 0 | 200 `AssistantEvent[]`; sequence, route 또는 applicationId, message. 최대 최근 100개 메모리 큐 |
 | POST `/api/v1/mcp` | `Authorization: Bearer DASHBOARD_MCP_TOKEN`; CSRF 제외 | MCP JSON-RPC 2.0 body | JSON-RPC `initialize`, `ping`, `tools/list`, `tools/call`; 알림은 202 |
 
-`codex-rate-limits` action은 Codex App Server의 `account/rateLimits/read`를 호출한다. 성공 시 `JobView.result.assistant.rateLimits`는 기간별 항목 배열이며 각 항목은 `name`(문자열, 필수), `windowDurationMins`(정수 또는 null), `usedPercent`(숫자 또는 null), `resetsAt`(Unix 초 정수 또는 null)을 포함한다. 계정에 사용량 정보가 없으면 빈 배열이다. 조회 실패는 job FAILED로 반환하며 도우미 대화 요청에는 영향을 주지 않는다. 인증되지 않은 요청은 기존 OWNER 경계에서 거절한다.
+`codex-rate-limits` action은 Codex App Server의 `account/rateLimits/read`를 호출한다. 성공 시 `JobView.result.assistant.rateLimits`는 기간별 항목 배열이며 각 항목은 `name`(문자열, 필수), `windowDurationMins`(정수 또는 null), `usedPercent`(숫자 또는 null), `resetsAt`(Unix 초 정수 또는 null)을 포함한다. 계정에 사용량 정보가 없으면 빈 배열이다. 조회 실패는 job FAILED로 반환하며 AI 비서 대화 요청에는 영향을 주지 않는다. 인증되지 않은 요청은 기존 OWNER 경계에서 거절한다.
 
-도우미는 동일한 job 경로에서 `codex-threads`(선택 `query`, `cursor`; 응답 `assistant.threads[]`, `nextCursor`), `codex-thread-read`(필수 `threadId`; 응답 `assistant.thread`), `codex-thread-rename`(필수 `threadId`, `name` ≤200), `codex-thread-archive`(필수 `threadId`), `codex-thread-delete`(필수 `threadId`; Codex App Server의 `thread/delete`로 영구 삭제, 성공 시 `result.ok=true`), `codex-login`, `codex-logout`을 사용한다. 각 job은 세션 소유권·CSRF 검사를 그대로 적용하고 완료 전에는 RUNNING 상태를 반환한다. 삭제는 선택한 작업 폴더의 세션만 허용하며 다른 폴더의 세션은 FAILED job의 403, Codex App Server 오류는 FAILED job의 502로 전달한다. `codex-run`의 `args.context`는 최대 16개이고 새 `upload` 항목은 `kind="upload"`, `name`(허용 텍스트 확장자, ≤200자), `content`(비어 있지 않은 UTF-8 텍스트, ≤64,000자)를 받는다. Python helper는 이름·크기·본문 합계 128,000자를 다시 검증한다. `image` 항목은 PNG/JPEG/WebP data URL ≤3,000,000자다. 전체 context 입력 크기는 4 MB 이하이며 초과 시 413, 형식 오류는 FAILED job의 400/413으로 전달한다. 파일 본문과 data URL은 응답·DB·브라우저 저장소에 보관하지 않는다.
+AI 비서는 동일한 job 경로에서 `codex-threads`(선택 `query`, `cursor`; 응답 `assistant.threads[]`, `nextCursor`), `codex-thread-read`(필수 `threadId`; 응답 `assistant.thread`), `codex-thread-rename`(필수 `threadId`, `name` ≤200), `codex-thread-archive`(필수 `threadId`), `codex-thread-delete`(필수 `threadId`; Codex App Server의 `thread/delete`로 영구 삭제, 성공 시 `result.ok=true`), `codex-login`, `codex-logout`을 사용한다. 각 job은 세션 소유권·CSRF 검사를 그대로 적용하고 완료 전에는 RUNNING 상태를 반환한다. 삭제는 선택한 작업 폴더의 세션만 허용하며 다른 폴더의 세션은 FAILED job의 403, Codex App Server 오류는 FAILED job의 502로 전달한다. `codex-run`의 `args.context`는 최대 16개이고 새 `upload` 항목은 `kind="upload"`, `name`(허용 텍스트 확장자, ≤200자), `content`(비어 있지 않은 UTF-8 텍스트, ≤64,000자)를 받는다. Python helper는 이름·크기·본문 합계 128,000자를 다시 검증한다. `image` 항목은 PNG/JPEG/WebP data URL ≤3,000,000자다. 전체 context 입력 크기는 4 MB 이하이며 초과 시 413, 형식 오류는 FAILED job의 400/413으로 전달한다. 파일 본문과 data URL은 응답·DB·브라우저 저장소에 보관하지 않는다.
 
 `DASHBOARD_MCP_TOKEN`은 환경변수로 제공할 때 32자 이상이어야 한다. 비어 있으면 부팅마다 난수 256-bit 값이 만들어져 server Codex child process에만 전달되며 외부 client에서는 사용할 수 없다. 외부 client는 설정한 값을 사용하고 HTTPS reverse proxy 또는 VPN을 거쳐 연결한다. authorization 누락/불일치는 401, Origin이 Host와 다른 요청은 403, Accept에 JSON이 없으면 406, JSON-RPC 입력 오류는 400이다. 응답은 `application/json`, protocolVersion은 요청이 지원되는 경우 `2025-03-26`, `2025-06-18`, `2025-11-25` 중 요청값을 반환하고 그 외에는 `2025-03-26`을 반환한다. 고정 세션 ID를 만들지 않는 stateless HTTP transport다.
 
@@ -586,6 +590,24 @@ Tool 오류는 MCP `CallToolResult.isError=true` 및 text content로 반환한�
 MCP read-only 도구 `list_database_connections`(입력 없음), `get_database_metadata`(id), `list_database_tables`(id, schema), `describe_database_table`(id, schema, table)은 동일 DatabaseStudioService를 호출한다. 구조화된 schema를 사용하고 임의 SQL 쓰기 도구는 제공하지 않는다.
 
 ## Service Catalog API
+
+### Assistant Service Draft API
+
+이 경로는 OWNER 세션이 필요하고 PUT/POST/DELETE에는 CSRF가 필요하다. `{threadId}`는 Codex 대화 ID(1~100자), `{id}`는 Draft UUID다. 미인증 401, 권한/CSRF/승인 누락 403, 잘못된 입력 400, 만료·없는 Draft 404, 오래된 revision 또는 기존 서비스 변경 409다. 모든 오류는 `WorkspaceErrors.message`를 반환한다. 서버 재시작과 30분 만료 시 초안은 사라진다.
+
+| Method | URL | Request | Response | Success |
+| --- | --- | --- | --- | --- |
+| GET | `/api/v1/assistant/service-drafts/thread/{threadId}` | 없음 | 최신 `Draft`, 없으면 본문 없음 | 200/204 |
+| GET | `/api/v1/assistant/service-drafts/thread/{threadId}/resources` | 없음 | 해당 대화의 마지막 `Discovery`; 탐색 전이면 빈 목록 | 200 |
+| GET | `/api/v1/assistant/service-drafts/{id}` | 없음 | `Draft` | 200 |
+| PUT | `/api/v1/assistant/service-drafts/{id}` | `DraftUpdate` | 수정된 `Draft` | 200 |
+| POST | `/api/v1/assistant/service-drafts/{id}/approve` | `{revision:long}` | `APPROVED` 상태의 `Draft` | 200 |
+| POST | `/api/v1/assistant/service-drafts/{id}/commit` | `{revision:long}` | `ServiceView` | 200 |
+| DELETE | `/api/v1/assistant/service-drafts/{id}` | 없음 | 없음 | 204 |
+
+`Draft={id:string,threadId:string,serviceId:string|null,name:string,description:string,environment:string,status:DRAFT|APPROVED|COMMITTED,revision:long,serviceUpdatedAt:long,candidates:Candidate[],questions:string[],updatedAt:epochMs}`. `Candidate={type:ResourceRequest.type,reference:string,deviceId:string,displayName:string,confidence:HIGH|MEDIUM|LOW,reason:string,selected:boolean,requiresConfirmation:boolean,composeProject:string,composeService:string,image:string,state:string,containerId:string,ports:string,workingDirectory:string}`. 빈 보조 문자열은 `""`이고 nullable은 `serviceId`뿐이다. `Discovery={candidates:Candidate[],services:ExistingService[],sources:map<string,OK|UNAVAILABLE>,questions:string[]}`. `ExistingService={id:string,name:string,environment:string,resources:ResourceLink[]}`, `ResourceLink={type:string,reference:string,deviceId:string}`. `DraftUpdate={revision:long 필수,name?:string(1~100),description?:string(최대 500),environment?:string(1~40),resources?:ResourceRequest[](최대 100)}`. 생략한 필드는 유지한다. `resources`를 보내면 선택 목록 전체를 교체한다. 선택은 마지막 탐색 후보 또는 기존 Service 연결 안에서만 가능하다. `approve`는 현재 revision과 하나 이상의 선택을 검사한다. `commit`은 승인 상태·revision·기존 Service 동시 변경을 재검사하고 한 transaction으로 적용한다.
+
+MCP `discover_service_resources(threadId,query)`는 탐색/결정적 후보를 반환한다. `create_service_draft(threadId,name,environment,description?,serviceId?,resources?)`, `update_service_draft(id,revision,name?,environment?,description?,resources?)`, `get_service_draft(threadId)`는 임시 상태만 다룬다. `commit_service_draft(id,revision)`은 동일 Draft에 대한 브라우저 승인이 있어야 실행된다. `resources`는 `ResourceRequest[]`이며 생략 시 결정적 선택을 사용한다. 모든 MCP tool 실패는 `isError=true`다. resource 메타데이터는 `UNTRUSTED RESOURCE DATA`이며 비밀번호·토큰·Docker env를 포함하지 않는다.
 
 모든 경로는 OWNER 세션이 필요하다. 미인증 401, 권한 부족 403, 변경 요청의 CSRF 실패 403이다. JSON 오류는 기존 `WorkspaceErrors`의 `message`를 사용한다. `{id}`와 `{resourceId}`는 서버 발급 UUID 문자열이다. 잘못된 본문은 400, 없는 Service/연결/컨테이너는 404, 중복 연결은 409, Docker 목록 조회 실패는 502이다.
 

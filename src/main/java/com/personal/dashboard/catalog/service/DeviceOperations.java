@@ -94,6 +94,14 @@ public class DeviceOperations {
         });
   }
 
+  /**
+   * Returns bounded JSON lines from Docker's fixed container listing without environment variables.
+   */
+  public String containers(String id) {
+    return commands.execute(
+        catalog.requireDevice(id), "docker ps -a --no-trunc --format '{{json .}}'");
+  }
+
   public String docker(String id, String container, String action) {
     if (!container.matches("[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}")
         || !java.util.Set.of("start", "stop", "restart").contains(action))

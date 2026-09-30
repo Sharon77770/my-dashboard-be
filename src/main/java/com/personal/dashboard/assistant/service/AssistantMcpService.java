@@ -2,6 +2,7 @@ package com.personal.dashboard.assistant.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.personal.dashboard.assistant.dto.WorkspaceMemoryDto;
 import com.personal.dashboard.catalog.service.CatalogService;
 import com.personal.dashboard.database.service.DatabaseStudioService;
 import com.personal.dashboard.github.dto.GithubDto;
@@ -13,7 +14,10 @@ import com.personal.dashboard.notes.service.NoteMarkdownConverter;
 import com.personal.dashboard.notes.service.NoteService;
 import com.personal.dashboard.planner.dto.PlannerDto.EventRequest;
 import com.personal.dashboard.planner.service.PlannerService;
+import com.personal.dashboard.services.dto.ServiceDto;
+import com.personal.dashboard.services.dto.ServiceOnboardingDto;
 import com.personal.dashboard.services.service.ServiceCatalogService;
+import com.personal.dashboard.services.service.ServiceOnboardingService;
 import jakarta.validation.Validator;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -54,6 +58,8 @@ public class AssistantMcpService {
   private final GithubService github;
   private final ServiceCatalogService services;
   private final DatabaseStudioService databases;
+  private final ServiceOnboardingService onboarding;
+  private final WorkspaceMemoryService memories;
 
   public AssistantMcpService(
       PlannerService planner,
@@ -65,7 +71,9 @@ public class AssistantMcpService {
       ObjectMapper json,
       GithubService github,
       ServiceCatalogService services,
-      DatabaseStudioService databases) {
+      DatabaseStudioService databases,
+      ServiceOnboardingService onboarding,
+      WorkspaceMemoryService memories) {
     this.planner = planner;
     this.catalog = catalog;
     this.notes = notes;
@@ -76,10 +84,195 @@ public class AssistantMcpService {
     this.github = github;
     this.services = services;
     this.databases = databases;
+    this.onboarding = onboarding;
+    this.memories = memories;
   }
 
   public List<Map<String, Object>> tools() {
     return List.of(
+        tool(
+            "search_memories",
+            "Search cross-session Workspace Memory. Use relevant terms; uncertainty and status are preserved.",
+            schema(
+                List.of("query"),
+                Map.of(
+                    "query",
+                    string(200),
+                    "status",
+                    string(20),
+                    "type",
+                    string(20),
+                    "confidence",
+                    string(20),
+                    "scope",
+                    string(20),
+                    "offset",
+                    integer())),
+            true),
+        tool(
+            "list_memories",
+            "Page through all memories only when the user explicitly requests the full list.",
+            schema(List.of(), Map.of("offset", integer(), "status", string(20))),
+            true),
+        tool(
+            "get_memory",
+            "Read one Workspace Memory by ID.",
+            schema(List.of("id"), Map.of("id", string(36))),
+            true),
+        tool(
+            "compose_memory_context",
+            "Return only relevant memories under a hard context budget. Read-only.",
+            schema(
+                List.of("query"),
+                Map.of("query", string(2000), "serviceId", string(36), "project", string(120))),
+            true),
+        tool(
+            "create_memory",
+            "Create memory only for an explicit remember request or after the user accepted a suggested memory. Never store secrets.",
+            schema(List.of("content", "type", "confidence", "scope"), memoryFields()),
+            false),
+        tool(
+            "update_memory",
+            "Edit a known memory after reading it. User correction may strengthen certainty.",
+            schema(List.of("id", "content", "type", "confidence", "scope"), memoryFieldsWithId()),
+            false),
+        tool(
+            "archive_memory",
+            "Archive a known memory.",
+            schema(List.of("id"), Map.of("id", string(36))),
+            false),
+        tool(
+            "restore_memory",
+            "Restore an archived memory.",
+            schema(List.of("id"), Map.of("id", string(36))),
+            false),
+        dangerousTool(
+            "delete_memory",
+            "Delete a known memory after the user clearly confirms deletion.",
+            schema(List.of("id"), Map.of("id", string(36)))),
+        tool(
+            "pin_memory",
+            "Protect a known memory from automatic deletion.",
+            schema(List.of("id"), Map.of("id", string(36))),
+            false),
+        tool(
+            "unpin_memory",
+            "Remove retention protection from a known memory.",
+            schema(List.of("id"), Map.of("id", string(36))),
+            false),
+        tool(
+            "reinforce_memory",
+            "Strengthen certainty only from user confirmation or domain evidence, never retrieval alone.",
+            schema(
+                List.of("id", "confidence"),
+                Map.of(
+                    "id",
+                    string(36),
+                    "confidence",
+                    enumeration(Set.of("CONFIRMED", "LIKELY", "TENTATIVE")))),
+            false),
+        tool(
+            "supersede_memory",
+            "Archive an obsolete memory and create a linked replacement.",
+            schema(List.of("id", "content", "type", "confidence", "scope"), memoryFieldsWithId()),
+            false),
+        tool(
+            "promote_memory_to_calendar",
+            "After explicit user approval, create a confirmed Calendar event and link it to the memory.",
+            schema(
+                List.of("id", "title", "start", "end", "confirmed"),
+                Map.of(
+                    "id",
+                    string(36),
+                    "title",
+                    string(120),
+                    "start",
+                    dateTime(),
+                    "end",
+                    dateTime(),
+                    "confirmed",
+                    Map.of("type", "boolean"))),
+            false),
+        tool(
+            "promote_memory_to_note",
+            "After user approval, create a Note from a memory and link it.",
+            schema(
+                List.of("id", "title", "confirmed"),
+                Map.of(
+                    "id",
+                    string(36),
+                    "title",
+                    string(200),
+                    "confirmed",
+                    Map.of("type", "boolean"))),
+            false),
+        tool(
+            "promote_memories_to_note",
+            "After user approval, collect 1-20 active memories into one Note and link every source.",
+            schema(
+                List.of("ids", "title", "confirmed"),
+                Map.of(
+                    "ids",
+                    Map.of("type", "array", "minItems", 1, "maxItems", 20, "items", string(36)),
+                    "title",
+                    string(200),
+                    "confirmed",
+                    Map.of("type", "boolean"))),
+            false),
+        tool(
+            "discover_service_resources",
+            "Discover safe Workspace resource metadata and correlation hints for a Service draft. Read-only; call before creating a draft.",
+            schema(
+                List.of("threadId", "query"),
+                Map.of("threadId", string(100), "query", string(100))),
+            true),
+        tool(
+            "create_service_draft",
+            "Prepare an editable Service draft in this thread. No catalog mutation. Use resource references from discovery.",
+            schema(
+                List.of("threadId", "name", "environment"),
+                Map.of(
+                    "threadId",
+                    string(100),
+                    "name",
+                    string(100),
+                    "environment",
+                    string(40),
+                    "description",
+                    string(500),
+                    "serviceId",
+                    string(36),
+                    "resources",
+                    resourceListSchema())),
+            false),
+        tool(
+            "update_service_draft",
+            "Change draft metadata or replace selected resources. Browser approval is reset.",
+            schema(
+                List.of("id", "revision"),
+                Map.of(
+                    "id",
+                    string(36),
+                    "revision",
+                    integer(),
+                    "name",
+                    string(100),
+                    "description",
+                    string(500),
+                    "environment",
+                    string(40),
+                    "resources",
+                    resourceListSchema())),
+            false),
+        tool(
+            "get_service_draft",
+            "Read the current temporary Service draft and its selected resources.",
+            schema(List.of("threadId"), Map.of("threadId", string(100))),
+            true),
+        dangerousTool(
+            "commit_service_draft",
+            "Commit only after the owner explicitly approves this exact draft revision in the browser review card.",
+            schema(List.of("id", "revision"), Map.of("id", string(36), "revision", integer()))),
         tool(
             "list_database_connections",
             "List saved database connections without credentials.",
@@ -766,6 +959,121 @@ public class AssistantMcpService {
     if (args == null || !args.isObject())
       throw new WorkspaceException(400, "MCP 도구 입력은 JSON 객체여야 합니다.");
     return switch (name) {
+      case "search_memories" ->
+          Map.of(
+              "page",
+              memories.search(
+                  requiredText(args, "query", 200),
+                  Objects.toString(optionalText(args, "status", 20), "ACTIVE"),
+                  Objects.toString(optionalText(args, "type", 20), ""),
+                  Objects.toString(optionalText(args, "confidence", 20), ""),
+                  Objects.toString(optionalText(args, "scope", 20), ""),
+                  "",
+                  args.path("offset").asInt(0),
+                  25));
+      case "list_memories" ->
+          Map.of(
+              "page",
+              memories.search(
+                  "",
+                  Objects.toString(optionalText(args, "status", 20), ""),
+                  "",
+                  "",
+                  "",
+                  "",
+                  args.path("offset").asInt(0),
+                  25));
+      case "get_memory" -> Map.of("memory", memories.get(requiredText(args, "id", 36)));
+      case "compose_memory_context" ->
+          Map.of(
+              "context",
+              memories.compose(
+                  requiredText(args, "query", 2000),
+                  Objects.toString(optionalText(args, "serviceId", 36), ""),
+                  Objects.toString(optionalText(args, "project", 120), "")));
+      case "create_memory" -> Map.of("memory", memories.create(memoryInput(args), true));
+      case "update_memory" ->
+          Map.of("memory", memories.update(requiredText(args, "id", 36), memoryInput(args)));
+      case "archive_memory" ->
+          Map.of("memory", memories.status(requiredText(args, "id", 36), "ARCHIVED"));
+      case "restore_memory" ->
+          Map.of("memory", memories.status(requiredText(args, "id", 36), "ACTIVE"));
+      case "delete_memory" -> {
+        memories.delete(requiredText(args, "id", 36));
+        yield Map.of("deleted", true);
+      }
+      case "pin_memory" -> Map.of("memory", memories.pin(requiredText(args, "id", 36), true));
+      case "unpin_memory" -> Map.of("memory", memories.pin(requiredText(args, "id", 36), false));
+      case "reinforce_memory" ->
+          Map.of(
+              "memory",
+              memories.reinforce(
+                  requiredText(args, "id", 36), requiredText(args, "confidence", 20)));
+      case "supersede_memory" ->
+          Map.of("memory", memories.supersede(requiredText(args, "id", 36), memoryInput(args)));
+      case "promote_memory_to_calendar" -> {
+        if (!args.path("confirmed").asBoolean(false))
+          throw new WorkspaceException(403, "사용자 승인이 필요합니다.");
+        yield Map.of(
+            "memory",
+            memories.promoteCalendar(
+                requiredText(args, "id", 36),
+                new EventRequest(
+                    requiredText(args, "title", 120),
+                    LocalDateTime.parse(requiredText(args, "start", 30)),
+                    LocalDateTime.parse(requiredText(args, "end", 30)),
+                    false,
+                    "",
+                    "",
+                    "#64748b")));
+      }
+      case "promote_memory_to_note" -> {
+        if (!args.path("confirmed").asBoolean(false))
+          throw new WorkspaceException(403, "사용자 승인이 필요합니다.");
+        yield Map.of(
+            "memory",
+            memories.promoteNote(requiredText(args, "id", 36), requiredText(args, "title", 200)));
+      }
+      case "promote_memories_to_note" -> {
+        if (!args.path("confirmed").asBoolean(false))
+          throw new WorkspaceException(403, "사용자 승인이 필요합니다.");
+        yield Map.of(
+            "promotion",
+            memories.promoteNotes(
+                optionalStringList(args, "ids"), requiredText(args, "title", 200)));
+      }
+      case "discover_service_resources" ->
+          Map.of(
+              "discovery",
+              onboarding.discover(
+                  requiredText(args, "threadId", 100), requiredText(args, "query", 100)));
+      case "create_service_draft" ->
+          Map.of(
+              "draft",
+              onboarding.create(
+                  new ServiceOnboardingDto.DraftRequest(
+                      requiredText(args, "threadId", 100), optionalText(args, "serviceId", 36),
+                      requiredText(args, "name", 100), optionalText(args, "description", 500),
+                      requiredText(args, "environment", 40), resourceRequests(args))));
+      case "update_service_draft" ->
+          Map.of(
+              "draft",
+              onboarding.update(
+                  requiredText(args, "id", 36),
+                  new ServiceOnboardingDto.DraftUpdate(
+                      requiredLong(args, "revision"),
+                      optionalText(args, "name", 100),
+                      optionalText(args, "description", 500),
+                      optionalText(args, "environment", 40),
+                      resourceRequests(args))));
+      case "get_service_draft" -> {
+        var draft = onboarding.forThread(requiredText(args, "threadId", 100));
+        yield draft == null ? Map.of("draft", "none") : Map.of("draft", draft);
+      }
+      case "commit_service_draft" ->
+          Map.of(
+              "service",
+              onboarding.commit(requiredText(args, "id", 36), requiredLong(args, "revision")));
       case "list_database_connections" -> Map.of("connections", databases.list());
       case "get_database_metadata" -> {
         String id = requiredText(args, "id", 36);
@@ -1316,6 +1624,23 @@ public class AssistantMcpService {
     return names;
   }
 
+  private List<ServiceDto.ResourceRequest> resourceRequests(JsonNode args) {
+    JsonNode values = args.get("resources");
+    if (values == null || values.isNull()) return null;
+    if (!values.isArray() || values.size() > 100)
+      throw new WorkspaceException(400, "리소스 목록을 확인해 주세요.");
+    List<ServiceDto.ResourceRequest> result = new ArrayList<>();
+    values.forEach(
+        value -> {
+          if (!value.isObject()) throw new WorkspaceException(400, "리소스 목록을 확인해 주세요.");
+          result.add(
+              new ServiceDto.ResourceRequest(
+                  requiredText(value, "type", 32), requiredText(value, "reference", 500),
+                  optionalText(value, "deviceId", 36), optionalText(value, "label", 100)));
+        });
+    return result;
+  }
+
   private Map<String, String> optionalStringMap(JsonNode args, String name) {
     JsonNode value = args.get(name);
     if (value == null || value.isNull()) return Map.of();
@@ -1382,6 +1707,83 @@ public class AssistantMcpService {
         required,
         "additionalProperties",
         false);
+  }
+
+  private Map<String, Object> resourceListSchema() {
+    return Map.of(
+        "type",
+        "array",
+        "maxItems",
+        100,
+        "items",
+        schema(
+            List.of("type", "reference"),
+            Map.of(
+                "type",
+                enumeration(
+                    Set.of(
+                        "GITHUB_REPOSITORY",
+                        "GITHUB_ORGANIZATION",
+                        "DEVICE",
+                        "DOCKER_CONTAINER",
+                        "TELEMETRY",
+                        "ENDPOINT",
+                        "FILE",
+                        "DATABASE")),
+                "reference",
+                string(500),
+                "deviceId",
+                string(36),
+                "label",
+                string(100))));
+  }
+
+  private Map<String, Object> memoryFields() {
+    Map<String, Object> fields = new LinkedHashMap<>();
+    fields.put("content", string(500));
+    fields.put(
+        "type",
+        enumeration(
+            Set.of(
+                "FACT",
+                "POSSIBILITY",
+                "INTENTION",
+                "FOLLOW_UP",
+                "DECISION",
+                "PREFERENCE",
+                "CONTEXT")));
+    fields.put("confidence", enumeration(Set.of("CONFIRMED", "LIKELY", "TENTATIVE")));
+    fields.put("scope", enumeration(Set.of("GLOBAL", "PERSONAL", "SERVICE", "PROJECT")));
+    fields.put("importance", enumeration(Set.of("LOW", "NORMAL", "HIGH")));
+    fields.put("tags", string(200));
+    fields.put("timeHint", string(120));
+    fields.put("relatedServiceId", string(36));
+    fields.put("relatedProject", string(120));
+    fields.put("sourceThreadId", string(100));
+    return fields;
+  }
+
+  private Map<String, Object> memoryFieldsWithId() {
+    Map<String, Object> fields = memoryFields();
+    fields.put("id", string(36));
+    return fields;
+  }
+
+  private WorkspaceMemoryDto.Input memoryInput(JsonNode args) {
+    return new WorkspaceMemoryDto.Input(
+        requiredText(args, "content", 500),
+        requiredText(args, "type", 20),
+        requiredText(args, "confidence", 20),
+        requiredText(args, "scope", 20),
+        optionalText(args, "importance", 20),
+        optionalText(args, "tags", 200),
+        optionalText(args, "timeHint", 120),
+        optionalText(args, "relatedServiceId", 36),
+        optionalText(args, "relatedProject", 120),
+        null,
+        null,
+        optionalText(args, "sourceThreadId", 100),
+        null);
   }
 
   private Map<String, Object> string(int max) {

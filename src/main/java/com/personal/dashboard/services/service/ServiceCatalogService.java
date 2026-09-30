@@ -150,6 +150,61 @@ public class ServiceCatalogService {
     return value;
   }
 
+  /** Applies an approved draft as one catalog transaction, including removals. */
+  @Transactional
+  public ServiceDto.View applyAssistantDraft(
+      String id,
+      long expectedUpdatedAt,
+      java.util.Set<String> expectedBindings,
+      ServiceDto.Request details,
+      List<ServiceDto.ResourceRequest> selected) {
+    if (selected == null || selected.isEmpty())
+      throw new WorkspaceException(400, "연결할 리소스를 하나 이상 선택해 주세요.");
+    if (id != null) {
+      if (get(id).updatedAt() != expectedUpdatedAt)
+        throw new WorkspaceException(409, "서비스가 변경되었습니다. Draft를 다시 확인해 주세요.");
+      var currentBindings =
+          repository.resources(id).stream()
+              .map(item -> item.type() + "\u0000" + item.deviceId() + "\u0000" + item.reference())
+              .collect(java.util.stream.Collectors.toSet());
+      if (!currentBindings.equals(expectedBindings))
+        throw new WorkspaceException(409, "서비스 연결이 변경되었습니다. Draft를 다시 확인해 주세요.");
+    }
+    ServiceDto.View value = save(id, details);
+    List<ServiceDto.Resource> current = repository.resources(value.id());
+    for (ServiceDto.Resource resource : current) {
+      boolean keep =
+          selected.stream()
+              .anyMatch(
+                  request ->
+                      request.type().equals(resource.type())
+                          && request.reference().equals(resource.reference())
+                          && Objects.toString(request.deviceId(), "").equals(resource.deviceId()));
+      if (!keep) {
+        unbind(value.id(), resource.id());
+        repository.assistantEvent(value.id(), "RESOURCE_REMOVED", "AI 비서가 리소스 연결 해제");
+      }
+    }
+    for (ServiceDto.ResourceRequest request : selected) {
+      boolean present =
+          current.stream()
+              .anyMatch(
+                  resource ->
+                      resource.type().equals(request.type())
+                          && resource.reference().equals(request.reference())
+                          && resource.deviceId().equals(Objects.toString(request.deviceId(), "")));
+      if (!present) {
+        bind(value.id(), request);
+        repository.assistantEvent(value.id(), "RESOURCE_BOUND", "AI 비서가 리소스 연결");
+      }
+    }
+    repository.assistantEvent(
+        value.id(),
+        id == null ? "SERVICE_CREATED" : "SERVICE_UPDATED",
+        id == null ? "AI 비서가 서비스 등록" : "AI 비서가 서비스 수정");
+    return value;
+  }
+
   private void validate(String type, String reference) {
     switch (type) {
       case "DEVICE" -> catalog.requireDevice(reference);

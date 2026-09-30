@@ -78,11 +78,39 @@ def check(options):
                 created = mcp('create_calendar_event', dict(title='MCP fixture',
                     start='2026-10-05T09:00:00', end='2026-10-05T10:00:00'))
                 assert not created['isError'], 'Fixture event creation failed'
+                remembered = mcp('create_memory', dict(content='Late October laboratory dinner may happen',
+                    type='POSSIBILITY', confidence='TENTATIVE', scope='PERSONAL', sourceThreadId='smoke-thread'))
+                assert not remembered['isError'], 'Memory creation failed'
+                memory_id = remembered['structuredContent']['memory']['id']
+                recalled = mcp('search_memories', dict(query='laboratory dinner'))
+                assert not recalled['isError'] and any(item['id'] == memory_id for item in recalled['structuredContent']['page']['items']), 'Cross-session Memory search failed'
+                context = mcp('compose_memory_context', dict(query='laboratory dinner in October'))
+                assert not context['isError'] and '[TENTATIVE]' in context['structuredContent']['context']['text'], 'Memory uncertainty lost in context'
+                denied = mcp('promote_memory_to_calendar', dict(id=memory_id,title='Laboratory dinner',
+                    start='2026-10-28T19:00:00',end='2026-10-28T21:00:00',confirmed=False))
+                assert denied['isError'], 'Unconfirmed Memory promotion was accepted'
+                print('PASS: MCP Memory create -> search -> bounded tentative context -> blocked promotion', flush=True)
                 csrf = CsrfParser()
                 csrf.feed(request('/login'))
                 form = urllib.parse.urlencode(dict(id='mcp-fixture', password=password, _csrf=csrf.token)).encode()
                 with client.open(urllib.request.Request(base + '/login', data=form), timeout=15) as response:
                     csrf.feed(response.read().decode())
+                discovery = mcp('discover_service_resources', dict(threadId='mcp-smoke-thread', query='Dashboard Server'))
+                assert not discovery['isError'], 'Service resource discovery failed'
+                candidates = discovery['structuredContent']['discovery']['candidates']
+                assert any(item['type'] == 'DEVICE' and item['reference'] == 'local' for item in candidates), 'Local device missing from discovery'
+                prepared = mcp('create_service_draft', dict(threadId='mcp-smoke-thread', name='MCP Smoke Service',
+                    environment='Development', resources=[dict(type='DEVICE', reference='local', deviceId='', label='Dashboard Server')]))
+                assert not prepared['isError'], 'Service draft creation failed'
+                draft = prepared['structuredContent']['draft']
+                blocked = mcp('commit_service_draft', dict(id=draft['id'], revision=draft['revision']))
+                assert blocked['isError'], 'Service commit bypassed browser approval'
+                request('/api/v1/assistant/service-drafts/' + draft['id'] + '/approve',
+                    dict(revision=draft['revision']),
+                    {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token})
+                committed = mcp('commit_service_draft', dict(id=draft['id'], revision=draft['revision']))
+                assert not committed['isError'] and committed['structuredContent']['service']['name'] == 'MCP Smoke Service', 'Approved Service draft commit failed'
+                print('PASS: MCP discovery -> draft -> blocked commit -> browser approval -> atomic catalog commit', flush=True)
                 job = request('/api/v1/assistant/jobs', dict(deviceId='local', root=str(files),
                     action='codex-connections', args={}),
                     {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token})
@@ -92,7 +120,10 @@ def check(options):
                     job = request('/api/v1/assistant/jobs/' + job['id'])
                 assert job['state'] == 'SUCCEEDED', 'Assistant connection job failed: ' + str(job.get('error'))
                 connection = next(c for c in job['result']['assistant']['connections'] if c['name'] == 'personal-dashboard')
-                assert not connection['error'] and 'list_calendar_events' in connection['tools'], 'Calendar not discovered'
+                assert not connection['error'] and {'list_calendar_events', 'discover_service_resources',
+                    'create_service_draft', 'update_service_draft', 'get_service_draft',
+                    'commit_service_draft', 'search_memories', 'get_memory', 'create_memory',
+                    'compose_memory_context', 'promote_memories_to_note'}.issubset(connection['tools']), 'Dashboard Assistant tools not discovered'
                 assert connection.get('runtimeStatus') in (None, 'connected'), 'Unexpected runtime state'
                 print('PASS: real Codex discovery -> Java job response includes calendar tool; runtimeStatus=' + str(connection.get('runtimeStatus')), flush=True)
 

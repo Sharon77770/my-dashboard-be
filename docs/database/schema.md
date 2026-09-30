@@ -1,5 +1,9 @@
 # SQLite schema
 
+## workspace_memories (owner: assistant)
+
+`V9__workspace_memory.sql`이 내용, 유형, 확정도, 범위, 상태, 중요도, 시간 힌트, 출처, Pin, 접근 이력, 만료, supersede와 Calendar/Note 승격 연결을 저장한다. `related_service_id`는 Service Catalog를 참조한다. 상태·범위·서비스·만료 인덱스를 둔다. `workspace_memory_preferences` 한 행은 보존 정책과 마지막 정리 시간을 저장한다. Memory는 thread 삭제와 독립적이다.
+
 소스: `src/main/resources/db/schema.sql`. DatabaseInitialization이 기본 schema와 V3~V8 migration을 적용한다. V3/V5의 devices 컬럼 추가는 `PRAGMA table_info`로 검사해 재시작 시 중복 적용하지 않는다. V8은 Database Studio의 **연결 정보 저장용** SQLite 테이블이며 사용자가 연결한 외부 DB의 schema를 저장하지 않는다.
 
 ## Database Studio (owner: database)

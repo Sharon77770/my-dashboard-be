@@ -74,7 +74,7 @@ codex-run/review/thread-compact의 실행 중 job에만 입력할 수 있다. �
 
 ## 대시보드 assistant API
 
-별도 `/api/v1/assistant/jobs` 경로는 OWNER와 생성한 HTTP 세션을 사용한다. 도우미가 사용하는 action은 `setup`, `codex-models`, `codex-account`, `codex-rate-limits`, `codex-connections`, `codex-login`, `codex-run`이다. `codex-rate-limits`는 Codex App Server의 `account/rateLimits/read`를 조회하며, 응답이 없거나 실패하면 사용량을 추정하지 않는다.
+별도 `/api/v1/assistant/jobs` 경로는 OWNER와 생성한 HTTP 세션을 사용한다. AI 비서가 사용하는 action은 `setup`, `codex-models`, `codex-account`, `codex-rate-limits`, `codex-connections`, `codex-login`, `codex-run`이다. `codex-rate-limits`는 Codex App Server의 `account/rateLimits/read`를 조회하며, 응답이 없거나 실패하면 사용량을 추정하지 않는다.
 
 `codex-connections`는 App Server의 MCP 목록을 모든 페이지에 걸쳐 조회한다. `status`는 인증 방식이며 연결 성공을 뜻하지 않는다. 브라우저는 오류 없이 일정 도구가 발견되고 `runtimeStatus`가 `connected` 또는 null/생략이면 준비 완료로 처리한다. 명시적인 비연결 상태와 빈 도구 목록은 실패다. 계정 미인증은 MCP 조회보다 먼저 로그인 안내로 처리한다. API의 OWNER/session 소유권, 입력 처리와 취소 동작은 유지한다.
 

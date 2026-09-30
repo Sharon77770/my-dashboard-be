@@ -20,6 +20,27 @@ import org.junit.jupiter.api.Test;
 
 /** MCP names use the same GitHub service as REST and mark merge as destructive. */
 class GithubMcpToolTest {
+  @Test
+  void serviceBuilderToolsExposeDraftAndApprovalBoundary() {
+    assertTrue(
+        mcp.tools().stream()
+            .map(item -> item.get("name"))
+            .toList()
+            .containsAll(
+                List.of(
+                    "discover_service_resources",
+                    "create_service_draft",
+                    "update_service_draft",
+                    "get_service_draft",
+                    "commit_service_draft")));
+    var commit =
+        mcp.tools().stream()
+            .filter(item -> item.get("name").equals("commit_service_draft"))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(true, ((Map<?, ?>) commit.get("annotations")).get("destructiveHint"));
+  }
+
   private final GithubService github = mock(GithubService.class);
   private final PlannerService planner = mock(PlannerService.class);
   private final DatabaseStudioService databases = mock(DatabaseStudioService.class);
@@ -35,7 +56,9 @@ class GithubMcpToolTest {
           json,
           github,
           mock(com.personal.dashboard.services.service.ServiceCatalogService.class),
-          databases);
+          databases,
+          mock(com.personal.dashboard.services.service.ServiceOnboardingService.class),
+          mock(com.personal.dashboard.assistant.service.WorkspaceMemoryService.class));
 
   @Test
   void databaseToolsAreReadOnlyAndUseStudioService() {

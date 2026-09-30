@@ -17,7 +17,7 @@ window.WorkspaceApps = (() => {
     {id:'timetable',name:'시간표',icon:'timetable',route:'timetable'},
     {id:'studio',name:'코드 에디터',icon:'studio',route:'studio',widgets:['project','codex']},
     {id:'github',name:'GitHub',icon:'git',route:'github',widgets:['github-status']},
-    {id:'assistant',name:'대시보드 도우미',icon:'codex',route:'assistant'},
+    {id:'assistant',name:'AI 비서',icon:'codex',route:'assistant'},
     {id:'recent',name:'최근 작업',icon:'recent',route:'recent'},
     {id:'clipboard',name:'클립보드',icon:'clip',route:'clipboard'},
     {id:'tailscale-settings',name:'Tailscale 설정',icon:'devices',action:'tailscale-settings'},

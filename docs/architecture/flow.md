@@ -1,5 +1,9 @@
 # 주요 흐름
 
+## Workspace Memory
+
+명시적 저장/승인 → SQLite Memory → 관련 텍스트 검색·점수화 → 최대 8개·2,400자 컨텍스트 → AI 비서. 매일 `ACTIVE → STALE → ARCHIVED → DELETE` 정리를 수행하고 Pin/직접 저장 보호 정책을 확인한다. Calendar·Notes 승격은 기존 서비스 호출 후 원본에 대상 ID를 기록한다.
+
 ## Database Studio
 
 OWNER가 연결을 저장하면 DatabaseStudioService가 입력을 검증하고 CredentialVault로 비밀번호를 암호화해 Workspace SQLite에 저장한다. 테스트·탐색·쿼리는 DatabaseAdapter가 새 JDBC 연결을 열고 제한된 결과를 만든 뒤 닫는다. SQL 실행은 bounded worker가 진행하며 브라우저는 execution ID로 polling·취소한다. Service의 DATABASE binding은 연결 ID를 Context의 안전한 요약으로 만들며 MCP는 읽기 metadata 도구만 호출한다. [상세](../database-studio.md).
@@ -77,7 +81,7 @@ Tailscale은 사용자 링크 승인 방식으로 인증한다. dashboard가 네
 
 ## GitHub 앱
 
-OWNER가 GitHub 앱을 열면 서버 `gh auth status`로 인증을 확인한다. 로그인 시작은 기존 Studio job의 local `github-login`을 사용하고 공식 CLI 기기 코드와 URL을 화면에 전달한다. 승인 후 `gh auth setup-git`이 실행되며, 앱의 조회 API와 도우미 MCP는 동일 서버 계정의 `gh`로 JSON 목록을 읽는다. 잘못된 저장소명은 service에서 차단하고 CLI 실패·시간 초과는 안전한 오류로 변환한다. 브라우저를 닫거나 취소하면 인증 job을 취소할 수 있다.
+OWNER가 GitHub 앱을 열면 서버 `gh auth status`로 인증을 확인한다. 로그인 시작은 기존 Studio job의 local `github-login`을 사용하고 공식 CLI 기기 코드와 URL을 화면에 전달한다. 승인 후 `gh auth setup-git`이 실행되며, 앱의 조회 API와 AI 비서 MCP는 동일 서버 계정의 `gh`로 JSON 목록을 읽는다. 잘못된 저장소명은 service에서 차단하고 CLI 실패·시간 초과는 안전한 오류로 변환한다. 브라우저를 닫거나 취소하면 인증 job을 취소할 수 있다.
 
 ## Launcher 실행과 편집
 
@@ -87,11 +91,15 @@ OWNER가 GitHub 앱을 열면 서버 `gh auth status`로 인증을 확인한다.
 
 SSH 장비의 프로젝트 열기 → Codex 탭 → 원격 model/list 및 account/read → 최근 thread 복원 또는 세션 목록 선택 → 파일/선택/이미지/스킬 첨부 → thread/start 또는 resume → turn/start → 스트림 표시 → 필요 시 승인/질문 응답 → turn/completed → thread/read. 서버 자체(local) 프로젝트에서 Codex 요청은 400으로 거부하고 SSH 장비를 선택하도록 안내한다. 전송 전 미저장 편집을 막는다. 첫 메시지 전 새 세션은 draft다. 다른 cwd의 thread 작업은 403. 자동 모델 호출 재시도는 하지 않는다.
 
-전역 Codex assistant: 상단 `비서` 또는 내장 앱 열기 → server-local setup/MCP 연결 및 계정·모델 확인 → 빠른 작업 초안 편집 또는 직접 입력 → 사용자 turn을 assistant job으로 실행 → MCP tools/call로 페이지 이동·일정·노트·GitHub 조회/생성/수정/삭제 → app-server usage/item/interaction 이벤트를 채팅에 표시 → navigation queue를 브라우저가 polling해 내부 페이지 또는 등록 앱을 연다. 일정·메모 삭제 및 메모 전체 교체는 대화에서 정확한 대상을 확인한다. GitHub 저장소·Release 삭제는 승인 요청 → GitHub 화면에서 대상 확인과 재확인 → 같은 작업·대상에 묶인 일회성 승인 소비 → GitHub API 호출 순서다. 앱을 벗어나도 실행 중인 job과 세션 대화는 유지되고 다시 열면 해당 세션 대화를 표시한다. 프로젝트 편집기 job endpoint는 사용하지 않는다. 로그인 만료, 설치 오류와 MCP 도구 오류는 채팅 상태로 표시하고 임의 셸 도구는 제공하지 않는다.
+전역 Codex assistant: 상단 `AI 비서` 또는 내장 앱 열기 → server-local setup/MCP 연결 및 계정·모델 확인 → 사용자 요청 직접 입력 → 사용자 turn을 assistant job으로 실행 → MCP tools/call로 페이지 이동·일정·노트·GitHub 조회/생성/수정/삭제 → app-server usage/item/interaction 이벤트를 채팅에 표시 → navigation queue를 브라우저가 polling해 내부 페이지 또는 등록 앱을 연다. 일정·메모 삭제 및 메모 전체 교체는 대화에서 정확한 대상을 확인한다. GitHub 저장소·Release 삭제는 승인 요청 → GitHub 화면에서 대상 확인과 재확인 → 같은 작업·대상에 묶인 일회성 승인 소비 → GitHub API 호출 순서다. 앱을 벗어나도 실행 중인 job과 세션 대화는 유지되고 다시 열면 해당 세션 대화를 표시한다. 프로젝트 편집기 job endpoint는 사용하지 않는다. 로그인 만료, 설치 오류와 MCP 도구 오류는 채팅 상태로 표시하고 임의 셸 도구는 제공하지 않는다.
+
+Service Onboarding: 자연어 서비스 요청 → thread ID로 등록 리소스 탐색 → 결정적 correlation과 기존 Service 중복 단서 → 애매한 Compose/리소스 경계 질문 → 임시 Draft 작성·수정 → 채팅의 구조화된 카드 미리보기 → 브라우저 OWNER/CSRF 최종 승인 → `ServiceCatalogService` transaction으로 생성 또는 수정/연결/해제 → 활동 출처 기록과 Service 화면 열기. 일부 탐색 소스가 실패해도 나머지 후보를 보여준다. 승인 전 MCP commit은 403, 동시 Service 변경은 409, 연결 검증 실패 시 transaction rollback이다.
 
 사이드바는 동일한 서버 Codex 계정의 thread/list를 검색·페이지네이션하고, 선택 시 thread/read 결과의 사용자/답변 item만 대화에 복원한다. 새 채팅은 저장 전 draft이고 첫 turn 후 목록에 나타난다. 설정 창의 로그인·로그아웃, 모델·추론 설정과 대화 이름 변경·보관은 기존 assistant job action을 사용한다. 사이드바 삭제 모달은 별도의 thread/list 페이지를 표시하고 선택한 세션을 각 thread/delete job으로 영구 삭제한다. 현재 대화 제목 옆 삭제 버튼도 같은 action을 사용하며 성공하면 세션 저장소의 현재 ID를 지우고 빈 대화로 이동한다. 실패한 세션은 목록에 남긴다. 첨부 이미지와 UTF-8 텍스트는 전송 전 브라우저 메모리에만 두고, 전송 시 검증된 context로 turn에 전달한다. 실패 시 입력과 첨부는 재시도를 위해 유지한다.
 
 assistant UI는 응답 대기 중 진행 말풍선을 표시하고 turn/reasoning, MCP 도구, agentMessage 이벤트에 따라 단계 문구를 갱신한다. 내용 없는 agentMessage 시작 이벤트는 빈 답변으로 확정하지 않는다. 첫 실제 답변 텍스트 또는 job 완료/실패가 진행 표시를 종료한다. 새로고침 뒤 sessionStorage에 남은 미완료 표시도 완료 상태의 재시도 안내로 바꾼다.
+
+요청이 정상 완료되면 상단의 임시 진행 상태를 비우고 결과는 채팅 답변에 표시한다. 상단 빠른 작업 버튼 줄은 두지 않는다. 오류와 로그인·연결 복구 안내는 기존 상태 영역에 유지한다.
 
 assistant 실행 하네스: 사용자 요청의 결과와 MCP 필요 여부 판단 → MCP가 필요하면 이해한 요청과 사용할 도구를 채팅에 미리 알림 → 해당 도구 호출 → 결과와 사용 기능 보고. 진행 중 먼저 보낸 안내는 최종 답변 위에 유지한다. 별도의 `실제 MCP 호출` 목록은 app-server의 `mcpToolCall` item에서 생성하고, 저장된 thread/read를 열 때 turn의 item으로 복원한다. 호출 인수와 결과 본문은 목록에 넣지 않으며 실패 상태만 표시한다. 도구를 쓰지 않은 요청에는 호출 목록을 만들지 않는다.
 

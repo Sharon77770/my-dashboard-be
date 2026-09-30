@@ -1,5 +1,9 @@
 # HTTP 엔드포인트 목록
 
+## AI 비서 Workspace Memory
+
+`GET/POST /api/v1/assistant/memories`, `GET/PUT/DELETE /api/v1/assistant/memories/{id}`, `POST /{id}/archive|restore|pin|supersede|promote/calendar|promote/note`, `DELETE /{id}/pin`, `POST /api/v1/assistant/memories/promotions/note`, `GET/PUT /api/v1/assistant/memories/preferences`. 모든 경로는 OWNER 전용이며 변경 요청에는 CSRF가 필요하다. 요청·응답과 오류는 [계약](specification.md#workspace-memory-api)을 따른다.
+
 별도 표시가 없는 `/api/v1` 및 `/ws` 경로는 OWNER 인증이 필요하다. OWNER 세션 변경 API는 CSRF가 필요하다. MCP와 Telemetry ingestion만 각각 분리된 Bearer 인증을 사용한다.
 예외: `/api/v1/telemetry/events`, `/gauges`, `/batch`는 service API Key Bearer 인증을 쓰며 dashboard session/CSRF 없이 수집한다. `/api/v1/telemetry/services/**`는 OWNER 전용이다.
 
@@ -133,6 +137,13 @@ POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로
 | POST | /api/v1/assistant/jobs/{id}/inputs | OWNER + 작업 소유 세션 + CSRF | assistant 승인·답변·추가 지시·중지 |
 | DELETE | /api/v1/assistant/jobs/{id} | OWNER + 작업 소유 세션 + CSRF | assistant job 취소 |
 | GET | /api/v1/assistant/events | OWNER | Codex가 요청한 브라우저 페이지 이동 확인 |
+| GET | /api/v1/assistant/service-drafts/thread/{threadId} | OWNER | 대화의 최신 Service Draft 조회 |
+| GET | /api/v1/assistant/service-drafts/thread/{threadId}/resources | OWNER | 대화에서 탐색한 리소스 후보 조회 |
+| GET | /api/v1/assistant/service-drafts/{id} | OWNER | Service Draft 조회 |
+| PUT | /api/v1/assistant/service-drafts/{id} | OWNER + CSRF | Service Draft 수정 |
+| POST | /api/v1/assistant/service-drafts/{id}/approve | OWNER + CSRF | 현재 Draft revision 승인 |
+| POST | /api/v1/assistant/service-drafts/{id}/commit | OWNER + CSRF | 승인한 Draft를 카탈로그에 반영 |
+| DELETE | /api/v1/assistant/service-drafts/{id} | OWNER + CSRF | Service Draft 취소 |
 | POST | /api/v1/mcp | Bearer token | Streamable HTTP MCP 초기화와 도구 호출 |
 
 | GET | /api/v1/tailscale | OWNER | 서버 Tailscale 연결 상태 조회 |

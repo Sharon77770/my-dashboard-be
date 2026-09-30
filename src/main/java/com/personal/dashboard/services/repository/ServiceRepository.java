@@ -108,4 +108,15 @@ public class ServiceRepository {
         timestamp,
         title);
   }
+
+  /** Records Assistant provenance without storing prompts or reasoning. */
+  public void assistantEvent(String serviceId, String type, String title) {
+    jdbc.update(
+        "INSERT INTO service_activity (id,service_id,source,type,occurred_at,severity,title) VALUES (?,?, 'ASSISTANT',?,?,'INFO',?)",
+        java.util.UUID.randomUUID().toString(),
+        serviceId,
+        type,
+        System.currentTimeMillis(),
+        title);
+  }
 }

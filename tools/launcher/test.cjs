@@ -30,6 +30,7 @@ assert.ok(d.querySelector('.home-command[data-action="palette"]'));
 assert.equal(d.querySelectorAll('#launcher-dock-apps').length,1);
 assert.equal(w.WorkspaceApps.all().length,23);assert.equal(d.querySelectorAll('#home-grid img').length,0);
 assert.ok(d.querySelector('#home-grid [data-view="assistant"]'));
+assert.equal(w.WorkspaceApps.get('assistant').name,'AI 비서');
 assert.ok(d.querySelector('#launcher-dock-apps [data-view="assistant"]'));
 // Grid projects one model without collisions or changing canonical coordinates.
 assert.equal(w.WorkspaceApps.get('kakaotalk'),undefined);

@@ -1,5 +1,7 @@
 # 컴포넌트와 모듈
 
+Service Onboarding은 `ServiceDiscoveryService`가 기존 리소스 서비스에서 credential 없는 후보만 추출하고, `ServiceOnboardingService`가 대화별 임시 Draft와 승인 상태를 소유한다. `ServiceOnboardingController`는 구조화된 Draft 카드의 OWNER/CSRF 경계이며, 실제 카탈로그 쓰기는 `ServiceCatalogService.applyAssistantDraft`가 담당한다. 브라우저 컴포넌트는 후보 선택과 미리보기만 관리한다.
+
 Database Studio의 `DatabaseStudioService`는 연결 입력, READ_ONLY, 위험 SQL 확인, 실행 worker·취소, 이력을 소유한다. `DatabaseRepository`는 Workspace 내부 SQLite 연결 메타데이터·이력·즐겨찾기만 저장한다. `DatabaseAdapter`는 PostgreSQL/MySQL/SQLite JDBC URL과 연결 수명, schema metadata, 제한된 결과 변환을 소유한다. `DatabaseDto.ConnectionView`와 Service Context에는 암호문을 넣지 않는다. `databases.js`는 기존 Workspace 라우트의 여러 editor 탭과 탐색 표현 상태를 보유한다.
 
 GitHub는 `GithubController`와 `AssistantMcpService`가 같은 `GithubService` 유스케이스를 사용한다. 외부 호출은 `GithubCliAdapter`, 위험 작업의 승인 상태는 `GithubApprovalService`가 소유한다. `GithubDto`는 REST/MCP의 명시적 응답 타입이고 GitHub upstream JSON을 그대로 노출하지 않는다. `github.js`는 Owner·탭·검색·선택 저장소의 화면 상태만 보유한다. GitHub 계정 데이터는 SQLite entity가 아니다. [구현 범위](../github.md).
@@ -36,7 +38,7 @@ studio-codex.js는 세션/모델/컨텍스트 및 대화 표시를 소유하고 
 
 ### 서버 Codex assistant
 
-assistant.js와 assistant.css는 IDE Codex 패널과 분리된 대시보드 전용 내장 앱 뷰를 소유한다. launcher의 앱 registry가 `assistant`를 홈·Dock·모든 앱·검색에 노출하고 상단 `비서` 버튼도 같은 workspace 라우터를 사용한다. 빠른 작업은 전송 전 입력 초안만 채운다. 프로젝트 컨텍스트나 StudioCodex 화면을 재사용하지 않는다. 대화는 기존 assistant job과 Codex API를 호출한다. 일반 StudioController의 프로젝트 Codex는 SSH 대상을 사용한다. McpController는 Streamable HTTP 요청·bearer 검증만 담당하고 AssistantMcpService는 기존 Catalog/Planner/Notes/GitHub service의 고정 도구를 제공한다. AssistantEvents는 browser navigation event를 메모리에 보유하며 DB 모델을 추가하지 않는다.
+assistant.js와 assistant.css는 IDE Codex 패널과 분리된 대시보드 전용 내장 앱 뷰를 소유한다. launcher의 앱 registry가 `assistant`를 홈·Dock·모든 앱·검색에 노출하고 상단 `AI 비서` 버튼도 같은 workspace 라우터를 사용한다. 프로젝트 컨텍스트나 StudioCodex 화면을 재사용하지 않는다. 대화는 기존 assistant job과 Codex API를 호출한다. 일반 StudioController의 프로젝트 Codex는 SSH 대상을 사용한다. McpController는 Streamable HTTP 요청·bearer 검증만 담당하고 AssistantMcpService는 기존 Catalog/Planner/Notes/GitHub service의 고정 도구를 제공한다. AssistantEvents는 browser navigation event를 메모리에 보유하며 DB 모델을 추가하지 않는다.
 
 장비 로그 화면(device-logs.js)은 선택·표시·취소를 담당하고 StudioService가 작업 소유권·수명·보유 제한을 관리한다. logs.py는 고정 CLI 인자와 출력 읽기만 담당한다. StudioDto.LogTarget과 Event.sequence가 목록 및 중복 없는 출력 계약이며 파일 Entry나 Codex 이벤트 타입과 혼용하지 않는다.
 
