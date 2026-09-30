@@ -337,28 +337,52 @@ public class ServiceDiscoveryService {
                       item.workingDirectory());
                 })
             .toList();
-    var projects =
-        correlated.stream()
-            .filter(
-                item -> item.type().equals("DOCKER_CONTAINER") && !item.composeProject().isBlank())
-            .collect(
-                java.util.stream.Collectors.groupingBy(
-                    ServiceOnboardingDto.Candidate::composeProject));
-    projects.forEach(
-        (project, members) -> {
-          if (members.size() > 1)
-            questions.add(
-                "Compose project '"
-                    + project
-                    + "'의 컨테이너 "
-                    + members.stream().map(ServiceOnboardingDto.Candidate::reference).toList()
-                    + " 중 어느 항목을 같은 서비스로 묶을까요?");
-        });
     Map<String, String> sourceStatus;
     synchronized (sources) {
       sourceStatus = Map.copyOf(sources);
     }
-    return new ServiceOnboardingDto.Discovery(correlated, summaries, sourceStatus, questions);
+    return new ServiceOnboardingDto.Discovery(
+        correlated, summaries, sourceStatus, questionsForSelection(questions, correlated));
+  }
+
+  /** Keeps only unresolved Compose choices that belong to the draft's selected containers. */
+  static List<String> questionsForSelection(
+      List<String> previous, List<ServiceOnboardingDto.Candidate> candidates) {
+    List<String> questions =
+        new ArrayList<>(
+            previous.stream()
+                .filter(question -> !question.startsWith("Compose project '"))
+                .toList());
+    Map<String, List<ServiceOnboardingDto.Candidate>> projects = new java.util.TreeMap<>();
+    for (var candidate : candidates) {
+      if (candidate.type().equals("DOCKER_CONTAINER") && !candidate.composeProject().isBlank())
+        projects
+            .computeIfAbsent(candidate.composeProject(), ignored -> new ArrayList<>())
+            .add(candidate);
+    }
+    projects.forEach(
+        (project, members) -> {
+          var selected = members.stream().filter(ServiceOnboardingDto.Candidate::selected).toList();
+          if (selected.isEmpty() || selected.size() == members.size()) return;
+          var remaining =
+              members.stream()
+                  .filter(item -> !item.selected())
+                  .map(ServiceOnboardingDto.Candidate::reference)
+                  .toList();
+          var examples = remaining.stream().limit(4).toList();
+          String rest =
+              remaining.size() > examples.size()
+                  ? " 외 " + (remaining.size() - examples.size()) + "개"
+                  : "";
+          questions.add(
+              "Compose project '"
+                  + project
+                  + "'에서 아직 연결하지 않은 컨테이너 "
+                  + examples
+                  + rest
+                  + "도 포함할까요?");
+        });
+    return questions;
   }
 
   private CompletableFuture<List<ServiceOnboardingDto.Candidate>> source(

@@ -122,7 +122,9 @@ public class ServiceOnboardingService {
       selection = proposed;
     }
     List<ServiceOnboardingDto.Candidate> candidates = select(base, selection);
-    List<String> questions = new ArrayList<>(found.questions());
+    List<String> questions =
+        new ArrayList<>(
+            ServiceDiscoveryService.questionsForSelection(found.questions(), candidates));
     if (existing == null
         && found.services().stream().anyMatch(service -> service.name().equalsIgnoreCase(name)))
       questions.add("같은 이름의 서비스가 있습니다. 기존 서비스 수정 또는 새 서비스 생성 중 선택해 주세요.");
@@ -176,6 +178,10 @@ public class ServiceOnboardingService {
   public synchronized ServiceOnboardingDto.Draft update(
       String id, ServiceOnboardingDto.DraftUpdate input) {
     var current = editable(id, input.revision());
+    var updatedCandidates =
+        input.resources() == null
+            ? current.candidates()
+            : select(current.candidates(), input.resources());
     var changed =
         new ServiceOnboardingDto.Draft(
             current.id(),
@@ -191,10 +197,8 @@ public class ServiceOnboardingService {
             "DRAFT",
             current.revision() + 1,
             current.serviceUpdatedAt(),
-            input.resources() == null
-                ? current.candidates()
-                : select(current.candidates(), input.resources()),
-            current.questions(),
+            updatedCandidates,
+            ServiceDiscoveryService.questionsForSelection(current.questions(), updatedCandidates),
             System.currentTimeMillis());
     drafts.put(id, changed);
     return changed;
@@ -264,9 +268,28 @@ public class ServiceOnboardingService {
 
   public synchronized void cancel(String id) {
     var draft = get(id);
+    if (draft.status().equals("COMMITTED"))
+      throw new WorkspaceException(409, "이미 반영된 서비스는 초안으로 취소할 수 없습니다.");
     drafts.remove(id);
     threadDrafts.remove(draft.threadId(), id);
     existingBindings.remove(id);
+  }
+
+  /** Cancels only an active draft owned by the supplied conversation. */
+  public synchronized boolean cancelForThread(String threadId) {
+    checkThread(threadId);
+    String id = threadDrafts.get(threadId);
+    if (id == null) return false;
+    var draft = drafts.get(id);
+    if (draft == null || System.currentTimeMillis() - draft.updatedAt() > LIFETIME_MS) {
+      drafts.remove(id);
+      threadDrafts.remove(threadId, id);
+      existingBindings.remove(id);
+      return false;
+    }
+    if (draft.status().equals("COMMITTED")) return false;
+    cancel(draft.id());
+    return true;
   }
 
   /** Bounds temporary memory without changing any persisted Service. */

@@ -251,4 +251,22 @@
 .assistant-window #assistant-send .ui-icon{width:18px;height:18px}
 .assistant-session[aria-current="true"]{background:var(--selection-gradient);box-shadow:inset 2px 0 var(--accent)}
 
-.assistant-window .assistant-draft-preview .assistant-message-body{white-space:pre-line;overflow-wrap:anywhere;border-left:2px solid var(--accent);padding-left:12px}
+.assistant-window .assistant-draft-preview{margin-top:14px;border-left:2px solid var(--accent);padding-left:14px;overflow-wrap:anywhere}
+.assistant-window .assistant-draft-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}
+.assistant-window .assistant-draft-heading .assistant-draft-state{flex-basis:100%;color:var(--text-muted);font-size:11px}
+.assistant-window .assistant-draft-heading h3{margin:0;font-size:17px;line-height:1.35}
+.assistant-window .assistant-draft-environment{color:var(--text-secondary);font-size:11px}
+.assistant-window .assistant-draft-description{margin-top:7px;color:var(--text-secondary)}
+.assistant-window .assistant-draft-section{margin-top:15px}
+.assistant-window .assistant-draft-section h4{margin:0 0 7px;color:var(--text-secondary);font-size:12px}
+.assistant-window .assistant-draft-group{display:grid;grid-template-columns:minmax(95px,125px) minmax(0,1fr);gap:8px;padding:7px 0;border-top:1px solid var(--border-subtle)}
+.assistant-window .assistant-draft-group strong{font-size:11px;font-weight:600;color:var(--text-secondary)}
+.assistant-window .assistant-draft-group ul{display:flex;flex-wrap:wrap;gap:5px;margin:0;padding:0;list-style:none}
+.assistant-window .assistant-draft-group li{max-width:100%;padding:2px 7px;border-radius:var(--radius-sm);background:var(--bg-elevated);font-size:11px;overflow-wrap:anywhere}
+.assistant-window .assistant-draft-section>ul{margin:0;padding-left:18px}
+.assistant-window .assistant-draft-section>ul li{margin:0 0 5px}
+.assistant-window .assistant-draft-empty{color:var(--text-muted)}
+.assistant-window .assistant-draft-warning{margin-top:12px;color:var(--status-warning-text,var(--text-secondary))}
+.assistant-window .assistant-draft-guidance{margin-top:15px;padding-top:10px;border-top:1px solid var(--border-subtle);color:var(--text-secondary);font-size:11px}
+.assistant-window .assistant-draft-guidance p{margin:0 0 4px}
+@media(max-width:600px){.assistant-window .assistant-draft-group{grid-template-columns:1fr;gap:3px}.assistant-window .assistant-draft-heading h3{font-size:15px}}

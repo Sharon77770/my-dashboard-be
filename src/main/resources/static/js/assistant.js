@@ -141,7 +141,8 @@
       promote_memory_to_note: '기억을 메모로 등록', promote_memories_to_note: '여러 기억을 메모로 정리',
       discover_service_resources: '서비스에 연결할 리소스 찾기',
       create_service_draft: '서비스 초안 만들기', update_service_draft: '서비스 초안 수정',
-      get_service_draft: '서비스 초안 확인', commit_service_draft: '서비스 등록',
+      get_service_draft: '서비스 초안 확인', cancel_service_draft: '서비스 초안 취소',
+      commit_service_draft: '서비스 등록',
       list_services: '서비스 목록 조회', get_service: '서비스 정보 조회',
       get_service_context: '서비스 연결 현황 조회', get_service_health: '서비스 상태 조회',
       list_database_connections: '데이터베이스 연결 조회', get_database_metadata: '데이터베이스 정보 조회',
@@ -275,35 +276,86 @@
   function renderServiceDraft() {
     if (!serviceDraft || serviceDraft.threadId !== threadId || chatPending) return;
     const draft = serviceDraft;
-    const message = document.createElement('article');
-    message.className = 'assistant-message assistant-draft-preview';
-    message.dataset.role = 'assistant';
-    const label = document.createElement('small'); label.className = 'assistant-message-label'; label.textContent = 'AI 비서';
-    const body = document.createElement('div'); body.className = 'assistant-message-body';
+    const preview = document.createElement('section');
+    preview.className = 'assistant-draft-preview';
+    preview.setAttribute('aria-label', '서비스 초안');
+    const body = document.createElement('div'); body.className = 'assistant-draft-body';
     const labels = {GITHUB_REPOSITORY:'GitHub 저장소', GITHUB_ORGANIZATION:'GitHub 조직', DEVICE:'장비',
       DOCKER_CONTAINER:'컨테이너', DATABASE:'데이터베이스', TELEMETRY:'텔레메트리', ENDPOINT:'접속 주소', FILE:'파일'};
     const selected = draft.candidates.filter(item => item.selected);
-    const lines = [draft.status === 'COMMITTED' ? '서비스 반영이 완료됐어요.' : '현재 서비스 초안이에요.',
-      `${draft.name} · ${draft.environment}`];
-    if (draft.description) lines.push(draft.description);
-    lines.push('', '연결할 리소스:');
-    lines.push(...(selected.length ? selected.map(item => `• ${labels[item.type] || item.type}: ${item.displayName}`) : ['• 없음']));
-    if (serviceDraftRemoved.length && draft.status !== 'COMMITTED') {
-      lines.push('', '제거할 기존 연결:', ...serviceDraftRemoved.map(item => `• ${item}`));
+    const addText = (parent, tag, className, value) => {
+      const element = document.createElement(tag);
+      element.className = className;
+      element.textContent = value;
+      parent.append(element);
+      return element;
+    };
+    const addSection = (title, entries) => {
+      const section = document.createElement('section'); section.className = 'assistant-draft-section';
+      addText(section, 'h4', '', title);
+      const list = document.createElement('ul');
+      for (const entry of entries) addText(list, 'li', '', entry);
+      section.append(list); body.append(section);
+    };
+    const heading = document.createElement('header'); heading.className = 'assistant-draft-heading';
+    addText(heading, 'small', 'assistant-draft-state', draft.status === 'COMMITTED' ? '반영 완료' : '검토 중인 서비스 초안');
+    addText(heading, 'h3', '', draft.name);
+    addText(heading, 'span', 'assistant-draft-environment', draft.environment);
+    body.append(heading);
+    if (draft.description) {
+      const description = document.createElement('div'); description.className = 'assistant-draft-description';
+      window.AssistantMarkdown.render(description, draft.description);
+      body.append(description);
     }
-    if (!serviceDraftReviewReady) lines.push('', '기존 연결을 확인하지 못했어요. 다시 불러온 뒤 승인해 주세요.');
-    if (draft.questions?.length && draft.status !== 'COMMITTED') lines.push('', ...draft.questions);
+    const resources = document.createElement('section'); resources.className = 'assistant-draft-section';
+    addText(resources, 'h4', '', `연결할 리소스 · ${selected.length}개`);
+    if (selected.length) {
+      const groups = new Map();
+      for (const item of selected) {
+        if (!groups.has(item.type)) groups.set(item.type, []);
+        groups.get(item.type).push(item);
+      }
+      for (const [type, items] of groups) {
+        const group = document.createElement('div'); group.className = 'assistant-draft-group';
+        addText(group, 'strong', '', `${labels[type] || type} · ${items.length}`);
+        const list = document.createElement('ul');
+        for (const item of items) addText(list, 'li', '', item.displayName);
+        group.append(list); resources.append(group);
+      }
+    } else addText(resources, 'p', 'assistant-draft-empty', '연결할 리소스가 없어요. 채팅으로 추가할 대상을 알려 주세요.');
+    body.append(resources);
+    if (serviceDraftRemoved.length && draft.status !== 'COMMITTED') addSection('제거할 기존 연결', serviceDraftRemoved);
+    if (!serviceDraftReviewReady) addText(body, 'p', 'assistant-draft-warning', '기존 연결을 확인하지 못했어요. 다시 불러온 뒤 승인해 주세요.');
+    if (draft.status !== 'COMMITTED') {
+      const selectedProjects = new Set(selected.filter(item => item.type === 'DOCKER_CONTAINER').map(item => item.composeProject).filter(Boolean));
+      const questions = (draft.questions || []).filter(question => {
+        if (!question.startsWith("Compose project '")) return true;
+        return [...selectedProjects].some(project => question.startsWith(`Compose project '${project}'`)
+          && draft.candidates.some(item => item.type === 'DOCKER_CONTAINER' && item.composeProject === project && !item.selected));
+      });
+      if (questions.length) addSection('확인이 필요한 항목', questions);
+    }
+    const guidance = document.createElement('div'); guidance.className = 'assistant-draft-guidance';
     if (draft.status === 'COMMITTED') {
-      lines.push('', '서비스 화면을 열려면 “서비스 열기”라고 입력해 주세요.');
+      addText(guidance, 'p', '', '서비스 화면을 열려면 “서비스 열기”라고 입력해 주세요.');
     } else {
-      lines.push('', '이름·환경·연결을 바꾸려면 채팅으로 말씀해 주세요.');
-      if (selected.length) lines.push(`이 구성을 확정하려면 “${draft.serviceId ? '서비스 변경 승인' : '서비스 생성 승인'}”이라고 입력해 주세요.`);
-      else lines.push('서비스를 등록하려면 먼저 연결할 리소스를 하나 이상 알려 주세요.');
-      lines.push('초안을 버리려면 “서비스 초안 취소”라고 입력해 주세요.');
+      addText(guidance, 'p', '', `수정할 내용을 말하거나, “${draft.serviceId ? '서비스 변경 승인' : '서비스 생성 승인'}”으로 확정하거나, “취소”로 초안을 버릴 수 있어요.`);
     }
-    body.textContent = lines.join('\n');
-    message.append(label, body);
-    messages.append(message);
+    body.append(guidance);
+    preview.append(body);
+    const latestMessage = [...messages.querySelectorAll('.assistant-message')].at(-1);
+    let message = latestMessage?.dataset.role === 'assistant' ? latestMessage : null;
+    if (!message) {
+      message = document.createElement('article');
+      message.className = 'assistant-message';
+      message.dataset.role = 'assistant';
+      const label = document.createElement('small'); label.className = 'assistant-message-label'; label.textContent = 'AI 비서';
+      message.append(label);
+      messages.append(message);
+    }
+    const report = message.querySelector('.assistant-tool-report');
+    if (report) message.insertBefore(preview, report);
+    else message.append(preview);
   }
 
   async function refreshServiceDraft() {
@@ -322,13 +374,19 @@
     renderConversation();
   }
 
-  async function handleServiceDraftReply(text) {
+  function serviceDraftAction(text) {
+    if (!serviceDraft || serviceDraft.threadId !== threadId || attachments.length) return '';
+    const draft = serviceDraft;
+    const command = text.replace(/[.!?。]+$/u, '').replace(/\s+/gu, ' ').trim();
+    if (draft.status === 'COMMITTED') return command === '서비스 열기' ? 'open' : '';
+    if (command === (draft.serviceId ? '서비스 변경 승인' : '서비스 생성 승인')) return 'commit';
+    if (['취소', '초안 취소', '서비스 초안 취소', '서비스 생성 취소', '이 초안 취소해줘'].includes(command)) return 'cancel';
+    return '';
+  }
+
+  async function handleServiceDraftReply(text, action) {
     if (!serviceDraft || serviceDraft.threadId !== threadId || attachments.length) return false;
     const draft = serviceDraft;
-    const approval = draft.serviceId ? '서비스 변경 승인' : '서비스 생성 승인';
-    const action = text === approval && draft.status !== 'COMMITTED' ? 'commit'
-      : text === '서비스 초안 취소' && draft.status !== 'COMMITTED' ? 'cancel'
-      : text === '서비스 열기' && draft.status === 'COMMITTED' ? 'open' : '';
     if (!action) return false;
     chatPending = true; syncComposerAction();
     prompt.value = '';
@@ -951,8 +1009,8 @@
   async function sendMessage(value = prompt.value) {
     const text = String(value || '').trim();
     if ((!text && !attachments.length) || busy || chatPending) return;
-    if (serviceDraft && ['서비스 생성 승인', '서비스 변경 승인', '서비스 초안 취소', '서비스 열기'].includes(text)
-        && await handleServiceDraftReply(text)) return;
+    const draftAction = serviceDraftAction(text);
+    if (draftAction && await handleServiceDraftReply(text, draftAction)) return;
     if (!mcpReady) {
       setStatus('대시보드 MCP 연결을 먼저 복구해 주세요.', 'error');
       return;

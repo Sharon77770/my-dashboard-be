@@ -12,7 +12,7 @@ const connected = { name: 'personal-dashboard', status: 'bearerToken', runtimeSt
     'update_note_metadata', 'replace_note_text', 'delete_note', 'github.get_repository',
     'github.update_repository', 'github.update_release', 'github.delete_repository',
     'github.delete_release', 'discover_service_resources', 'create_service_draft',
-    'update_service_draft', 'get_service_draft', 'commit_service_draft',
+    'update_service_draft', 'get_service_draft', 'cancel_service_draft', 'commit_service_draft',
     'search_memories', 'get_memory', 'create_memory', 'compose_memory_context'], error: '' };
 const availableModels = [
   { id: 'model-a', name: 'Model A', defaultModel: true, defaultEffort: 'medium',
@@ -250,18 +250,37 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
   const draft = await fixture(connected);
   try {
     draft.state.draft = {id:'draft-fixture', threadId:'fixture', serviceId:null, name:'PFM API',
-      environment:'Development', description:'', status:'DRAFT', revision:1, questions:['mysql은 별도 역할입니다.'],
+      environment:'Development', description:'**API 서버** <img src=x onerror=alert(1)>', status:'DRAFT', revision:1,
+      questions:['mysql은 별도 역할입니다.',
+        "Compose project 'pfm-api-server'의 컨테이너 [api, mysql] 중 어느 항목을 같은 서비스로 묶을까요?",
+        "Compose project 'pfm-complete'의 컨테이너 [worker, gateway] 중 어느 항목을 같은 서비스로 묶을까요?",
+        "Compose project 'unrelated'의 컨테이너 [other-api, other-db] 중 어느 항목을 같은 서비스로 묶을까요?"],
       candidates:[
         {type:'GITHUB_REPOSITORY',reference:'PFM-simulation/pfm-api-server',deviceId:'',displayName:'pfm-api-server',confidence:'HIGH',reason:'이름 일치',selected:true},
-        {type:'DOCKER_CONTAINER',reference:'mysql',deviceId:'spark',displayName:'mysql',confidence:'LOW',reason:'Compose',selected:false}
+        {type:'DEVICE',reference:'spark',deviceId:'',displayName:'Spark',selected:true},
+        {type:'DOCKER_CONTAINER',reference:'api',deviceId:'spark',displayName:'pfm-api-server-api-1',composeProject:'pfm-api-server',selected:true},
+        {type:'DOCKER_CONTAINER',reference:'mysql',deviceId:'spark',displayName:'mysql',composeProject:'pfm-api-server',selected:false},
+        {type:'DOCKER_CONTAINER',reference:'worker',deviceId:'spark',displayName:'worker',composeProject:'pfm-complete',selected:true},
+        {type:'DOCKER_CONTAINER',reference:'gateway',deviceId:'spark',displayName:'gateway',composeProject:'pfm-complete',selected:true},
+        {type:'DOCKER_CONTAINER',reference:'other-api',deviceId:'spark',displayName:'other-api',composeProject:'unrelated',selected:false},
+        {type:'DOCKER_CONTAINER',reference:'other-db',deviceId:'spark',displayName:'other-db',composeProject:'unrelated',selected:false}
       ]};
     draft.d.querySelector('#assistant-prompt').value = 'PFM API 서비스 만들어줘';
     draft.d.querySelector('#assistant-form').dispatchEvent(new draft.w.Event('submit', {cancelable:true}));
     await tick();
     assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /PFM API/);
-    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /GitHub 저장소: pfm-api-server/);
+    assert.equal(draft.d.querySelector('.assistant-draft-heading h3').textContent, 'PFM API');
+    assert.equal(draft.d.querySelector('.assistant-draft-description strong').textContent, 'API 서버');
+    assert.equal(draft.d.querySelector('.assistant-draft-description img'), null);
+    assert.equal(draft.d.querySelectorAll('.assistant-draft-group').length, 3);
+    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /GitHub 저장소/);
+    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /pfm-api-server-api-1/);
     assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /mysql은 별도/);
+    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /Compose project 'pfm-api-server'/);
+    assert.doesNotMatch(draft.d.querySelector('.assistant-draft-preview').textContent, /Compose project 'pfm-complete'/);
+    assert.doesNotMatch(draft.d.querySelector('.assistant-draft-preview').textContent, /Compose project 'unrelated'/);
     assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /서비스 생성 승인/);
+    assert.equal(draft.d.querySelectorAll('.assistant-message[data-role="assistant"] .assistant-message-label').length, 1);
     assert.equal(draft.d.querySelector('.assistant-draft-preview button'), null);
     draft.d.querySelector('#assistant-prompt').value = '이름을 PFM 백엔드로 바꿔줘';
     draft.d.querySelector('#assistant-form').dispatchEvent(new draft.w.Event('submit', {cancelable:true}));
@@ -288,7 +307,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     existingDraft.d.querySelector('#assistant-prompt').value = '서비스 연결 수정해줘';
     existingDraft.d.querySelector('#assistant-form').dispatchEvent(new existingDraft.w.Event('submit', {cancelable:true}));
     await tick();
-    assert.match(existingDraft.d.querySelector('.assistant-draft-preview').textContent, /제거할 기존 연결:[\s\S]*old-api/);
+    assert.match(existingDraft.d.querySelector('.assistant-draft-preview').textContent, /제거할 기존 연결[\s\S]*old-api/);
     existingDraft.state.draft.revision = 3;
     existingDraft.d.querySelector('#assistant-prompt').value = '서비스 변경 승인';
     existingDraft.d.querySelector('#assistant-form').dispatchEvent(new existingDraft.w.Event('submit', {cancelable:true}));
@@ -309,12 +328,18 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     cancelledDraft.d.querySelector('#assistant-prompt').value = '임시 서비스 초안 확인해줘';
     cancelledDraft.d.querySelector('#assistant-form').dispatchEvent(new cancelledDraft.w.Event('submit', {cancelable:true}));
     await tick();
-    cancelledDraft.d.querySelector('#assistant-prompt').value = '서비스 초안 취소';
+    cancelledDraft.d.querySelector('#assistant-prompt').value = '취소 말고 수정해줘';
+    cancelledDraft.d.querySelector('#assistant-form').dispatchEvent(new cancelledDraft.w.Event('submit', {cancelable:true}));
+    await tick();
+    assert.equal(cancelledDraft.state.draft.status, 'DRAFT');
+    assert.equal(cancelledDraft.requests.filter(request => request.action === 'codex-run').length, 2);
+    cancelledDraft.d.querySelector('#assistant-prompt').value = '취소';
     cancelledDraft.d.querySelector('#assistant-form').dispatchEvent(new cancelledDraft.w.Event('submit', {cancelable:true}));
     await tick();
     assert.equal(cancelledDraft.state.draft, null);
     assert.equal(cancelledDraft.d.querySelector('.assistant-draft-preview'), null);
     assert.match(cancelledDraft.d.querySelector('#assistant-messages').textContent, /서비스 초안을 취소했어요/);
+    assert.equal(cancelledDraft.requests.filter(request => request.action === 'codex-run').length, 2);
   } finally { cancelledDraft.dom.window.close(); }
   for (const connection of [null, { ...connected, tools: [] }, { ...connected, tools: ['list_calendar_events'] },
     { ...connected, runtimeStatus: 'failed' },

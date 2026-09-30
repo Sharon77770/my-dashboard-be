@@ -228,7 +228,7 @@ public class AssistantMcpService {
             true),
         tool(
             "create_service_draft",
-            "Prepare an editable Service draft in this thread. No catalog mutation. Omit resources to use discovery recommendations for repository, device, container and other matches; supplied resources must come from discovery. Review in the browser before commit.",
+            "Prepare an editable Service draft in this thread. No catalog mutation. Pass the exact discovered resources the user selected, including when they say all. Omit resources only when the user has not selected candidates, to use discovery recommendations. Review in the browser before commit.",
             schema(
                 List.of("threadId", "name", "environment"),
                 Map.of(
@@ -269,6 +269,11 @@ public class AssistantMcpService {
             "Read the current temporary Service draft and its selected resources.",
             schema(List.of("threadId"), Map.of("threadId", string(100))),
             true),
+        tool(
+            "cancel_service_draft",
+            "Cancel the current uncommitted Service draft in this conversation. Does not delete a committed Service.",
+            schema(List.of("threadId"), Map.of("threadId", string(100))),
+            false),
         dangerousTool(
             "commit_service_draft",
             "Commit only after the owner explicitly approves this exact draft revision through the browser chat confirmation.",
@@ -1070,6 +1075,8 @@ public class AssistantMcpService {
         var draft = onboarding.forThread(requiredText(args, "threadId", 100));
         yield draft == null ? Map.of("draft", "none") : Map.of("draft", draft);
       }
+      case "cancel_service_draft" ->
+          Map.of("cancelled", onboarding.cancelForThread(requiredText(args, "threadId", 100)));
       case "commit_service_draft" ->
           Map.of(
               "service",

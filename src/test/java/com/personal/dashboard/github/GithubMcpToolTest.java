@@ -32,6 +32,7 @@ class GithubMcpToolTest {
                     "create_service_draft",
                     "update_service_draft",
                     "get_service_draft",
+                    "cancel_service_draft",
                     "commit_service_draft")));
     var commit =
         mcp.tools().stream()

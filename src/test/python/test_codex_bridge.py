@@ -25,7 +25,7 @@ for line in sys.stdin:
   assert p['detail']=='toolsAndAuthOnly'
   if p.get('threadId'):thread_checked=True
   failed=p.get('threadId') and os.path.exists('fail-thread-mcp')
-  required=['list_apps','list_calendar_events','create_calendar_event','update_calendar_event','delete_calendar_event','list_notes','read_note','create_note','append_note','update_note_metadata','replace_note_text','delete_note','github.get_repository','github.update_repository','github.update_release','github.delete_repository','github.delete_release','discover_service_resources','create_service_draft','update_service_draft','get_service_draft','commit_service_draft','search_memories','get_memory','create_memory','compose_memory_context']
+  required=['list_apps','list_calendar_events','create_calendar_event','update_calendar_event','delete_calendar_event','list_notes','read_note','create_note','append_note','update_note_metadata','replace_note_text','delete_note','github.get_repository','github.update_repository','github.update_release','github.delete_repository','github.delete_release','discover_service_resources','create_service_draft','update_service_draft','get_service_draft','cancel_service_draft','commit_service_draft','search_memories','get_memory','create_memory','compose_memory_context']
   result={'data':[], 'nextCursor':'next'} if not p.get('cursor') else {'data':[dict(name='personal-dashboard',authStatus='bearerToken',runtimeStatus='failed' if failed else None,tools={} if failed else {name:{} for name in required},toolsError=None)]}
  elif m=='thread/start' or m=='thread/resume':
   dashboard='developerInstructions' in p
