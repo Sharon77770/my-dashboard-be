@@ -7,6 +7,7 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 
 - `assistant/controller`, `assistant/service`, `assistant/dto`: server-hosted Codex job, Streamable HTTP MCP, browser navigation events and allowlisted application tools.
 - `services/controller/ServiceOnboardingController.java`, `services/service/ServiceDiscoveryService.java`, `ServiceOnboardingService.java`, `services/dto/ServiceOnboardingDto.java`: 대화형 서비스 후보 탐색, 임시 Draft, OWNER 브라우저 승인 및 구조화된 응답 계약.
+- `services/service/ServiceRuntimeService.java`: Service에 연결된 장비·컨테이너의 실시간 상태, 최근 로그와 허용된 Docker 작업을 기존 DeviceOperations로 조합.
 - `github/controller`, `github/service`, `github/adapter`, `github/dto`: OWNER GitHub REST와 MCP가 공유하는 유스케이스, 승인 상태, 고정된 서버 `gh`/GitHub API 호출과 응답 계약.
 - `static/js/github.js`, `static/css/github.css`: GitHub Owner 탐색, 개발 상태, 승인 대기 화면.
 - `database/controller`, `database/service`, `database/repository`, `database/entity`, `database/dto`, `database/adapter`: Database Studio의 HTTP, 유스케이스, Workspace SQLite 저장 모델, JDBC 경계.

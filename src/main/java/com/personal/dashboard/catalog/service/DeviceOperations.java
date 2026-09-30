@@ -109,6 +109,16 @@ public class DeviceOperations {
     return commands.execute(catalog.requireDevice(id), "docker " + action + " " + container);
   }
 
+  /**
+   * Reads a bounded recent log excerpt using a fixed Docker command and validated container name.
+   */
+  public String dockerLogs(String id, String container) {
+    if (container == null || !container.matches("[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}"))
+      throw new WorkspaceException(400, "컨테이너 이름을 확인해 주세요.");
+    return commands.execute(
+        catalog.requireDevice(id), "docker logs --tail 200 --timestamps " + container);
+  }
+
   public void wake(String id) {
     var device = catalog.requireDevice(id);
     if (device.networkMode() == com.personal.dashboard.catalog.entity.NetworkMode.TAILSCALE)

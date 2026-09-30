@@ -4,7 +4,7 @@
 
 | 참고 영역 | 구현 | 실행 위치/저장 |
 | --- | --- | --- |
-| Services 앱·위젯 | Service Catalog 목록, 상태, 상세 탭, 기존 리소스 연결, Codex Context | SQLite binding + 기존 GitHub/장비/Telemetry 서비스 |
+| Services 앱·위젯 | Service Catalog 목록, 상태, 상세 탭, 기존 리소스 연결, 장비 계측·컨테이너 상태/로그/제어, Codex Context | SQLite binding + 기존 GitHub/장비/Telemetry·DeviceOperations 서비스 |
 | Database Studio 앱·위젯 | PostgreSQL/MySQL/MariaDB/SQLite 연결, schema 탐색, 테이블 데이터, SQL editor, history/favorites | JDBC adapter + CredentialVault + Service Catalog DATABASE binding |
 | 최근 작업 앱 | 실행 이력 목록 및 다시 열기 | SQLite activity, 최대 100개 |
 | 장비 상태 위젯/앱 | 실제 CPU/RAM/DISK 또는 포트 상태, 실패/미계측 구분 | 서버/SSH |

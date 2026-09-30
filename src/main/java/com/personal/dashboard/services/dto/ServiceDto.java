@@ -47,6 +47,25 @@ public final class ServiceDto {
 
   public record Signal(String source, String reference, String state, String detail) {}
 
+  /** A live, safe projection of a resource already bound to the service. */
+  public record RuntimeSnapshot(
+      String resourceId,
+      String type,
+      String name,
+      String deviceId,
+      String state,
+      Double cpu,
+      Double memory,
+      Double disk,
+      String image,
+      String detail,
+      long checkedAt) {}
+
+  public record RuntimeActionRequest(
+      @NotBlank @Pattern(regexp = "start|stop|restart") String action) {}
+
+  public record RuntimeOutput(String output) {}
+
   public record Health(String state, List<Signal> signals, long checkedAt) {}
 
   public record Activity(

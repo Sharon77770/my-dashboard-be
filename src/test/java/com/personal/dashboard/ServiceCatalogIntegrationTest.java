@@ -44,6 +44,33 @@ class ServiceCatalogIntegrationTest {
 
   @Test
   @WithMockUser(username = "owner", roles = "OWNER")
+  void runtimeRoutesRequireBoundContainerAndCsrf() throws Exception {
+    String id =
+        catalogServices
+            .save(null, new ServiceDto.Request("Runtime fixture", "server", "Development", ""))
+            .id();
+    String resourceId =
+        catalogServices.bind(id, new ServiceDto.ResourceRequest("DEVICE", "local", "", "")).id();
+    String path = "/api/v1/services/" + id;
+    String resourcePath = path + "/resources/" + resourceId;
+
+    mvc.perform(get(path + "/runtime")).andExpect(status().isOk());
+    mvc.perform(get(resourcePath + "/logs")).andExpect(status().isBadRequest());
+    mvc.perform(
+            post(resourcePath + "/actions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"action\":\"restart\"}"))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post(resourcePath + "/actions")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"action\":\"restart\"}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @WithMockUser(username = "owner", roles = "OWNER")
   void failedAssistantBindingRollsBackServiceAndEarlierBinding() {
     long before = jdbc.queryForObject("SELECT COUNT(*) FROM services", Long.class);
     assertThat(

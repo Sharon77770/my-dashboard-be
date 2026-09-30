@@ -212,6 +212,9 @@ POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로
 | GET | /api/v1/services/{id}/health | OWNER | 연결된 신호의 집계 상태 |
 | GET | /api/v1/services/{id}/context | OWNER | 공통 Service Context |
 | GET | /api/v1/services/{id}/activity | OWNER | 서비스 활동 |
+| GET | /api/v1/services/{id}/runtime | OWNER | 연결된 장비·컨테이너의 실시간 상태 |
+| GET | /api/v1/services/{id}/resources/{resourceId}/logs | OWNER | 연결된 컨테이너의 최근 로그 |
+| POST | /api/v1/services/{id}/resources/{resourceId}/actions | OWNER + CSRF | 연결된 컨테이너 시작·중지·재시작 |
 
 ## 메모장
 

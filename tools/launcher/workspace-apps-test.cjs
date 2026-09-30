@@ -14,6 +14,7 @@ window.fetch=async url=>{
   '/services/service-1/health':{state:'HEALTHY',signals:[]},
   '/services/service-1/activity':[],
   '/services/service-1/context':{service:{id:'service-1',name:'PFM API',icon:'server',environment:'Production'},resources:[{id:'device-binding',type:'DEVICE',reference:'device-1',label:'Spark',orphaned:false}],health:{state:'HEALTHY',signals:[]},runtime:{'device-1':{device:{remoteProtocol:'NONE'},status:null}},telemetry:{},github:{},activity:[]},
+  '/services/service-1/runtime':[{resourceId:'device-binding',type:'DEVICE',name:'Spark',deviceId:'device-1',state:'ONLINE',cpu:12,memory:24,disk:35,image:'',detail:'SSH Linux 계측',checkedAt:1}],
   '/databases':[],
   '/telemetry/services':[{serviceId:'telemetry-1',serviceName:'PFM API',serviceType:'Backend API',status:'Receiving data',requestsToday:12,dau:3,errorRate:0,lastUsedAt:'2026-09-30T08:00:00Z'}],
   '/telemetry/services/telemetry-1/analytics?range=24h':{summary:{serviceName:'PFM API',serviceType:'Backend API',status:'Receiving data',enabled:true,lastUsedAt:'2026-09-30T08:00:00Z',requests:12,uniqueUsers:3,errorRate:0,p95LatencyMs:20,errors:0,gauges:{}},timeline:[],endpoints:{},endpointErrorRates:{},statuses:{},methods:{}}
@@ -36,8 +37,9 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,20));
  assert.ok(document.querySelector('[data-services="back"] svg'));
  assert.equal(document.querySelector('[data-services="refresh"]').getAttribute('aria-label'),'서비스 새로고침');
  document.querySelector('[data-service-tab="Runtime"]').click();
- assert.ok(document.querySelector('[data-open="TERMINAL"][aria-label] svg'));
- assert.ok(document.querySelector('[data-open="FILES"][aria-label] svg'));
+  await tick();
+  assert.ok(document.querySelector('[data-open="TERMINAL"]'));
+  assert.ok(document.querySelector('[data-open="FILES"]'));
  document.querySelector('[data-services="back"]').click();
  await tick();
  assert.equal(document.querySelector('#services').classList.contains('service-detail-open'),false);

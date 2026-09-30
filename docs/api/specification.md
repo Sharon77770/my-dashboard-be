@@ -624,11 +624,16 @@ MCP `discover_service_resources(threadId,query)`는 탐색/결정적 후보를 �
 | GET | `/api/v1/services/{id}/health` | 없음 | `Health` | 200 |
 | GET | `/api/v1/services/{id}/context` | 없음 | `Context` | 200 |
 | GET | `/api/v1/services/{id}/activity` | 없음 | `Activity[]`, 최신순 최대 50 | 200 |
+| GET | `/api/v1/services/{id}/runtime` | 없음 | `RuntimeSnapshot[]` | 200 |
+| GET | `/api/v1/services/{id}/resources/{resourceId}/logs` | 없음 | `RuntimeOutput` | 200 |
+| POST | `/api/v1/services/{id}/resources/{resourceId}/actions` | `RuntimeActionRequest` | `RuntimeOutput` | 200 |
 
 `ServiceRequest`: `name` 필수 문자열 1~100자, `icon` 필수 소문자/숫자/하이픈 1~32자, `environment` 필수 문자열 1~40자, `description` 선택 문자열 최대 500자(null이면 빈 문자열). `ServiceView`: `id` 문자열 UUID, `name/icon/environment/description` 문자열, `createdAt/updatedAt` epoch ms 정수. 모든 응답 필드는 null이 아니다.
 
 `ResourceRequest`: `type` 필수 enum `GITHUB_REPOSITORY`, `GITHUB_ORGANIZATION`, `DEVICE`, `DOCKER_CONTAINER`, `TELEMETRY`, `ENDPOINT`, `FILE`, `DATABASE`; `reference` 필수 문자열 최대 500자; `deviceId` 선택 문자열 최대 36자(DOCKER_CONTAINER에서는 필수, FILE에서는 선택, 그 외 빈 문자열); `label` 선택 문자열 최대 100자. `Resource`: `id/serviceId/type/reference/deviceId/label` 문자열, `createdAt` epoch ms 정수, `orphaned` boolean. 선택 입력은 저장 시 빈 문자열로 정규화되고 응답은 null이 아니다. 유효하지 않은 참조나 URL/경로는 400 또는 404로 거부된다.
 
 `Health`: `state` enum `HEALTHY/DEGRADED/DOWN/UNKNOWN`, `checkedAt` epoch ms, `signals[]`. 각 Signal은 `source/reference/state/detail` 문자열이며 signal state는 `HEALTHY/DEGRADED/DOWN/UNKNOWN`. `Context`: `service` ServiceView, `resources` Resource[], `health` Health, `github/runtime/telemetry/databases`는 참조별 데이터 map, `activity` Activity[]. 외부 모듈 조회 실패 시 해당 map 원소만 생략한다. `Activity`: `id/source/type/severity/title` 문자열, `timestamp` epoch ms, `metadata` JSON object. null 필드는 없다.
+
+`RuntimeSnapshot`: `resourceId` 연결 ID, `type` enum `DEVICE|DOCKER_CONTAINER`, `name` 표시 문자열, `deviceId` 장비 ID, `state` enum `ONLINE|REACHABLE|UNAVAILABLE|RUNNING|STOPPED|UNKNOWN`, `cpu/memory/disk` 0~100 Double 또는 null(장비 미계측·컨테이너에서는 null), `image`와 `detail` 문자열(없으면 빈 문자열), `checkedAt` epoch ms. 장비는 기존 DeviceOperations 계측을 사용하고 컨테이너는 Docker 목록의 이름·상태·이미지만 읽는다. 연결이 삭제되거나 개별 조회에 실패하면 그 항목은 UNKNOWN이며 다른 항목은 유지한다. `RuntimeActionRequest`의 `action`은 필수 enum `start|stop|restart`이다. `RuntimeOutput`은 `output` 문자열 하나를 가진다. 로그는 Docker 최근 200줄과 기존 명령 어댑터의 최대 256 KiB·10초 제한을 적용하며 `Cache-Control: no-store`로 응답한다. 로그 본문은 Service Context나 Activity에 저장하지 않는다. 세 경로 모두 등록된 Service 연결만 대상으로 한다. 로그·작업은 DOCKER_CONTAINER 연결만 허용한다. 미인증 401, 권한·CSRF 실패 403, 잘못된 연결 종류·action은 400, 없는 서비스·연결은 404, 삭제된 장비 연결은 409, 원격 명령 실패는 502 또는 시간 초과 504이며 오류 응답은 `message` 문자열을 반환한다.
 
 MCP read-only 도구 `list_services`(입력 없음), `get_service`, `get_service_context`, `get_service_health`(각각 `id` 필수 문자열 최대 36자)는 동일 ServiceCatalogService를 호출한다. 반환 필드는 각각 `services`, `service+resources`, `context`, `health`다. 기존 `/api/v1/mcp` bearer 인증과 OWNER 컨텍스트를 그대로 사용한다.

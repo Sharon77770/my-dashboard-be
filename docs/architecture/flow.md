@@ -14,6 +14,10 @@ OWNER가 Services 앱에서 Service를 만들고 기존 GitHub/장비/Telemetry 
 
 목록/위젯은 연결된 운영·계측·GitHub Action 신호로 Health를 계산한다. 상세 Context는 기존 GithubService, CatalogService/DeviceOperations, TelemetryService 결과와 Resource, Activity를 묶는다. 외부 조회 실패 시 해당 Context 부분만 생략하고 Health는 UNKNOWN 신호를 표시한다. Activity는 카탈로그 이벤트와 기존 GitHub/장비/Telemetry 기록을 최신순으로 합친다. Runtime 탭은 기존 장비 목록과 선택 장비의 Docker 컨테이너 목록을 불러와 Service 리소스로 연결·해제한다. Settings의 GitHub 저장소 연결은 조회된 owner/name 목록을 입력값으로 필터링한 뒤 기존 Service API로 저장한다. Quick Action은 기존 GitHub/Terminal/Files/Remote/Telemetry 화면으로 이동한다. Docker restart는 기존 DeviceOperations API와 확인 대화상자를 사용한다. Ask Codex는 Service ID를 포함한 요청을 기존 assistant 화면에 넣고 MCP `get_service_context`로 같은 모델을 읽는다.
 
+Runtime 탭 진입/새로고침 → ServiceRuntimeService가 연결 ID를 기준으로 장비 계측과 Docker 목록을 조회 → 항목별 상태·자원 사용량 표시. 컨테이너 로그 열기 → Service 연결 재검증 → 기존 CommandAdapter로 최근 200줄 읽기 → 현재 화면의 텍스트로만 표시. 시작·중지·재시작은 사용자 확인 및 CSRF 검증 후 동일 연결을 재검증하고 고정 Docker 작업을 실행한다. 없거나 삭제된 연결은 오류를 반환하며, 한 장비의 조회 실패는 다른 행의 표시를 막지 않는다.
+
+Telemetry 탭 진입 → 기존 Telemetry 서비스 목록 조회 → 이미 연결된 ID 제외 → 선택한 ID를 기존 Service 리소스 API에 POST → Service Context 재조회. 연결 목록은 Context의 분석 요약과 저장된 리소스를 함께 사용해 수집 상태와 삭제된 연결을 표시한다. 연결 해제는 Service 리소스 DELETE를 사용한다. 목록이 비었거나 조회에 실패해도 기존 연결은 계속 표시한다.
+
 ## GitHub Control Center
 
 OWNER 브라우저가 `github/status`를 조회한다. 서버 `gh`가 미인증이면 기기 코드 로그인 job을 시작하고 사용자가 GitHub에서 승인한다. 인증 후 `GithubService.owners`가 사용자와 접근 가능한 Organization을 조회한다. Owner 변경 시 저장소 선택을 초기화하고 해당 Owner의 저장소·Overview를 다시 조회한다. 저장소 선택은 같은 서비스의 이슈·PR·Workflow·파일·커밋 조회로 이어진다. 비어 있는 목록은 빈 상태로 표시하고 외부 실패는 안전한 오류 메시지로 표시한다. CLI 재시도는 자동 수행하지 않는다.

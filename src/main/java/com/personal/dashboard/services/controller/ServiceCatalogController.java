@@ -2,6 +2,7 @@ package com.personal.dashboard.services.controller;
 
 import com.personal.dashboard.services.dto.ServiceDto;
 import com.personal.dashboard.services.service.ServiceCatalogService;
+import com.personal.dashboard.services.service.ServiceRuntimeService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -14,9 +15,11 @@ import org.springframework.web.bind.annotation.*;
 @PreAuthorize("hasRole('OWNER')")
 public class ServiceCatalogController {
   private final ServiceCatalogService services;
+  private final ServiceRuntimeService runtime;
 
-  public ServiceCatalogController(ServiceCatalogService services) {
+  public ServiceCatalogController(ServiceCatalogService services, ServiceRuntimeService runtime) {
     this.services = services;
+    this.runtime = runtime;
   }
 
   @GetMapping
@@ -76,5 +79,26 @@ public class ServiceCatalogController {
   @GetMapping("/{id}/activity")
   public List<ServiceDto.Activity> activity(@PathVariable String id) {
     return services.activity(id);
+  }
+
+  @GetMapping("/{id}/runtime")
+  public List<ServiceDto.RuntimeSnapshot> runtime(@PathVariable String id) {
+    return runtime.snapshots(id);
+  }
+
+  @GetMapping("/{id}/resources/{resourceId}/logs")
+  public ResponseEntity<ServiceDto.RuntimeOutput> logs(
+      @PathVariable String id, @PathVariable String resourceId) {
+    return ResponseEntity.ok()
+        .cacheControl(org.springframework.http.CacheControl.noStore())
+        .body(runtime.logs(id, resourceId));
+  }
+
+  @PostMapping("/{id}/resources/{resourceId}/actions")
+  public ServiceDto.RuntimeOutput runtimeAction(
+      @PathVariable String id,
+      @PathVariable String resourceId,
+      @Valid @RequestBody ServiceDto.RuntimeActionRequest request) {
+    return runtime.action(id, resourceId, request);
   }
 }
