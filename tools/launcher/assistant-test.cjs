@@ -279,15 +279,18 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /Compose project 'pfm-api-server'/);
     assert.doesNotMatch(draft.d.querySelector('.assistant-draft-preview').textContent, /Compose project 'pfm-complete'/);
     assert.doesNotMatch(draft.d.querySelector('.assistant-draft-preview').textContent, /Compose project 'unrelated'/);
-    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /서비스 생성 승인/);
+    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /이대로 만들어줘/);
     assert.equal(draft.d.querySelectorAll('.assistant-message[data-role="assistant"] .assistant-message-label').length, 1);
     assert.equal(draft.d.querySelector('.assistant-draft-preview button'), null);
     draft.d.querySelector('#assistant-prompt').value = '이름을 PFM 백엔드로 바꿔줘';
+    draft.state.draft.excludedResources = [{type:'DOCKER_CONTAINER', reference:'mysql', deviceId:'spark'}];
+    draft.state.draft.questions = ['mysql은 별도 역할입니다.'];
     draft.d.querySelector('#assistant-form').dispatchEvent(new draft.w.Event('submit', {cancelable:true}));
     await tick();
     assert.equal(draft.state.draft.status, 'DRAFT');
+    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /제외한 컨테이너[\s\S]*mysql/);
     assert.equal(draft.requests.filter(request => request.action === 'codex-run').length, 2);
-    draft.d.querySelector('#assistant-prompt').value = '서비스 생성 승인';
+    draft.d.querySelector('#assistant-prompt').value = '승인';
     draft.d.querySelector('#assistant-form').dispatchEvent(new draft.w.Event('submit', {cancelable:true}));
     await tick();
     assert.equal(draft.state.approvals, 1);
@@ -295,6 +298,40 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /서비스 열기/);
     assert.equal(draft.requests.filter(request => request.action === 'codex-run').length, 2);
   } finally { draft.dom.window.close(); }
+  for (const phrase of ['승인 만들어줘', '승인하고 만들어줘', '이대로 만들어줘',
+    '이대로 서비스를 만들어줘', '서비스 생성해줘', '서비스 생성 확정해줘', '이대로 진행해줘']) {
+    const naturalApproval = await fixture(connected);
+    try {
+      naturalApproval.state.draft = {id:'natural-draft', threadId:'fixture', serviceId:null, name:'PFM API',
+        environment:'Production', description:'', status:'DRAFT', revision:1, questions:[],
+        candidates:[{type:'DOCKER_CONTAINER', reference:'api', deviceId:'spark', displayName:'api', selected:true}]};
+      naturalApproval.d.querySelector('#assistant-prompt').value = '초안 확인해줘';
+      naturalApproval.d.querySelector('#assistant-form').dispatchEvent(new naturalApproval.w.Event('submit', {cancelable:true}));
+      await tick();
+      naturalApproval.d.querySelector('#assistant-prompt').value = phrase;
+      naturalApproval.d.querySelector('#assistant-form').dispatchEvent(new naturalApproval.w.Event('submit', {cancelable:true}));
+      await tick();
+      assert.equal(naturalApproval.state.approvals, 1, phrase);
+      assert.equal(naturalApproval.state.draft.status, 'COMMITTED', phrase);
+      assert.equal(naturalApproval.requests.filter(request => request.action === 'codex-run').length, 1, phrase);
+    } finally { naturalApproval.dom.window.close(); }
+  }
+  for (const phrase of ['승인하고 이름 바꿔줘', '만들어줘?']) {
+    const ambiguousApproval = await fixture(connected);
+    try {
+      ambiguousApproval.state.draft = {id:'ambiguous-draft', threadId:'fixture', serviceId:null, name:'PFM API',
+        environment:'Production', description:'', status:'DRAFT', revision:1, questions:[],
+        candidates:[{type:'DOCKER_CONTAINER', reference:'api', deviceId:'spark', displayName:'api', selected:true}]};
+      ambiguousApproval.d.querySelector('#assistant-prompt').value = '초안 확인해줘';
+      ambiguousApproval.d.querySelector('#assistant-form').dispatchEvent(new ambiguousApproval.w.Event('submit', {cancelable:true}));
+      await tick();
+      ambiguousApproval.d.querySelector('#assistant-prompt').value = phrase;
+      ambiguousApproval.d.querySelector('#assistant-form').dispatchEvent(new ambiguousApproval.w.Event('submit', {cancelable:true}));
+      await tick();
+      assert.equal(ambiguousApproval.state.approvals, undefined, phrase);
+      assert.equal(ambiguousApproval.requests.filter(request => request.action === 'codex-run').length, 2, phrase);
+    } finally { ambiguousApproval.dom.window.close(); }
+  }
   const existingDraft = await fixture(connected);
   try {
     existingDraft.state.draft = {id:'existing-draft', threadId:'fixture', serviceId:'service-fixture', name:'PFM API',
@@ -308,6 +345,10 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     existingDraft.d.querySelector('#assistant-form').dispatchEvent(new existingDraft.w.Event('submit', {cancelable:true}));
     await tick();
     assert.match(existingDraft.d.querySelector('.assistant-draft-preview').textContent, /제거할 기존 연결[\s\S]*old-api/);
+    existingDraft.d.querySelector('#assistant-prompt').value = '만들어줘';
+    existingDraft.d.querySelector('#assistant-form').dispatchEvent(new existingDraft.w.Event('submit', {cancelable:true}));
+    await tick();
+    assert.equal(existingDraft.state.approvals, undefined);
     existingDraft.state.draft.revision = 3;
     existingDraft.d.querySelector('#assistant-prompt').value = '서비스 변경 승인';
     existingDraft.d.querySelector('#assistant-form').dispatchEvent(new existingDraft.w.Event('submit', {cancelable:true}));

@@ -348,6 +348,13 @@ public class ServiceDiscoveryService {
   /** Keeps only unresolved Compose choices that belong to the draft's selected containers. */
   static List<String> questionsForSelection(
       List<String> previous, List<ServiceOnboardingDto.Candidate> candidates) {
+    return questionsForSelection(previous, candidates, List.of());
+  }
+
+  static List<String> questionsForSelection(
+      List<String> previous,
+      List<ServiceOnboardingDto.Candidate> candidates,
+      List<ServiceOnboardingDto.ResourceLink> excludedResources) {
     List<String> questions =
         new ArrayList<>(
             previous.stream()
@@ -367,8 +374,17 @@ public class ServiceDiscoveryService {
           var remaining =
               members.stream()
                   .filter(item -> !item.selected())
+                  .filter(
+                      item ->
+                          excludedResources.stream()
+                              .noneMatch(
+                                  excluded ->
+                                      excluded.type().equals(item.type())
+                                          && excluded.reference().equals(item.reference())
+                                          && excluded.deviceId().equals(item.deviceId())))
                   .map(ServiceOnboardingDto.Candidate::reference)
                   .toList();
+          if (remaining.isEmpty()) return;
           var examples = remaining.stream().limit(4).toList();
           String rest =
               remaining.size() > examples.size()

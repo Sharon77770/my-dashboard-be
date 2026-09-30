@@ -324,6 +324,9 @@
       }
     } else addText(resources, 'p', 'assistant-draft-empty', '연결할 리소스가 없어요. 채팅으로 추가할 대상을 알려 주세요.');
     body.append(resources);
+    if (draft.excludedResources?.length) addSection('제외한 컨테이너', draft.excludedResources.map(excluded =>
+      draft.candidates.find(item => item.type === excluded.type && item.reference === excluded.reference
+        && item.deviceId === excluded.deviceId)?.displayName || excluded.reference));
     if (serviceDraftRemoved.length && draft.status !== 'COMMITTED') addSection('제거할 기존 연결', serviceDraftRemoved);
     if (!serviceDraftReviewReady) addText(body, 'p', 'assistant-draft-warning', '기존 연결을 확인하지 못했어요. 다시 불러온 뒤 승인해 주세요.');
     if (draft.status !== 'COMMITTED') {
@@ -339,7 +342,7 @@
     if (draft.status === 'COMMITTED') {
       addText(guidance, 'p', '', '서비스 화면을 열려면 “서비스 열기”라고 입력해 주세요.');
     } else {
-      addText(guidance, 'p', '', `수정할 내용을 말하거나, “${draft.serviceId ? '서비스 변경 승인' : '서비스 생성 승인'}”으로 확정하거나, “취소”로 초안을 버릴 수 있어요.`);
+      addText(guidance, 'p', '', `수정할 내용을 말하거나, “승인”${draft.serviceId ? ' 또는 “서비스 변경 승인”' : '이나 “이대로 만들어줘”'}로 확정하거나, “취소”로 초안을 버릴 수 있어요.`);
     }
     body.append(guidance);
     preview.append(body);
@@ -377,11 +380,26 @@
   function serviceDraftAction(text) {
     if (!serviceDraft || serviceDraft.threadId !== threadId || attachments.length) return '';
     const draft = serviceDraft;
-    const command = text.replace(/[.!?。]+$/u, '').replace(/\s+/gu, ' ').trim();
+    const command = text.replace(/[.!。]+$/u, '').replace(/\s+/gu, ' ').trim();
     if (draft.status === 'COMMITTED') return command === '서비스 열기' ? 'open' : '';
-    if (command === (draft.serviceId ? '서비스 변경 승인' : '서비스 생성 승인')) return 'commit';
     if (['취소', '초안 취소', '서비스 초안 취소', '서비스 생성 취소', '이 초안 취소해줘'].includes(command)) return 'cancel';
+    if (isServiceDraftCommitCommand(command, draft)) return 'commit';
     return '';
+  }
+
+  function isServiceDraftCommitCommand(command, draft) {
+    if (/[?？]/u.test(command)) return false;
+    const compact = command.replace(/[\s,，]+/gu, '');
+    const approval = draft.serviceId ? '(?:승인|최종승인|서비스변경승인)' : '(?:승인|최종승인|서비스생성승인)';
+    if (new RegExp(`^${approval}(?:해줘|해주세요|해|합니다|할게)?$`, 'u').test(compact)) return true;
+    if (draft.serviceId) return false;
+    const prefix = '(?:(?:이대로|그대로|이초안대로|현재초안대로)(?:서비스(?:를)?)?|서비스(?:를)?)?';
+    const action = '(?:생성|만들|등록|확정)';
+    const ending = '(?:해줘|해주세요|해|해요|어줘|어주세요|어|어요|자|할게)?';
+    return new RegExp(`^${prefix}${action}${ending}$`, 'u').test(compact)
+      || new RegExp(`^승인(?:하고|해서|후)?(?:서비스(?:를)?)?${action}${ending}$`, 'u').test(compact)
+      || /^(?:서비스)?생성확정(?:해줘|해주세요|해|합니다)?$/u.test(compact)
+      || /^(?:이대로|그대로|이초안대로|현재초안대로)진행(?:해줘|해주세요|해|하자)$/u.test(compact);
   }
 
   async function handleServiceDraftReply(text, action) {

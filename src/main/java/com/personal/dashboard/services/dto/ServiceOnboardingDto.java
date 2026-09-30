@@ -47,7 +47,37 @@ public final class ServiceOnboardingDto {
       long serviceUpdatedAt,
       List<Candidate> candidates,
       List<String> questions,
-      long updatedAt) {}
+      long updatedAt,
+      List<ResourceLink> excludedResources) {
+    public Draft(
+        String id,
+        String threadId,
+        String serviceId,
+        String name,
+        String description,
+        String environment,
+        String status,
+        long revision,
+        long serviceUpdatedAt,
+        List<Candidate> candidates,
+        List<String> questions,
+        long updatedAt) {
+      this(
+          id,
+          threadId,
+          serviceId,
+          name,
+          description,
+          environment,
+          status,
+          revision,
+          serviceUpdatedAt,
+          candidates,
+          questions,
+          updatedAt,
+          List.of());
+    }
+  }
 
   public record DraftRequest(
       String threadId,
@@ -62,7 +92,17 @@ public final class ServiceOnboardingDto {
       String name,
       String description,
       String environment,
-      List<ServiceDto.ResourceRequest> resources) {}
+      List<ServiceDto.ResourceRequest> resources,
+      List<ResourceLink> excludedResources) {
+    public DraftUpdate(
+        long revision,
+        String name,
+        String description,
+        String environment,
+        List<ServiceDto.ResourceRequest> resources) {
+      this(revision, name, description, environment, resources, null);
+    }
+  }
 
   public record Revision(long revision) {}
 }

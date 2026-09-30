@@ -247,7 +247,7 @@ public class AssistantMcpService {
             false),
         tool(
             "update_service_draft",
-            "Change draft metadata or replace selected resources. Browser approval is reset.",
+            "Change draft metadata or selected resources. Pass excludedResources for containers the user explicitly chose to omit; this resolves Compose questions. Browser approval is reset.",
             schema(
                 List.of("id", "revision"),
                 Map.of(
@@ -262,6 +262,8 @@ public class AssistantMcpService {
                     "environment",
                     string(40),
                     "resources",
+                    resourceListSchema(),
+                    "excludedResources",
                     resourceListSchema())),
             false),
         tool(
@@ -1070,7 +1072,8 @@ public class AssistantMcpService {
                       optionalText(args, "name", 100),
                       optionalText(args, "description", 500),
                       optionalText(args, "environment", 40),
-                      resourceRequests(args))));
+                      resourceRequests(args),
+                      excludedResourceLinks(args))));
       case "get_service_draft" -> {
         var draft = onboarding.forThread(requiredText(args, "threadId", 100));
         yield draft == null ? Map.of("draft", "none") : Map.of("draft", draft);
@@ -1632,7 +1635,25 @@ public class AssistantMcpService {
   }
 
   private List<ServiceDto.ResourceRequest> resourceRequests(JsonNode args) {
-    JsonNode values = args.get("resources");
+    return resourceRequests(args, "resources");
+  }
+
+  private List<ServiceOnboardingDto.ResourceLink> excludedResourceLinks(JsonNode args) {
+    List<ServiceDto.ResourceRequest> requests = resourceRequests(args, "excludedResources");
+    return requests == null
+        ? null
+        : requests.stream()
+            .map(
+                item ->
+                    new ServiceOnboardingDto.ResourceLink(
+                        item.type(),
+                        item.reference(),
+                        item.deviceId() == null ? "" : item.deviceId()))
+            .toList();
+  }
+
+  private List<ServiceDto.ResourceRequest> resourceRequests(JsonNode args, String name) {
+    JsonNode values = args.get(name);
     if (values == null || values.isNull()) return null;
     if (!values.isArray() || values.size() > 100)
       throw new WorkspaceException(400, "리소스 목록을 확인해 주세요.");

@@ -182,6 +182,45 @@ public class ServiceOnboardingService {
         input.resources() == null
             ? current.candidates()
             : select(current.candidates(), input.resources());
+    List<ServiceOnboardingDto.ResourceLink> excludedResources =
+        input.excludedResources() == null
+            ? current.excludedResources()
+            : validateExclusions(current.candidates(), input.excludedResources());
+    if (input.excludedResources() != null) {
+      List<ServiceOnboardingDto.ResourceLink> explicitExclusions = excludedResources;
+      updatedCandidates =
+          select(
+              updatedCandidates,
+              updatedCandidates.stream()
+                  .filter(ServiceOnboardingDto.Candidate::selected)
+                  .filter(
+                      item ->
+                          explicitExclusions.stream()
+                              .noneMatch(
+                                  excluded ->
+                                      matches(
+                                          item,
+                                          excluded.type(),
+                                          excluded.reference(),
+                                          excluded.deviceId())))
+                  .map(this::request)
+                  .toList());
+    }
+    List<ServiceOnboardingDto.Candidate> finalCandidates = updatedCandidates;
+    excludedResources =
+        excludedResources.stream()
+            .filter(
+                excluded ->
+                    finalCandidates.stream()
+                        .noneMatch(
+                            item ->
+                                item.selected()
+                                    && matches(
+                                        item,
+                                        excluded.type(),
+                                        excluded.reference(),
+                                        excluded.deviceId())))
+            .toList();
     var changed =
         new ServiceOnboardingDto.Draft(
             current.id(),
@@ -198,8 +237,10 @@ public class ServiceOnboardingService {
             current.revision() + 1,
             current.serviceUpdatedAt(),
             updatedCandidates,
-            ServiceDiscoveryService.questionsForSelection(current.questions(), updatedCandidates),
-            System.currentTimeMillis());
+            ServiceDiscoveryService.questionsForSelection(
+                current.questions(), updatedCandidates, excludedResources),
+            System.currentTimeMillis(),
+            excludedResources);
     drafts.put(id, changed);
     return changed;
   }
@@ -222,7 +263,8 @@ public class ServiceOnboardingService {
             current.serviceUpdatedAt(),
             current.candidates(),
             current.questions(),
-            System.currentTimeMillis());
+            System.currentTimeMillis(),
+            current.excludedResources());
     drafts.put(id, approved);
     return approved;
   }
@@ -262,7 +304,8 @@ public class ServiceOnboardingService {
             service.updatedAt(),
             draft.candidates(),
             draft.questions(),
-            System.currentTimeMillis()));
+            System.currentTimeMillis(),
+            draft.excludedResources()));
     return service;
   }
 
@@ -359,6 +402,37 @@ public class ServiceOnboardingService {
                     item.ports(),
                     item.workingDirectory()))
         .toList();
+  }
+
+  /** Accepts explicit exclusions only for discovered Compose containers. */
+  private List<ServiceOnboardingDto.ResourceLink> validateExclusions(
+      List<ServiceOnboardingDto.Candidate> candidates,
+      List<ServiceOnboardingDto.ResourceLink> exclusions) {
+    if (exclusions.size() > 100) throw new WorkspaceException(400, "제외 리소스는 최대 100개입니다.");
+    for (var excluded : exclusions) {
+      if (excluded == null
+          || !"DOCKER_CONTAINER".equals(excluded.type())
+          || candidates.stream()
+              .noneMatch(
+                  item ->
+                      item.type().equals("DOCKER_CONTAINER")
+                          && matches(
+                              item,
+                              excluded.type(),
+                              excluded.reference(),
+                              Objects.toString(excluded.deviceId(), ""))))
+        throw new WorkspaceException(400, "탐색된 컨테이너에서 제외 대상을 선택해 주세요.");
+    }
+    List<ServiceOnboardingDto.ResourceLink> normalized =
+        exclusions.stream()
+            .map(
+                item ->
+                    new ServiceOnboardingDto.ResourceLink(
+                        item.type(), item.reference(), Objects.toString(item.deviceId(), "")))
+            .toList();
+    if (normalized.stream().distinct().count() != normalized.size())
+      throw new WorkspaceException(400, "중복 제외 리소스가 있습니다.");
+    return normalized;
   }
 
   private List<ServiceDto.ResourceRequest> completeModelSelection(

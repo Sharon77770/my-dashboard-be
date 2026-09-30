@@ -175,6 +175,43 @@ class ServiceOnboardingTest {
         browserEdited.candidates().stream()
             .filter(ServiceOnboardingDto.Candidate::selected)
             .count());
+    assertTrue(browserEdited.questions().stream().anyMatch(question -> question.contains("mysql")));
+    var excluded =
+        onboarding.update(
+            browserEdited.id(),
+            new ServiceOnboardingDto.DraftUpdate(
+                browserEdited.revision(),
+                null,
+                null,
+                null,
+                null,
+                List.of(
+                    new ServiceOnboardingDto.ResourceLink("DOCKER_CONTAINER", "mysql", "spark"))));
+    assertEquals(1, excluded.excludedResources().size());
+    assertFalse(excluded.questions().stream().anyMatch(question -> question.contains("mysql")));
+    var renamed =
+        onboarding.update(
+            excluded.id(),
+            new ServiceOnboardingDto.DraftUpdate(
+                excluded.revision(), "PFM backend", null, null, null));
+    assertFalse(renamed.questions().stream().anyMatch(question -> question.contains("mysql")));
+    assertFalse(
+        renamed.candidates().stream()
+            .anyMatch(item -> item.reference().equals("mysql") && item.selected()));
+    var reselected =
+        onboarding.update(
+            renamed.id(),
+            new ServiceOnboardingDto.DraftUpdate(
+                renamed.revision(),
+                null,
+                null,
+                null,
+                List.of(
+                    new ServiceDto.ResourceRequest("DOCKER_CONTAINER", "pfm-api-dev", "spark", ""),
+                    new ServiceDto.ResourceRequest("DOCKER_CONTAINER", "mysql", "spark", ""))));
+    assertTrue(reselected.excludedResources().isEmpty());
+    assertFalse(
+        reselected.questions().stream().anyMatch(question -> question.contains("Compose project")));
     var complete =
         onboarding.create(
             new ServiceOnboardingDto.DraftRequest(
