@@ -14,7 +14,13 @@ window.fetch = async (url, options = {}) => {
   const path = url.replace('/api/v1', '');
   requests.push({ path, method: options.method || 'GET', body: options.body && JSON.parse(options.body) });
   let result;
-  if (path === '/services/one/context') result = { service: { id: 'one', name: 'Example', icon: 'server', environment: 'Production', description: '' }, resources: bindings, health: { state: 'UNKNOWN', signals: [] }, github: {}, runtime: {}, telemetry: Object.fromEntries(bindings.filter(binding => binding.type === 'TELEMETRY').map(binding => [binding.reference, { summary: { serviceName: 'Telemetry API', status: 'Receiving data', requestsToday: 12, errorRate: 0 } }])), activity: [] };
+  if (path === '/services') result = [{ id: 'one', name: 'Example', icon: 'server', environment: 'Production' }, { id: 'two', name: 'Worker', icon: 'apps', environment: 'Development' }];
+  else if (path === '/services/one/health') result = { state: 'HEALTHY' };
+  else if (path === '/services/two/health') { await new Promise(resolve => setTimeout(resolve, 70)); result = { state: 'DOWN' }; }
+  else if (path === '/services/one/resources' && (options.method || 'GET') === 'GET') result = [{ id: 'repo-1', type: 'GITHUB_REPOSITORY', reference: 'alice/first', label: '' }];
+  else if (path === '/services/two/resources') result = [];
+  else if (path.endsWith('/activity')) result = [];
+  else if (path === '/services/one/context') result = { service: { id: 'one', name: 'Example', icon: 'server', environment: 'Production', description: '' }, resources: bindings, health: { state: 'UNKNOWN', signals: [] }, github: {}, runtime: {}, telemetry: Object.fromEntries(bindings.filter(binding => binding.type === 'TELEMETRY').map(binding => [binding.reference, { summary: { serviceName: 'Telemetry API', status: 'Receiving data', requestsToday: 12, errorRate: 0 } }])), activity: [] };
   else if (path === '/services/one/runtime') result = bindings.filter(binding => ['DEVICE', 'DOCKER_CONTAINER'].includes(binding.type)).map(binding => ({ resourceId: binding.id, type: binding.type, name: binding.reference, deviceId: binding.type === 'DEVICE' ? binding.reference : binding.deviceId, state: binding.type === 'DEVICE' ? 'ONLINE' : 'RUNNING', cpu: binding.type === 'DEVICE' ? 42 : null, memory: 36, disk: 18, image: binding.type === 'DEVICE' ? '' : 'example:latest', detail: 'Up 2 hours', checkedAt: 1 }));
   else if (path.endsWith('/logs')) result = { output: '<token>\nsecond line' };
   else if (path.endsWith('/actions') && options.method === 'POST') result = { output: '' };
@@ -33,7 +39,34 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 20));
 const submit = form => form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
 
 (async () => {
+  window.WorkspaceServices.open('services');
+  await tick();
+  assert.equal(document.querySelectorAll('.service-tile').length, 2);
+  assert.match(document.querySelector('[data-service-open="two"]').textContent, /확인 필요/);
+  await new Promise(resolve => setTimeout(resolve, 80));
+  assert.match(document.querySelector('[data-service-open="two"]').textContent, /장애/);
+  const listSearch = document.querySelector('#service-list-search');
+  listSearch.value = 'alice/first';
+  listSearch.dispatchEvent(new window.Event('input', { bubbles: true }));
+  assert.deepEqual([...document.querySelectorAll('.service-tile b')].map(node => node.textContent), ['Example']);
+  listSearch.value = '';
+  listSearch.dispatchEvent(new window.Event('input', { bubbles: true }));
+  const stateFilter = document.querySelector('#service-list-state');
+  stateFilter.value = 'ATTENTION';
+  stateFilter.dispatchEvent(new window.Event('change', { bubbles: true }));
+  assert.deepEqual([...document.querySelectorAll('.service-tile b')].map(node => node.textContent), ['Worker']);
+  stateFilter.value = 'ALL';
+  stateFilter.dispatchEvent(new window.Event('change', { bubbles: true }));
+  const environmentFilter = document.querySelector('#service-list-environment');
+  environmentFilter.value = 'Production';
+  environmentFilter.dispatchEvent(new window.Event('change', { bubbles: true }));
+  assert.deepEqual([...document.querySelectorAll('.service-tile b')].map(node => node.textContent), ['Example']);
+
   await window.WorkspaceServices.openService('one');
+  assert.match(document.querySelector('.service-overview').textContent, /연결된 리소스/);
+  document.querySelector('.service-connection[data-service-tab="GitHub"]').click();
+  await tick();
+  assert.equal(document.querySelector('[data-service-tab="Settings"]').getAttribute('aria-current'), 'true');
   document.querySelector('[data-service-tab="Runtime"]').click();
   await tick();
   const deviceForm = document.querySelector('#service-bind-device');

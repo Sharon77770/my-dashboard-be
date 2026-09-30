@@ -12,6 +12,8 @@ OWNER가 연결을 저장하면 DatabaseStudioService가 입력을 검증하고 
 
 OWNER가 Services 앱에서 Service를 만들고 기존 GitHub/장비/Telemetry 리소스를 선택한다. ServiceCatalogService가 참조를 검증하고 SQLite에 연결을 저장한다. 같은 type/reference/device 조합은 409로 거부한다. URL과 파일 경로는 형식을 검증하며 서버에서 URL을 자동 호출하지 않는다. 삭제된 장비/Telemetry 연결은 orphan으로 표시하고 다른 연결 조회는 유지한다.
 
+AI 비서에서는 리소스 탐색 → 모호한 경계에 대한 자연어 질문 → 초안 생성·수정 → 채팅에 현재 연결과 제거 예정 연결 표시 → 명시적인 채팅 승인 문구 입력 → OWNER 브라우저의 revision 승인과 commit 순서로 진행한다. 일반적인 동의 메시지는 AI의 초안 수정 대화로 이어지며 등록을 실행하지 않는다. 기존 연결을 읽지 못하거나 초안 revision이 달라졌으면 승인을 중단한다.
+
 목록/위젯은 연결된 운영·계측·GitHub Action 신호로 Health를 계산한다. 상세 Context는 기존 GithubService, CatalogService/DeviceOperations, TelemetryService 결과와 Resource, Activity를 묶는다. 외부 조회 실패 시 해당 Context 부분만 생략하고 Health는 UNKNOWN 신호를 표시한다. Activity는 카탈로그 이벤트와 기존 GitHub/장비/Telemetry 기록을 최신순으로 합친다. Runtime 탭은 기존 장비 목록과 선택 장비의 Docker 컨테이너 목록을 불러와 Service 리소스로 연결·해제한다. Settings의 GitHub 저장소 연결은 조회된 owner/name 목록을 입력값으로 필터링한 뒤 기존 Service API로 저장한다. Quick Action은 기존 GitHub/Terminal/Files/Remote/Telemetry 화면으로 이동한다. Docker restart는 기존 DeviceOperations API와 확인 대화상자를 사용한다. Ask Codex는 Service ID를 포함한 요청을 기존 assistant 화면에 넣고 MCP `get_service_context`로 같은 모델을 읽는다.
 
 Runtime 탭 진입/새로고침 → ServiceRuntimeService가 연결 ID를 기준으로 장비 계측과 Docker 목록을 조회 → 항목별 상태·자원 사용량 표시. 컨테이너 로그 열기 → Service 연결 재검증 → 기존 CommandAdapter로 최근 200줄 읽기 → 현재 화면의 텍스트로만 표시. 시작·중지·재시작은 사용자 확인 및 CSRF 검증 후 동일 연결을 재검증하고 고정 Docker 작업을 실행한다. 없거나 삭제된 연결은 오류를 반환하며, 한 장비의 조회 실패는 다른 행의 표시를 막지 않는다.

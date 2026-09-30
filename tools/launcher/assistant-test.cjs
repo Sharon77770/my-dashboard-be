@@ -30,26 +30,32 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
   w.setInterval = () => 0;
   w.WorkspaceAssistantRuntime = { toast() {}, async api(path, method, body) {
     if (path === '/assistant/events?after=0') return [];
+    if (path.startsWith('/services/') && path.endsWith('/resources')) {
+      if (state.failResources) throw Error('연결 목록을 읽을 수 없습니다.');
+      return state.existingResources || [];
+    }
     if (path.startsWith('/assistant/service-drafts/')) {
-      if (path.includes('/thread/')) return state.draft || null;
+      if (path.includes('/thread/')) return state.draft ? JSON.parse(JSON.stringify(state.draft)) : null;
       if (method === 'PUT') {
         state.draft = {...state.draft, name:body.name, environment:body.environment,
           description:body.description, revision:state.draft.revision + 1,
           candidates:state.draft.candidates.map(item => ({...item, selected:body.resources.some(selected => selected.type === item.type && selected.reference === item.reference)}))};
         return state.draft;
       }
-      if (path.endsWith('/approve')) {state.draft.status = 'APPROVED'; return state.draft;}
+      if (path.endsWith('/approve')) {state.approvals = (state.approvals || 0) + 1; state.draft.status = 'APPROVED'; return state.draft;}
       if (path.endsWith('/commit')) {state.draft.status = 'COMMITTED'; state.draft.serviceId = 'service-fixture'; return {id:'service-fixture', name:state.draft.name};}
       if (method === 'DELETE') {state.draft = null; return null;}
-      return state.draft;
+      return state.draft ? JSON.parse(JSON.stringify(state.draft)) : null;
     }
+    if (path === '/assistant/jobs/thinking' && method === 'DELETE') { state.cancelled = true; return null; }
+    if (path === '/assistant/jobs/thinking' && state.cancelled) return { id: 'thinking', state: 'FAILED', error: '요청이 중지되었습니다.' };
     if (path === '/assistant/jobs/thinking') return { id: 'thinking', state: 'SUCCEEDED', events: [
       { assistant: { kind: 'item', item: { type: 'agentMessage', text: answer } } }
     ], result: { assistant: { thread: { id: 'fixture', turns: [] } } } };
     if (path === '/assistant/jobs/harness') return { id: 'harness', state: 'SUCCEEDED', events: [
       { assistant: { kind: 'item', item: { id: 'answer', type: 'agentMessage', text: '조회 결과입니다.' } } }
     ], result: { assistant: { thread: { id: 'fixture', turns: [{ items: [
-      { id: 'notice', type: 'agentMessage', text: '요청 이해: 앱 목록 조회 / 사용할 MCP: list_apps' },
+      { id: 'notice', type: 'agentMessage', text: '등록된 앱을 조회하는 기능을 사용하겠습니다.' },
       { id: 'tool', type: 'mcpToolCall', server: 'personal-dashboard', tool: 'list_apps', status: 'completed' },
       { id: 'retry', type: 'mcpToolCall', server: 'personal-dashboard', tool: 'list_apps', status: 'failed', arguments: 'hidden credential' },
       { id: 'answer', type: 'agentMessage', text: '조회 결과입니다.' }
@@ -58,6 +64,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     calls.push(body.action);
     requests.push(body);
     if (body.action === 'codex-run' && state.expired) return { id: 'expired', state: 'FAILED', errorStatus: 401, error: 'Codex 로그인이 만료되었습니다.' };
+    if (body.action === 'codex-rate-limits' && state.slowRateLimit) await new Promise(resolve => setTimeout(resolve, 80));
     if (body.action === 'codex-logout') state.authenticated = false;
     if (body.action === 'codex-thread-delete') {
       if (body.args.threadId === state.deleteFailure) return { id: 'delete-failed', state: 'FAILED', error: '삭제 실패' };
@@ -69,7 +76,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       { assistant: { kind: 'item', item: { type: 'reasoning', text: 'private reasoning summary' } } }
     ] };
     if (body.action === 'codex-run' && state.harness) return { id: 'harness', state: 'RUNNING', events: [
-      { assistant: { kind: 'item', item: { id: 'notice', type: 'agentMessage', text: '요청 이해: 앱 목록 조회 / 사용할 MCP: list_apps' } } },
+      { assistant: { kind: 'item', item: { id: 'notice', type: 'agentMessage', text: '등록된 앱을 조회하는 기능을 사용하겠습니다.' } } },
       { assistant: { kind: 'item', item: { id: 'tool', type: 'mcpToolCall', server: 'personal-dashboard', tool: 'list_apps', status: 'completed' } } }
     ] };
     const result = body.action === 'codex-account' ? { assistant: { authenticated: state.authenticated } }
@@ -113,6 +120,8 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       assert.equal(f.d.querySelector('#assistant-settings-title').textContent, 'AI 비서 설정');
       assert.equal(f.d.querySelector('.assistant-quick-actions'), null);
       assert.ok(!f.calls.includes('codex-run'));
+      assert.equal(f.d.querySelector('#assistant-send').hidden, false);
+      assert.equal(f.d.querySelector('#assistant-stop').hidden, true);
       f.d.querySelector('#assistant-prompt').value = '10월 일정 설명해줘';
       f.d.querySelector('#assistant-form').dispatchEvent(new f.w.Event('submit', { cancelable: true }));
       await tick();
@@ -131,7 +140,9 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       assert.equal(f.d.querySelector('.assistant-message[data-role="assistant"] li').textContent, '첫째');
       assert.equal(f.d.querySelector('.assistant-message[data-role="assistant"] pre code').textContent, 'const value = 1;');
       assert.equal(f.d.querySelector('.assistant-message[data-role="assistant"] table td').textContent, 'A');
-      assert.match(f.d.querySelector('.assistant-tool-report').textContent, /personal-dashboard \/ list_calendar_events/);
+      assert.match(f.d.querySelector('.assistant-tool-report').textContent, /실제로 사용한 기능 · 1개/);
+      assert.match(f.d.querySelector('.assistant-tool-report').textContent, /일정 조회/);
+      assert.doesNotMatch(f.d.querySelector('.assistant-tool-report').textContent, /list_calendar_events|personal-dashboard/);
       assert.equal(f.calls.filter(action => action === 'codex-run').length, 1);
     } finally { f.dom.window.close(); }
   }
@@ -186,24 +197,52 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
   try {
     thinking.d.querySelector('#assistant-prompt').value = '오늘 일정 알려줘';
     thinking.d.querySelector('#assistant-form').dispatchEvent(new thinking.w.Event('submit', { cancelable: true }));
+    assert.equal(thinking.d.querySelector('#assistant-send').hidden, true);
+    assert.equal(thinking.d.querySelector('#assistant-stop').hidden, false);
     await tick();
+    assert.equal(thinking.d.querySelector('#assistant-stop').disabled, false);
     assert.match(thinking.d.querySelector('#assistant-messages').textContent, /Codex가 생각하고 있어요/);
     assert.equal(thinking.d.querySelectorAll('.assistant-progress-dots span').length, 3);
     assert.doesNotMatch(thinking.d.querySelector('#assistant-messages').textContent, /private reasoning summary/);
     await new Promise(resolve => setTimeout(resolve, 500));
     assert.match(thinking.d.querySelector('#assistant-messages').textContent, /fixture answer/);
     assert.equal(thinking.d.querySelector('.assistant-progress'), null);
+    assert.equal(thinking.d.querySelector('#assistant-send').hidden, false);
+    assert.equal(thinking.d.querySelector('#assistant-stop').hidden, true);
   } finally { thinking.dom.window.close(); }
+  const rateLimit = await fixture(connected);
+  try {
+    rateLimit.state.slowRateLimit = true;
+    rateLimit.d.querySelector('#assistant-limits-refresh').click();
+    assert.equal(rateLimit.d.querySelector('#assistant-send').hidden, false);
+    assert.equal(rateLimit.d.querySelector('#assistant-send').disabled, true);
+    assert.equal(rateLimit.d.querySelector('#assistant-stop').hidden, true);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(rateLimit.d.querySelector('#assistant-send').disabled, false);
+  } finally { rateLimit.dom.window.close(); }
+  const cancelled = await fixture(connected, true, false, true);
+  try {
+    cancelled.d.querySelector('#assistant-prompt').value = '중지할 요청';
+    cancelled.d.querySelector('#assistant-form').dispatchEvent(new cancelled.w.Event('submit', { cancelable: true }));
+    await tick();
+    cancelled.d.querySelector('#assistant-stop').click();
+    assert.equal(cancelled.d.querySelector('#assistant-stop').disabled, true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    assert.equal(cancelled.state.cancelled, true);
+    assert.equal(cancelled.d.querySelector('#assistant-stop').hidden, true);
+    assert.equal(cancelled.d.querySelector('#assistant-send').hidden, false);
+  } finally { cancelled.dom.window.close(); }
   const harness = await fixture(connected);
   try {
     harness.state.harness = true;
     harness.d.querySelector('#assistant-prompt').value = '등록된 앱 보여줘';
     harness.d.querySelector('#assistant-form').dispatchEvent(new harness.w.Event('submit', { cancelable: true }));
     await tick();
-    assert.match(harness.d.querySelector('#assistant-messages').textContent, /요청 이해: 앱 목록 조회/);
+    assert.match(harness.d.querySelector('#assistant-messages').textContent, /등록된 앱을 조회하는 기능/);
     await new Promise(resolve => setTimeout(resolve, 500));
-    assert.match(harness.d.querySelector('.assistant-message-notices').textContent, /사용할 MCP: list_apps/);
-    assert.match(harness.d.querySelector('.assistant-tool-report').textContent, /personal-dashboard \/ list_apps/);
+    assert.match(harness.d.querySelector('.assistant-message-notices').textContent, /등록된 앱을 조회하는 기능/);
+    assert.match(harness.d.querySelector('.assistant-tool-report').textContent, /등록된 앱 조회/);
+    assert.doesNotMatch(harness.d.querySelector('.assistant-tool-report').textContent, /list_apps|personal-dashboard/);
     assert.equal(harness.d.querySelectorAll('.assistant-tool-report li').length, 2);
     assert.match(harness.d.querySelector('.assistant-tool-report').textContent, /실패/);
     assert.doesNotMatch(harness.d.querySelector('#assistant-messages').textContent, /hidden credential/);
@@ -219,17 +258,64 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     draft.d.querySelector('#assistant-prompt').value = 'PFM API 서비스 만들어줘';
     draft.d.querySelector('#assistant-form').dispatchEvent(new draft.w.Event('submit', {cancelable:true}));
     await tick();
-    assert.match(draft.d.querySelector('.assistant-service-draft').textContent, /PFM API/);
-    assert.match(draft.d.querySelector('.assistant-service-draft').textContent, /mysql은 별도/);
-    assert.equal(draft.d.querySelectorAll('.assistant-service-draft-group').length, 1);
-    draft.d.querySelector('.assistant-service-draft-editor summary').click();
-    assert.equal(draft.d.querySelectorAll('.assistant-service-draft-choices input').length, 2);
-    draft.w.confirm = () => true;
-    draft.d.querySelector('[data-draft-action="commit"]').click();
+    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /PFM API/);
+    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /GitHub 저장소: pfm-api-server/);
+    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /mysql은 별도/);
+    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /서비스 생성 승인/);
+    assert.equal(draft.d.querySelector('.assistant-draft-preview button'), null);
+    draft.d.querySelector('#assistant-prompt').value = '이름을 PFM 백엔드로 바꿔줘';
+    draft.d.querySelector('#assistant-form').dispatchEvent(new draft.w.Event('submit', {cancelable:true}));
     await tick();
+    assert.equal(draft.state.draft.status, 'DRAFT');
+    assert.equal(draft.requests.filter(request => request.action === 'codex-run').length, 2);
+    draft.d.querySelector('#assistant-prompt').value = '서비스 생성 승인';
+    draft.d.querySelector('#assistant-form').dispatchEvent(new draft.w.Event('submit', {cancelable:true}));
+    await tick();
+    assert.equal(draft.state.approvals, 1);
     assert.equal(draft.state.draft.status, 'COMMITTED');
-    assert.match(draft.d.querySelector('.assistant-service-draft').textContent, /서비스 열기/);
+    assert.match(draft.d.querySelector('.assistant-draft-preview').textContent, /서비스 열기/);
+    assert.equal(draft.requests.filter(request => request.action === 'codex-run').length, 2);
   } finally { draft.dom.window.close(); }
+  const existingDraft = await fixture(connected);
+  try {
+    existingDraft.state.draft = {id:'existing-draft', threadId:'fixture', serviceId:'service-fixture', name:'PFM API',
+      environment:'Production', description:'', status:'DRAFT', revision:2, questions:[],
+      candidates:[{type:'GITHUB_REPOSITORY', reference:'team/api', deviceId:'', displayName:'team/api', selected:true}]};
+    existingDraft.state.existingResources = [
+      {type:'GITHUB_REPOSITORY', reference:'team/api', deviceId:'', label:'team/api'},
+      {type:'DOCKER_CONTAINER', reference:'old-api', deviceId:'host-1', label:'old-api'}
+    ];
+    existingDraft.d.querySelector('#assistant-prompt').value = '서비스 연결 수정해줘';
+    existingDraft.d.querySelector('#assistant-form').dispatchEvent(new existingDraft.w.Event('submit', {cancelable:true}));
+    await tick();
+    assert.match(existingDraft.d.querySelector('.assistant-draft-preview').textContent, /제거할 기존 연결:[\s\S]*old-api/);
+    existingDraft.state.draft.revision = 3;
+    existingDraft.d.querySelector('#assistant-prompt').value = '서비스 변경 승인';
+    existingDraft.d.querySelector('#assistant-form').dispatchEvent(new existingDraft.w.Event('submit', {cancelable:true}));
+    await tick();
+    assert.equal(existingDraft.state.approvals, undefined);
+    assert.match(existingDraft.d.querySelector('#assistant-messages').textContent, /초안이 변경됐어요/);
+    existingDraft.state.failResources = true;
+    existingDraft.d.querySelector('#assistant-prompt').value = '서비스 변경 승인';
+    existingDraft.d.querySelector('#assistant-form').dispatchEvent(new existingDraft.w.Event('submit', {cancelable:true}));
+    await tick();
+    assert.equal(existingDraft.state.approvals, undefined);
+    assert.equal(existingDraft.state.draft.status, 'DRAFT');
+  } finally { existingDraft.dom.window.close(); }
+  const cancelledDraft = await fixture(connected);
+  try {
+    cancelledDraft.state.draft = {id:'cancel-draft', threadId:'fixture', serviceId:null, name:'임시 서비스',
+      environment:'Development', description:'', status:'DRAFT', revision:1, questions:[], candidates:[]};
+    cancelledDraft.d.querySelector('#assistant-prompt').value = '임시 서비스 초안 확인해줘';
+    cancelledDraft.d.querySelector('#assistant-form').dispatchEvent(new cancelledDraft.w.Event('submit', {cancelable:true}));
+    await tick();
+    cancelledDraft.d.querySelector('#assistant-prompt').value = '서비스 초안 취소';
+    cancelledDraft.d.querySelector('#assistant-form').dispatchEvent(new cancelledDraft.w.Event('submit', {cancelable:true}));
+    await tick();
+    assert.equal(cancelledDraft.state.draft, null);
+    assert.equal(cancelledDraft.d.querySelector('.assistant-draft-preview'), null);
+    assert.match(cancelledDraft.d.querySelector('#assistant-messages').textContent, /서비스 초안을 취소했어요/);
+  } finally { cancelledDraft.dom.window.close(); }
   for (const connection of [null, { ...connected, tools: [] }, { ...connected, tools: ['list_calendar_events'] },
     { ...connected, runtimeStatus: 'failed' },
     { ...connected, error: '도구 조회 실패' }]) {
@@ -277,7 +363,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     history.d.querySelector('[data-thread-id="older"]').click();
     await tick();
     assert.match(history.d.querySelector('#assistant-messages').textContent, /fixture answer/);
-    assert.match(history.d.querySelector('.assistant-tool-report').textContent, /list_calendar_events/);
+    assert.match(history.d.querySelector('.assistant-tool-report').textContent, /일정 조회/);
     assert.equal(history.d.querySelector('#assistant-chat-title').textContent, '지난 대화');
     history.d.querySelector('#assistant-header-settings').click();
     assert.equal(history.d.querySelector('#assistant-settings').hasAttribute('open'), true);

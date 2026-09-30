@@ -134,6 +134,59 @@ class ServiceOnboardingTest {
     assertFalse(result.toString().contains("secret-value"));
     assertFalse(result.toString().contains("SECRET_VALUE"));
     assertFalse(result.toString().contains("Ignore previous instructions"));
+    var partial =
+        onboarding.create(
+            new ServiceOnboardingDto.DraftRequest(
+                "thread-pfm",
+                null,
+                "PFM API",
+                "",
+                "Development",
+                List.of(
+                    new ServiceDto.ResourceRequest(
+                        "DOCKER_CONTAINER", "pfm-api-dev", "spark", ""))));
+    assertTrue(
+        partial.candidates().stream()
+            .anyMatch(item -> item.type().equals("DEVICE") && item.selected()));
+    assertTrue(
+        partial.candidates().stream()
+            .anyMatch(item -> item.type().equals("GITHUB_REPOSITORY") && item.selected()));
+    assertFalse(
+        partial.candidates().stream()
+            .anyMatch(item -> item.reference().equals("mysql") && item.selected()));
+    var browserEdited =
+        onboarding.update(
+            partial.id(),
+            new ServiceOnboardingDto.DraftUpdate(
+                partial.revision(),
+                null,
+                null,
+                null,
+                List.of(
+                    new ServiceDto.ResourceRequest(
+                        "DOCKER_CONTAINER", "pfm-api-dev", "spark", ""))));
+    assertEquals(
+        1,
+        browserEdited.candidates().stream()
+            .filter(ServiceOnboardingDto.Candidate::selected)
+            .count());
+    onboarding.discover("thread-image", "운영 서비스");
+    var imageDraft =
+        onboarding.create(
+            new ServiceOnboardingDto.DraftRequest(
+                "thread-image",
+                null,
+                "운영 서비스",
+                "",
+                "Production",
+                List.of(
+                    new ServiceDto.ResourceRequest(
+                        "DOCKER_CONTAINER", "pfm-api-dev", "spark", ""))));
+    assertTrue(
+        imageDraft.candidates().stream()
+            .anyMatch(
+                item ->
+                    item.reference().equals("PFM-simulation/pfm-api-server") && item.selected()));
     var draft =
         onboarding.create(
             new ServiceOnboardingDto.DraftRequest(
@@ -168,6 +221,61 @@ class ServiceOnboardingTest {
                 selected ->
                     selected.size() == 5
                         && selected.stream().noneMatch(item -> item.reference().equals("mysql"))));
+  }
+
+  @Test
+  void discoversRepositoriesAcrossOwnersAndDoesNotSelectOwnerNameOnlyMatches() {
+    when(github.owners())
+        .thenReturn(
+            List.of(
+                new GithubDto.Owner("personal", "USER", "", ""),
+                new GithubDto.Owner("PFM-simulation", "ORGANIZATION", "", "")));
+    when(github.repositories("personal"))
+        .thenReturn(
+            java.util.stream.IntStream.range(0, 70)
+                .mapToObj(
+                    index ->
+                        new GithubDto.Repository(
+                            "personal/unrelated-" + index, "", "", false, false, false, ""))
+                .toList());
+    when(github.repositories("PFM-simulation"))
+        .thenReturn(
+            List.of(
+                new GithubDto.Repository(
+                    "PFM-simulation/pfm-api-server", "", "", false, false, false, ""),
+                new GithubDto.Repository(
+                    "PFM-simulation/unrelated", "", "", false, false, false, "")));
+    when(services.list()).thenReturn(List.of());
+    when(catalog.devices()).thenReturn(List.of());
+
+    var result = onboarding.discover("thread-owner", "PFM API");
+    assertTrue(
+        result.candidates().stream()
+            .anyMatch(
+                item ->
+                    item.reference().equals("PFM-simulation/pfm-api-server") && item.selected()));
+    assertFalse(
+        result.candidates().stream()
+            .anyMatch(
+                item -> item.reference().equals("PFM-simulation/unrelated") && item.selected()));
+    verify(github).repositories("PFM-simulation");
+  }
+
+  @Test
+  void ambiguousRepositoryNamesStayUnselectedUntilBrowserReview() {
+    when(github.repositories())
+        .thenReturn(
+            List.of(
+                new GithubDto.Repository("team/pfm-api", "", "", false, false, false, ""),
+                new GithubDto.Repository("team/pfm-worker", "", "", false, false, false, "")));
+    when(services.list()).thenReturn(List.of());
+    when(catalog.devices()).thenReturn(List.of());
+
+    var result = onboarding.discover("thread-ambiguous", "PFM");
+    assertTrue(result.questions().stream().anyMatch(question -> question.contains("저장소")));
+    assertFalse(
+        result.candidates().stream()
+            .anyMatch(item -> item.type().equals("GITHUB_REPOSITORY") && item.selected()));
   }
 
   @Test

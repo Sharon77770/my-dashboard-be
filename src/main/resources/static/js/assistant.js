@@ -47,6 +47,8 @@
   const preferencesKey = 'dashboard-assistant-model-preferences-v1';
   const assistantRoot = localDevice.rootPath;
   let busy = false;
+  let chatPending = false;
+  let stopRequested = false;
   let ready = false;
   let mcpReady = false;
   let needsMcpRepair = false;
@@ -57,6 +59,8 @@
   let loading = null;
   let threadId = '';
   let serviceDraft = null;
+  let serviceDraftRemoved = [];
+  let serviceDraftReviewReady = true;
   let conversation = [];
   let models = [];
   let preferredModelId = '';
@@ -120,6 +124,63 @@
     return calls;
   }
 
+  function mcpFunctionLabel(call) {
+    const dashboardFunctions = {
+      open_page: '대시보드 페이지 열기', list_apps: '등록된 앱 조회', open_app: '앱 열기',
+      list_calendar_events: '일정 조회', create_calendar_event: '일정 만들기',
+      update_calendar_event: '일정 수정', delete_calendar_event: '일정 삭제',
+      list_notes: '메모 목록 조회', read_note: '메모 읽기', create_note_folder: '메모 폴더 만들기',
+      create_note: '메모 만들기', append_note: '메모 내용 추가', update_note_metadata: '메모 정보 수정',
+      replace_note_text: '메모 내용 교체', delete_note: '메모 삭제',
+      search_memories: '저장된 기억 검색', list_memories: '저장된 기억 목록 조회',
+      get_memory: '저장된 기억 읽기', compose_memory_context: '관련 기억 정리',
+      create_memory: '기억 저장', update_memory: '기억 수정', archive_memory: '기억 보관',
+      restore_memory: '기억 복원', delete_memory: '기억 삭제', pin_memory: '기억 고정',
+      unpin_memory: '기억 고정 해제', reinforce_memory: '기억 확인',
+      supersede_memory: '기억 갱신', promote_memory_to_calendar: '기억을 일정으로 등록',
+      promote_memory_to_note: '기억을 메모로 등록', promote_memories_to_note: '여러 기억을 메모로 정리',
+      discover_service_resources: '서비스에 연결할 리소스 찾기',
+      create_service_draft: '서비스 초안 만들기', update_service_draft: '서비스 초안 수정',
+      get_service_draft: '서비스 초안 확인', commit_service_draft: '서비스 등록',
+      list_services: '서비스 목록 조회', get_service: '서비스 정보 조회',
+      get_service_context: '서비스 연결 현황 조회', get_service_health: '서비스 상태 조회',
+      list_database_connections: '데이터베이스 연결 조회', get_database_metadata: '데이터베이스 정보 조회',
+      list_database_tables: '데이터베이스 테이블 조회', describe_database_table: '테이블 구조 조회',
+      github_status: 'GitHub 연결 상태 확인', list_github_repositories: 'GitHub 저장소 조회',
+      list_github_pull_requests: 'GitHub PR 조회', list_github_issues: 'GitHub 이슈 조회'
+    };
+    if (call.server === 'personal-dashboard' && dashboardFunctions[call.tool]) return dashboardFunctions[call.tool];
+    if (call.server === 'personal-dashboard' && call.tool?.startsWith('github.')) {
+      const tool = call.tool.slice('github.'.length);
+      const actions = { list: '목록 조회', get: '조회', search: '검색', find: '찾기',
+        create: '만들기', update: '수정', delete: '삭제', request: '승인 요청',
+        archive: '보관', comment: '댓글 작성', merge: '병합', run: '실행', analyze: '분석' };
+      const subjects = { owner: '계정', owners: '계정', organization: '조직', organizations: '조직',
+        repository: '저장소', repositories: '저장소', issue: '이슈', issues: '이슈',
+        pull_request: 'PR', pull_requests: 'PR', branch: '브랜치', branches: '브랜치',
+        tag: '태그', tags: '태그', contributor: '기여자', contributors: '기여자',
+        languages: '사용 언어', workflow: '워크플로', workflows: '워크플로',
+        workflow_run: '워크플로 실행', workflow_runs: '워크플로 실행',
+        workflow_jobs: '워크플로 작업', workflow_artifacts: '워크플로 결과물',
+        workflow_logs: '워크플로 로그', release: '릴리스', releases: '릴리스',
+        file: '파일', tree: '파일 트리', commit: '커밋', commit_diff: '커밋 변경 내용',
+        pull_request_diff: 'PR 변경 내용', pr_context: 'PR 관련 정보',
+        development_context: '개발 현황', org_overview: '조직 현황',
+        recent_activity: '최근 활동', my_work: '내 작업', repo_health: '저장소 상태',
+        org_members: '조직 구성원', org_teams: '조직 팀' };
+      if (tool === 'request_archive') return 'GitHub 저장소 보관 승인 요청';
+      if (tool === 'archive_repository') return 'GitHub 저장소 보관';
+      if (tool === 'analyze_failed_workflow') return 'GitHub 워크플로 실패 분석';
+      if (tool === 'search_across_org') return 'GitHub 조직 전체 검색';
+      if (tool === 'find_related_issues') return 'GitHub 관련 이슈 찾기';
+      const [action, ...parts] = tool.split('_');
+      const subject = subjects[parts.join('_')] || subjects[parts.slice(1).join('_')];
+      if (subject && actions[action]) return `GitHub ${subject} ${actions[action]}`;
+      return 'GitHub 기능 사용';
+    }
+    return '연결된 기능 사용';
+  }
+
   function renderConversation() {
     const interactionCards = [...messages.querySelectorAll('.assistant-interaction')];
     messages.replaceChildren();
@@ -180,12 +241,13 @@
         const report = document.createElement('details');
         report.className = 'assistant-tool-report';
         const heading = document.createElement('summary');
-        heading.textContent = `실제 MCP 호출 · ${entry.mcpCalls.length}개${entry.mcpCalls.length === 30 ? ' (최대 30개 표시)' : ''}`;
+        heading.textContent = `실제로 사용한 기능 · ${entry.mcpCalls.length}개${entry.mcpCalls.length === 30 ? ' (최대 30개 표시)' : ''}`;
         const list = document.createElement('ul');
         for (const call of entry.mcpCalls) {
           const row = document.createElement('li');
-          const name = document.createElement('code');
-          name.textContent = `${call.server} / ${call.tool}`;
+          const name = document.createElement('span');
+          name.className = 'assistant-tool-name';
+          name.textContent = mcpFunctionLabel(call);
           row.append(name);
           if (call.status === 'failed') {
             const state = document.createElement('span');
@@ -210,129 +272,114 @@
     messages.scrollTop = messages.scrollHeight;
   }
 
-  function draftButton(label, action) {
-    const button = document.createElement('button');
-    button.type = action === 'save' ? 'submit' : 'button'; button.textContent = label; button.dataset.draftAction = action;
-    return button;
-  }
-
   function renderServiceDraft() {
-    if (!serviceDraft || serviceDraft.threadId !== threadId) return;
+    if (!serviceDraft || serviceDraft.threadId !== threadId || chatPending) return;
     const draft = serviceDraft;
-    const card = document.createElement('section');
-    card.className = 'assistant-service-draft';
-    card.setAttribute('aria-label', '서비스 초안 검토');
-    const heading = document.createElement('div'); heading.className = 'assistant-service-draft-head';
-    const title = document.createElement('div');
-    const name = document.createElement('h3'); name.textContent = draft.name;
-    const environment = document.createElement('span'); environment.textContent = draft.environment;
-    const state = document.createElement('small'); state.textContent = draft.status === 'COMMITTED' ? '반영 완료' : '검토할 초안';
-    title.append(name, environment); heading.append(title, state); card.append(heading);
-    if (draft.description) { const description = document.createElement('p'); description.textContent = draft.description; card.append(description); }
-    const labels = {GITHUB_REPOSITORY:'GitHub', GITHUB_ORGANIZATION:'GitHub 조직', DEVICE:'장비', DOCKER_CONTAINER:'Runtime', DATABASE:'Database', TELEMETRY:'Telemetry', ENDPOINT:'Endpoint', FILE:'파일'};
+    const message = document.createElement('article');
+    message.className = 'assistant-message assistant-draft-preview';
+    message.dataset.role = 'assistant';
+    const label = document.createElement('small'); label.className = 'assistant-message-label'; label.textContent = 'AI 비서';
+    const body = document.createElement('div'); body.className = 'assistant-message-body';
+    const labels = {GITHUB_REPOSITORY:'GitHub 저장소', GITHUB_ORGANIZATION:'GitHub 조직', DEVICE:'장비',
+      DOCKER_CONTAINER:'컨테이너', DATABASE:'데이터베이스', TELEMETRY:'텔레메트리', ENDPOINT:'접속 주소', FILE:'파일'};
     const selected = draft.candidates.filter(item => item.selected);
-    const groups = new Map();
-    for (const item of selected) {
-      if (!groups.has(item.type)) groups.set(item.type, []);
-      groups.get(item.type).push(item);
+    const lines = [draft.status === 'COMMITTED' ? '서비스 반영이 완료됐어요.' : '현재 서비스 초안이에요.',
+      `${draft.name} · ${draft.environment}`];
+    if (draft.description) lines.push(draft.description);
+    lines.push('', '연결할 리소스:');
+    lines.push(...(selected.length ? selected.map(item => `• ${labels[item.type] || item.type}: ${item.displayName}`) : ['• 없음']));
+    if (serviceDraftRemoved.length && draft.status !== 'COMMITTED') {
+      lines.push('', '제거할 기존 연결:', ...serviceDraftRemoved.map(item => `• ${item}`));
     }
-    for (const [type, resources] of groups) {
-      const section = document.createElement('div'); section.className = 'assistant-service-draft-group';
-      const label = document.createElement('strong'); label.textContent = labels[type] || type; section.append(label);
-      for (const item of resources) {
-        const row = document.createElement('span');
-        row.textContent = `${item.displayName} · ${item.confidence === 'HIGH' ? '높은 관련성' : item.confidence === 'MEDIUM' ? '관련 가능성' : '확인 필요'}`;
-        row.title = item.reason || ''; section.append(row);
-      }
-      card.append(section);
-    }
-    if (!selected.length) { const empty = document.createElement('p'); empty.textContent = '연결할 리소스를 선택해 주세요.'; card.append(empty); }
-    for (const question of draft.questions || []) { const line = document.createElement('p'); line.className = 'assistant-service-draft-question'; line.textContent = question; card.append(line); }
+    if (!serviceDraftReviewReady) lines.push('', '기존 연결을 확인하지 못했어요. 다시 불러온 뒤 승인해 주세요.');
+    if (draft.questions?.length && draft.status !== 'COMMITTED') lines.push('', ...draft.questions);
     if (draft.status === 'COMMITTED') {
-      const actions = document.createElement('div'); actions.className = 'assistant-service-draft-actions';
-      actions.append(draftButton('서비스 열기', 'open')); card.append(actions);
+      lines.push('', '서비스 화면을 열려면 “서비스 열기”라고 입력해 주세요.');
     } else {
-      const editor = document.createElement('details'); editor.className = 'assistant-service-draft-editor';
-      const summary = document.createElement('summary'); summary.textContent = '초안 수정 · 리소스 추가/제거'; editor.append(summary);
-      const form = document.createElement('form'); form.dataset.draftForm = 'true';
-      for (const [key, label, value, max] of [['name','서비스 이름',draft.name,100], ['environment','환경',draft.environment,40], ['description','설명',draft.description,500]]) {
-        const field = document.createElement('label'); field.textContent = label;
-        const input = document.createElement(key === 'description' ? 'textarea' : 'input'); input.name = key; input.value = value || ''; input.maxLength = max;
-        if (key !== 'description') input.required = true; field.append(input); form.append(field);
-      }
-      const list = document.createElement('div'); list.className = 'assistant-service-draft-choices';
-      for (const [index, item] of draft.candidates.entries()) {
-        const label = document.createElement('label');
-        const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = String(index); checkbox.checked = item.selected; checkbox.name = 'candidate';
-        const text = document.createElement('span'); text.textContent = `${labels[item.type] || item.type} · ${item.displayName}`;
-        label.append(checkbox, text); list.append(label);
-      }
-      form.append(list, draftButton('변경 저장', 'save')); editor.append(form); card.append(editor);
-      const actions = document.createElement('div'); actions.className = 'assistant-service-draft-actions';
-      actions.append(draftButton('취소', 'cancel'), draftButton(draft.serviceId ? '서비스 변경 승인' : '서비스 생성 승인', 'commit')); card.append(actions);
+      lines.push('', '이름·환경·연결을 바꾸려면 채팅으로 말씀해 주세요.');
+      if (selected.length) lines.push(`이 구성을 확정하려면 “${draft.serviceId ? '서비스 변경 승인' : '서비스 생성 승인'}”이라고 입력해 주세요.`);
+      else lines.push('서비스를 등록하려면 먼저 연결할 리소스를 하나 이상 알려 주세요.');
+      lines.push('초안을 버리려면 “서비스 초안 취소”라고 입력해 주세요.');
     }
-    messages.append(card);
+    body.textContent = lines.join('\n');
+    message.append(label, body);
+    messages.append(message);
   }
 
   async function refreshServiceDraft() {
-    if (!threadId) { serviceDraft = null; renderConversation(); return; }
+    if (!threadId) { serviceDraft = null; serviceDraftRemoved = []; serviceDraftReviewReady = true; renderConversation(); return; }
     serviceDraft = await runtime.api('/assistant/service-drafts/thread/' + encodeURIComponent(threadId));
+    serviceDraftRemoved = [];
+    serviceDraftReviewReady = true;
+    if (serviceDraft?.serviceId && serviceDraft.status !== 'COMMITTED') {
+      try {
+        const existing = await runtime.api('/services/' + encodeURIComponent(serviceDraft.serviceId) + '/resources');
+        serviceDraftRemoved = existing.filter(resource => !serviceDraft.candidates.some(item => item.selected && item.type === resource.type
+          && item.reference === resource.reference && item.deviceId === resource.deviceId))
+          .map(resource => `${resource.type} · ${resource.label || resource.reference}`);
+      } catch { serviceDraftReviewReady = false; }
+    }
     renderConversation();
   }
 
-  messages.addEventListener('submit', async event => {
-    if (!event.target.matches('[data-draft-form]')) return;
-    event.preventDefault();
-    if (!serviceDraft) return;
-    const fields = new FormData(event.target);
-    const resources = [...event.target.querySelectorAll('input[name="candidate"]:checked')].map(input => {
-      const item = serviceDraft.candidates[Number(input.value)];
-      return {type:item.type, reference:item.reference, deviceId:item.deviceId, label:item.displayName.slice(0, 100)};
-    });
-    try {
-      serviceDraft = await runtime.api('/assistant/service-drafts/' + encodeURIComponent(serviceDraft.id), 'PUT', {
-        revision:serviceDraft.revision, name:fields.get('name'), environment:fields.get('environment'), description:fields.get('description'), resources
-      });
-      renderConversation(); setStatus('서비스 초안을 수정했습니다.');
-    } catch (error) { setStatus(error.message, 'error'); }
-  });
-
-  messages.addEventListener('click', async event => {
-    const action = event.target.closest('[data-draft-action]')?.dataset.draftAction;
-    if (!action || action === 'save' || !serviceDraft) return;
+  async function handleServiceDraftReply(text) {
+    if (!serviceDraft || serviceDraft.threadId !== threadId || attachments.length) return false;
+    const draft = serviceDraft;
+    const approval = draft.serviceId ? '서비스 변경 승인' : '서비스 생성 승인';
+    const action = text === approval && draft.status !== 'COMMITTED' ? 'commit'
+      : text === '서비스 초안 취소' && draft.status !== 'COMMITTED' ? 'cancel'
+      : text === '서비스 열기' && draft.status === 'COMMITTED' ? 'open' : '';
+    if (!action) return false;
+    chatPending = true; syncComposerAction();
+    prompt.value = '';
+    conversation.push({role:'user', text});
+    conversation = conversation.slice(-60);
+    renderConversation();
     try {
       if (action === 'cancel') {
-        await runtime.api('/assistant/service-drafts/' + encodeURIComponent(serviceDraft.id), 'DELETE');
-        serviceDraft = null; renderConversation(); setStatus('서비스 초안을 취소했습니다.');
+        await runtime.api('/assistant/service-drafts/' + encodeURIComponent(draft.id), 'DELETE');
+        serviceDraft = null; serviceDraftRemoved = []; serviceDraftReviewReady = true;
+        conversation.push({role:'assistant', text:'서비스 초안을 취소했어요.'});
       } else if (action === 'commit') {
-        const creating = !serviceDraft.serviceId;
-        const names = serviceDraft.candidates.filter(item => item.selected).map(item => item.displayName);
-        let removed = [];
-        if (serviceDraft.serviceId) {
-          const existing = await runtime.api('/services/' + encodeURIComponent(serviceDraft.serviceId) + '/resources');
-          removed = existing.filter(resource => !serviceDraft.candidates.some(item => item.selected && item.type === resource.type
-            && item.reference === resource.reference && item.deviceId === resource.deviceId))
-            .map(resource => `${resource.type} · ${resource.label || resource.reference}`);
-        }
-        const summary = `${serviceDraft.name} · ${serviceDraft.environment}\n\n연결할 리소스:\n${names.join('\n')}${removed.length ? '\n\n제거할 기존 연결:\n' + removed.join('\n') : ''}\n\n이 구성으로 ${serviceDraft.serviceId ? '기존 서비스를 변경' : '서비스를 생성'}할까요?`;
-        if (!window.confirm(summary)) return;
-        const path = '/assistant/service-drafts/' + encodeURIComponent(serviceDraft.id);
-        await runtime.api(path + '/approve', 'POST', {revision:serviceDraft.revision});
-        const created = await runtime.api(path + '/commit', 'POST', {revision:serviceDraft.revision});
-        serviceDraft = await runtime.api(path); renderConversation();
-        setStatus(`${created.name} 서비스를 ${creating ? '만들었습니다' : '수정했습니다'}.`);
-      } else if (action === 'open' && serviceDraft.serviceId) {
+        const reviewedRemovals = [...serviceDraftRemoved];
+        await refreshServiceDraft();
+        if (!serviceDraftReviewReady) throw new Error('기존 연결을 확인하지 못해 승인할 수 없어요. 대화를 다시 열어 구성을 확인해 주세요.');
+        const path = '/assistant/service-drafts/' + encodeURIComponent(draft.id);
+        if (serviceDraft?.id !== draft.id || serviceDraft.threadId !== threadId || serviceDraft.revision !== draft.revision
+            || serviceDraft.status !== draft.status || JSON.stringify(serviceDraftRemoved) !== JSON.stringify(reviewedRemovals))
+          throw new Error('서비스 초안이 변경됐어요. 현재 구성을 다시 확인한 뒤 승인해 주세요.');
+        await runtime.api(path + '/approve', 'POST', {revision:draft.revision});
+        const created = await runtime.api(path + '/commit', 'POST', {revision:draft.revision});
+        serviceDraft = await runtime.api(path);
+        serviceDraftRemoved = []; serviceDraftReviewReady = true;
+        conversation.push({role:'assistant', text:`${created.name} 서비스를 ${draft.serviceId ? '수정했어요' : '만들었어요'}.`});
+      } else if (action === 'open' && draft.serviceId) {
         window.dispatchEvent(new CustomEvent('assistant:navigate', {detail:{route:'services'}}));
-        await window.WorkspaceServices?.openService(serviceDraft.serviceId);
+        await window.WorkspaceServices?.openService(draft.serviceId);
+        conversation.push({role:'assistant', text:'서비스 화면을 열었어요.'});
       }
-    } catch (error) { setStatus(error.message, 'error'); await refreshServiceDraft().catch(() => {}); }
-  });
+      setStatus('');
+    } catch (error) {
+      conversation.push({role:'assistant', text:`처리하지 못했어요. ${error.message}`});
+      setStatus(error.message, 'error');
+      await refreshServiceDraft().catch(() => {});
+    } finally {
+      chatPending = false; syncComposerAction(); saveConversation(); renderConversation();
+    }
+    return true;
+  }
+
+  function syncComposerAction() {
+    sendButton.hidden = chatPending;
+    sendButton.disabled = busy;
+    stopButton.hidden = !chatPending;
+    stopButton.disabled = !currentJob || stopRequested;
+  }
 
   function setBusy(value) {
     busy = value;
     panel.toggleAttribute('aria-busy', value);
-    sendButton.disabled = value;
-    stopButton.hidden = !value;
+    syncComposerAction();
     fileInput.disabled = value;
     document.querySelectorAll('#assistant-sessions button, #assistant-new, #assistant-header-new, #assistant-more, #assistant-settings-logout, #assistant-archive, #assistant-rename, #assistant-delete-open, #assistant-delete-current').forEach(button => { button.disabled = value; });
     if (!value) renderThreads();
@@ -530,6 +577,7 @@
       });
       jobId = job.id;
       currentJob = jobId;
+      syncComposerAction();
       const seenEvents = new Set();
       const deliverEvents = events => {
         for (const event of events || []) {
@@ -902,11 +950,16 @@
 
   async function sendMessage(value = prompt.value) {
     const text = String(value || '').trim();
-    if ((!text && !attachments.length) || busy) return;
+    if ((!text && !attachments.length) || busy || chatPending) return;
+    if (serviceDraft && ['서비스 생성 승인', '서비스 변경 승인', '서비스 초안 취소', '서비스 열기'].includes(text)
+        && await handleServiceDraftReply(text)) return;
     if (!mcpReady) {
       setStatus('대시보드 MCP 연결을 먼저 복구해 주세요.', 'error');
       return;
     }
+    chatPending = true;
+    stopRequested = false;
+    syncComposerAction();
     prompt.value = '';
     const selectedAttachments = [...attachments];
     conversation.push({ role: 'user', text: text || '첨부 파일을 확인해 주세요.', attachments: selectedAttachments.map(item => item.name) }, { role: 'assistant', text: '', pending: true, phase: 'preparing' });
@@ -943,6 +996,8 @@
       attachments = []; renderAttachments();
       saveConversation();
       renderConversation();
+      chatPending = false;
+      syncComposerAction();
       await refreshServiceDraft().catch(() => {});
       try { await refreshThreads(); } catch { /* The answer remains usable when history refresh fails. */ }
       await refreshRateLimits();
@@ -966,6 +1021,10 @@
       saveConversation();
       renderConversation();
       setStatus(error.message, 'error');
+    } finally {
+      chatPending = false;
+      stopRequested = false;
+      syncComposerAction();
     }
   }
 
@@ -1051,7 +1110,7 @@
   function newChat() {
     if (busy) return;
     threadId = ''; currentThreadTitle = ''; conversation = []; attachments = [];
-    serviceDraft = null;
+    serviceDraft = null; serviceDraftRemoved = []; serviceDraftReviewReady = true;
     messages.querySelectorAll('.assistant-interaction').forEach(card => card.remove());
     renderedInteractionIds.clear();
     saveConversation(); renderConversation(); renderThreads(); renderAttachments();
@@ -1092,15 +1151,16 @@
   }
 
   async function stopCurrentJob() {
-    if (!currentJob) return;
-    stopButton.disabled = true;
+    if (!chatPending || !currentJob || stopRequested) return;
+    stopRequested = true;
+    syncComposerAction();
     try {
       await runtime.api('/assistant/jobs/' + encodeURIComponent(currentJob), 'DELETE');
       setStatus('요청을 중지했습니다.');
     } catch (error) {
+      stopRequested = false;
       setStatus(error.message, 'error');
-    } finally {
-      stopButton.disabled = false;
+      syncComposerAction();
     }
   }
 

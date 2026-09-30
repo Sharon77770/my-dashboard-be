@@ -1,6 +1,6 @@
 # Service Catalog
 
-AI 비서의 Service Onboarding은 별도의 임시 Draft에서 진행한다. `discover_service_resources`로 기존 리소스를 읽고, 이름·이미지·Compose label·기존 연결을 조합한 후보와 짧은 이유를 만든다. Database host/username/password, 장비 자격 증명, Docker env, Telemetry API key는 탐색 결과에 포함하지 않는다. 사용자가 Draft 카드를 수정하고 브라우저에서 승인한 현재 revision만 `ServiceCatalogService.applyAssistantDraft`가 하나의 SQLite transaction으로 생성/연결/해제를 반영한다. 활동에는 `ASSISTANT` 출처가 남는다. [대화형 서비스 등록](service-onboarding.md).
+AI 비서의 Service Onboarding은 별도의 임시 Draft에서 진행한다. `discover_service_resources`로 기존 리소스를 읽고, 이름·이미지·Compose label·기존 연결을 조합한 후보와 짧은 이유를 만든다. Database host/username/password, 장비 자격 증명, Docker env, Telemetry API key는 탐색 결과에 포함하지 않는다. 사용자가 채팅으로 초안을 수정하고 명시적인 채팅 승인 문구를 입력해 브라우저에서 승인한 현재 revision만 `ServiceCatalogService.applyAssistantDraft`가 하나의 SQLite transaction으로 생성/연결/해제를 반영한다. 활동에는 `ASSISTANT` 출처가 남는다. [대화형 서비스 등록](service-onboarding.md).
 
 Service는 앱 또는 운영 서비스의 이름, 아이콘, 환경을 소유한다. GitHub, 장비, Docker, Telemetry를 복제하지 않는다. `service_resources`의 타입과 참조를 통해 기존 모듈에 연결한다.
 

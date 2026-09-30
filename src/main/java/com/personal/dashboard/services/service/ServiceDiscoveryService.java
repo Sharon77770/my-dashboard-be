@@ -75,7 +75,7 @@ public class ServiceDiscoveryService {
     this.json = json;
   }
 
-  /** Each source fails independently; Docker is queried only on at most three relevant devices. */
+  /** Each source fails independently; Docker is queried only on bounded registered devices. */
   public ServiceOnboardingDto.Discovery discover(String query) {
     String target = query == null ? "" : query.trim();
     if (target.length() > 100)
@@ -157,7 +157,7 @@ public class ServiceDiscoveryService {
                               (com.personal.dashboard.catalog.dto.DeviceView device) ->
                                   affinity(target, device.name()))
                           .reversed())
-                  .limit(3)
+                  .limit(5)
                   .forEach(
                       device -> {
                         try {
@@ -281,6 +281,62 @@ public class ServiceDiscoveryService {
                 })
             .toList();
     List<String> questions = new ArrayList<>();
+    List<ServiceOnboardingDto.Candidate> selectedContainers =
+        correlated.stream()
+            .filter(item -> item.type().equals("DOCKER_CONTAINER") && item.selected())
+            .toList();
+    List<ServiceOnboardingDto.Candidate> matchingRepositories =
+        correlated.stream()
+            .filter(item -> item.type().equals("GITHUB_REPOSITORY"))
+            .filter(
+                repo ->
+                    selectedContainers.stream()
+                        .anyMatch(container -> repositoryMatchesImage(repo, container)))
+            .toList();
+    List<ServiceOnboardingDto.Candidate> nameRepositories =
+        correlated.stream()
+            .filter(item -> item.type().equals("GITHUB_REPOSITORY") && item.selected())
+            .toList();
+    ServiceOnboardingDto.Candidate preferredRepository =
+        matchingRepositories.size() == 1
+            ? matchingRepositories.get(0)
+            : nameRepositories.size() == 1 ? nameRepositories.get(0) : null;
+    if (preferredRepository == null
+        && (matchingRepositories.size() > 1 || nameRepositories.size() > 1))
+      questions.add("관련 저장소가 여러 개입니다. 서비스에 연결할 저장소를 선택해 주세요.");
+    correlated =
+        correlated.stream()
+            .map(
+                item -> {
+                  if (!item.type().equals("GITHUB_REPOSITORY")) return item;
+                  boolean selected =
+                      item == preferredRepository
+                          && !boundResources.containsKey(
+                              item.type()
+                                  + "\u0000"
+                                  + item.deviceId()
+                                  + "\u0000"
+                                  + item.reference());
+                  return new ServiceOnboardingDto.Candidate(
+                      item.type(),
+                      item.reference(),
+                      item.deviceId(),
+                      item.displayName(),
+                      selected ? "HIGH" : item.confidence(),
+                      selected && matchingRepositories.contains(item)
+                          ? "선택한 컨테이너 이미지 이름과 일치합니다."
+                          : item.reason(),
+                      selected,
+                      !selected,
+                      item.composeProject(),
+                      item.composeService(),
+                      item.image(),
+                      item.state(),
+                      item.containerId(),
+                      item.ports(),
+                      item.workingDirectory());
+                })
+            .toList();
     var projects =
         correlated.stream()
             .filter(
@@ -329,7 +385,8 @@ public class ServiceDiscoveryService {
               }
             },
             workers)
-        .completeOnTimeout(List.of(), 15, TimeUnit.SECONDS);
+        .completeOnTimeout(
+            List.of(), Set.of("GitHub", "Workspace").contains(name) ? 25 : 15, TimeUnit.SECONDS);
   }
 
   private List<ServiceOnboardingDto.Candidate> containers(String deviceId) {
@@ -371,7 +428,22 @@ public class ServiceDiscoveryService {
   private List<ServiceOnboardingDto.Candidate> repositories(
       String target, Map<String, Integer> hints) {
     List<ServiceOnboardingDto.Candidate> result = new ArrayList<>();
-    var repositories = github.repositories().stream().limit(50).toList();
+    List<com.personal.dashboard.github.dto.GithubDto.Repository> repositories = new ArrayList<>();
+    List<com.personal.dashboard.github.dto.GithubDto.Owner> owners;
+    try {
+      owners = github.owners().stream().limit(10).toList();
+    } catch (Exception ignored) {
+      owners = List.of();
+    }
+    for (var owner : owners) {
+      try {
+        repositories.addAll(github.repositories(owner.login()));
+      } catch (Exception ignored) {
+        /* One inaccessible owner must not hide repositories from other owners. */
+      }
+    }
+    if (repositories.isEmpty()) repositories.addAll(github.repositories());
+    repositories = repositories.stream().distinct().limit(1000).toList();
     for (var repo : repositories) {
       String name = repo.nameWithOwner();
       int hint = affinity(target, java.util.Objects.toString(repo.description(), ""));
@@ -379,7 +451,12 @@ public class ServiceDiscoveryService {
       result.add(candidate("GITHUB_REPOSITORY", name, "", name, "", "", "", "", ""));
     }
     repositories.stream()
-        .filter(repo -> affinity(target, repo.nameWithOwner()) > 0)
+        .filter(
+            repo ->
+                affinity(
+                        target,
+                        repo.nameWithOwner().substring(repo.nameWithOwner().lastIndexOf('/') + 1))
+                    > 0)
         .limit(2)
         .forEach(
             repo -> {
@@ -393,8 +470,8 @@ public class ServiceDiscoveryService {
               }
             });
     try {
-      github.organizations().stream()
-          .limit(20)
+      owners.stream()
+          .filter(owner -> owner.type().equals("ORGANIZATION"))
           .forEach(
               org ->
                   result.add(
@@ -457,7 +534,11 @@ public class ServiceDiscoveryService {
       List<ServiceOnboardingDto.Candidate> all,
       Map<String, String> boundResources,
       Map<String, Integer> githubHints) {
-    int query = affinity(target, item.displayName() + " " + item.reference());
+    String matchName =
+        item.type().equals("GITHUB_REPOSITORY")
+            ? item.reference().substring(item.reference().lastIndexOf('/') + 1)
+            : item.displayName() + " " + item.reference();
+    int query = affinity(target, matchName);
     boolean related = query >= 1;
     boolean generic = token(item.reference()).stream().allMatch(GENERIC::contains);
     int signal = related ? 1 : 0;
@@ -475,9 +556,7 @@ public class ServiceDiscoveryService {
     if (item.type().equals("DOCKER_CONTAINER")) {
       for (var repo : all) {
         if (!repo.type().equals("GITHUB_REPOSITORY")) continue;
-        String repoName = repo.reference().substring(repo.reference().lastIndexOf('/') + 1);
-        if (affinity(repoName, item.image() + " " + item.reference()) >= 1
-            && item.image().toLowerCase(Locale.ROOT).contains(repoName.toLowerCase(Locale.ROOT))) {
+        if (repositoryMatchesImage(repo, item)) {
           signal += 2;
           reason = "저장소 이름과 컨테이너 이미지 또는 이름이 일치합니다.";
           break;
@@ -526,6 +605,23 @@ public class ServiceDiscoveryService {
 
   private String normalize(String value) {
     return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9가-힣]", "");
+  }
+
+  /** An image basename is stronger evidence than an organization or registry name. */
+  static boolean repositoryMatchesImage(
+      ServiceOnboardingDto.Candidate repository, ServiceOnboardingDto.Candidate container) {
+    if (!repository.type().equals("GITHUB_REPOSITORY")
+        || !container.type().equals("DOCKER_CONTAINER")) return false;
+    String repositoryName =
+        repository.reference().substring(repository.reference().lastIndexOf('/') + 1);
+    String imageName = container.image().substring(container.image().lastIndexOf('/') + 1);
+    imageName = imageName.split("[:@]", 2)[0];
+    return !repositoryName.isBlank()
+        && !GENERIC.contains(repositoryName.toLowerCase(Locale.ROOT))
+        && repositoryName
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9가-힣]", "")
+            .equals(imageName.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9가-힣]", ""));
   }
 
   private boolean safeEndpoint(String value) {

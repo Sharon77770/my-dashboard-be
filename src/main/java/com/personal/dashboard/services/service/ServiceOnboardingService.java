@@ -96,6 +96,11 @@ public class ServiceOnboardingService {
               .filter(ServiceOnboardingDto.Candidate::selected)
               .map(this::request)
               .toList();
+    } else if (!selection.isEmpty()) {
+      // A model's partial proposal is completed from discovered relationships before browser
+      // review.
+      select(base, selection);
+      selection = completeModelSelection(base, found.services(), request.serviceId(), selection);
     }
     if (existing != null) {
       var proposed = new ArrayList<>(selection);
@@ -331,6 +336,71 @@ public class ServiceOnboardingService {
                     item.ports(),
                     item.workingDirectory()))
         .toList();
+  }
+
+  private List<ServiceDto.ResourceRequest> completeModelSelection(
+      List<ServiceOnboardingDto.Candidate> candidates,
+      List<ServiceOnboardingDto.ExistingService> existingServices,
+      String serviceId,
+      List<ServiceDto.ResourceRequest> requested) {
+    List<ServiceDto.ResourceRequest> completed = new ArrayList<>(requested);
+    List<ServiceOnboardingDto.Candidate> selectedContainers =
+        candidates.stream()
+            .filter(item -> item.type().equals("DOCKER_CONTAINER"))
+            .filter(item -> contains(completed, item))
+            .toList();
+    for (var container : selectedContainers) {
+      candidates.stream()
+          .filter(item -> item.type().equals("DEVICE"))
+          .filter(item -> item.reference().equals(container.deviceId()))
+          .findFirst()
+          .ifPresent(item -> addIfMissing(completed, item));
+      var matchingRepositories =
+          candidates.stream()
+              .filter(item -> ServiceDiscoveryService.repositoryMatchesImage(item, container))
+              .filter(item -> !boundToAnotherService(existingServices, serviceId, item))
+              .toList();
+      if (matchingRepositories.size() == 1 && !hasRepository(completed))
+        addIfMissing(completed, matchingRepositories.get(0));
+    }
+    var recommendedRepositories =
+        candidates.stream()
+            .filter(item -> item.type().equals("GITHUB_REPOSITORY") && item.selected())
+            .toList();
+    if (recommendedRepositories.size() == 1 && !hasRepository(completed))
+      addIfMissing(completed, recommendedRepositories.get(0));
+    return completed;
+  }
+
+  private boolean hasRepository(List<ServiceDto.ResourceRequest> selected) {
+    return selected.stream().anyMatch(item -> item.type().equals("GITHUB_REPOSITORY"));
+  }
+
+  private boolean boundToAnotherService(
+      List<ServiceOnboardingDto.ExistingService> services,
+      String serviceId,
+      ServiceOnboardingDto.Candidate candidate) {
+    return services.stream()
+        .filter(service -> !service.id().equals(serviceId))
+        .flatMap(service -> service.resources().stream())
+        .anyMatch(item -> matches(candidate, item.type(), item.reference(), item.deviceId()));
+  }
+
+  private void addIfMissing(
+      List<ServiceDto.ResourceRequest> selected, ServiceOnboardingDto.Candidate candidate) {
+    if (!contains(selected, candidate)) selected.add(request(candidate));
+  }
+
+  private boolean contains(
+      List<ServiceDto.ResourceRequest> selected, ServiceOnboardingDto.Candidate candidate) {
+    return selected.stream()
+        .anyMatch(
+            item ->
+                matches(
+                    candidate,
+                    item.type(),
+                    item.reference(),
+                    Objects.toString(item.deviceId(), "")));
   }
 
   private boolean matches(

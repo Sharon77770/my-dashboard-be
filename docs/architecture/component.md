@@ -1,6 +1,6 @@
 # 컴포넌트와 모듈
 
-Service Onboarding은 `ServiceDiscoveryService`가 기존 리소스 서비스에서 credential 없는 후보만 추출하고, `ServiceOnboardingService`가 대화별 임시 Draft와 승인 상태를 소유한다. `ServiceOnboardingController`는 구조화된 Draft 카드의 OWNER/CSRF 경계이며, 실제 카탈로그 쓰기는 `ServiceCatalogService.applyAssistantDraft`가 담당한다. 브라우저 컴포넌트는 후보 선택과 미리보기만 관리한다.
+Service Onboarding은 `ServiceDiscoveryService`가 기존 리소스 서비스에서 credential 없는 후보만 추출하고, `ServiceOnboardingService`가 대화별 임시 Draft와 승인 상태를 소유한다. `ServiceOnboardingController`는 채팅 승인 요청의 OWNER/CSRF 경계이며, 실제 카탈로그 쓰기는 `ServiceCatalogService.applyAssistantDraft`가 담당한다. AI 비서는 자연어로 후보 선택과 초안 수정을 처리하고 브라우저는 현재 초안의 미리보기와 명시적인 승인 입력을 관리한다.
 
 Database Studio의 `DatabaseStudioService`는 연결 입력, READ_ONLY, 위험 SQL 확인, 실행 worker·취소, 이력을 소유한다. `DatabaseRepository`는 Workspace 내부 SQLite 연결 메타데이터·이력·즐겨찾기만 저장한다. `DatabaseAdapter`는 PostgreSQL/MySQL/SQLite JDBC URL과 연결 수명, schema metadata, 제한된 결과 변환을 소유한다. `DatabaseDto.ConnectionView`와 Service Context에는 암호문을 넣지 않는다. `databases.js`는 기존 Workspace 라우트의 여러 editor 탭과 탐색 표현 상태를 보유한다.
 

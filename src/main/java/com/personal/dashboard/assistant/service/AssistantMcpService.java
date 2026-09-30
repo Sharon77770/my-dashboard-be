@@ -228,7 +228,7 @@ public class AssistantMcpService {
             true),
         tool(
             "create_service_draft",
-            "Prepare an editable Service draft in this thread. No catalog mutation. Use resource references from discovery.",
+            "Prepare an editable Service draft in this thread. No catalog mutation. Omit resources to use discovery recommendations for repository, device, container and other matches; supplied resources must come from discovery. Review in the browser before commit.",
             schema(
                 List.of("threadId", "name", "environment"),
                 Map.of(
@@ -271,7 +271,7 @@ public class AssistantMcpService {
             true),
         dangerousTool(
             "commit_service_draft",
-            "Commit only after the owner explicitly approves this exact draft revision in the browser review card.",
+            "Commit only after the owner explicitly approves this exact draft revision through the browser chat confirmation.",
             schema(List.of("id", "revision"), Map.of("id", string(36), "revision", integer()))),
         tool(
             "list_database_connections",
