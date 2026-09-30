@@ -26,7 +26,7 @@
 .service-tabs button{min-height:36px;padding:5px 11px;white-space:nowrap;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--text-secondary);font-size:11px}
 .service-tabs button[aria-current=true]{border-color:var(--accent);color:var(--text-primary)}
 .service-tab-body{padding-top:12px}
-.service-overview,.service-settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}
+.service-overview,.service-settings,.service-runtime{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}
 .service-tab-body .panel{margin:0;padding:10px 0 14px;border:0;border-top:1px solid var(--border-subtle);border-radius:0;background:transparent}
 .service-tab-body h3{margin:0 0 7px;font-size:12px;font-weight:650}
 .service-tab-body p{font-size:11px;color:var(--text-secondary);line-height:1.55}
@@ -37,8 +37,10 @@
 .service-row button{min-height:30px;font-size:11px}
 .service-row button:has(.ui-icon){width:34px;min-width:34px;padding:0;border:0;background:transparent}
 .service-metrics{display:grid;gap:8px}
-.service-create,.service-settings form{display:grid;gap:9px;max-width:440px}
-.service-create label,.service-settings label{display:grid;gap:4px}
+.service-create,.service-settings form,.service-runtime form{display:grid;gap:9px;max-width:440px}
+.service-create label,.service-settings label,.service-runtime label{display:grid;gap:4px}
+.service-runtime form+ h3{margin-top:22px}
+.service-search-status{margin:0}
 @media(max-width:700px){
  #services{padding:8px 11px}
  #services.service-detail-open,#services.service-form-open{padding-top:0}
@@ -71,7 +73,7 @@
  .service-actions .ui-icon{width:18px;height:18px}
  .service-actions span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
  .service-tabs button{min-height:40px;padding:5px 9px}
- .service-overview,.service-settings{display:block}
+ .service-overview,.service-settings,.service-runtime{display:block}
  .service-tab-body{padding-top:8px}
  .service-tab-body .panel{padding:9px 0}
  .service-row time{min-width:70px;font-size:10px}

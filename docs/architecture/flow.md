@@ -12,7 +12,7 @@ OWNER가 연결을 저장하면 DatabaseStudioService가 입력을 검증하고 
 
 OWNER가 Services 앱에서 Service를 만들고 기존 GitHub/장비/Telemetry 리소스를 선택한다. ServiceCatalogService가 참조를 검증하고 SQLite에 연결을 저장한다. 같은 type/reference/device 조합은 409로 거부한다. URL과 파일 경로는 형식을 검증하며 서버에서 URL을 자동 호출하지 않는다. 삭제된 장비/Telemetry 연결은 orphan으로 표시하고 다른 연결 조회는 유지한다.
 
-목록/위젯은 연결된 운영·계측·GitHub Action 신호로 Health를 계산한다. 상세 Context는 기존 GithubService, CatalogService/DeviceOperations, TelemetryService 결과와 Resource, Activity를 묶는다. 외부 조회 실패 시 해당 Context 부분만 생략하고 Health는 UNKNOWN 신호를 표시한다. Activity는 카탈로그 이벤트와 기존 GitHub/장비/Telemetry 기록을 최신순으로 합친다. Quick Action은 기존 GitHub/Terminal/Files/Remote/Telemetry 화면으로 이동한다. Docker restart는 기존 DeviceOperations API와 확인 대화상자를 사용한다. Ask Codex는 Service ID를 포함한 요청을 기존 assistant 화면에 넣고 MCP `get_service_context`로 같은 모델을 읽는다.
+목록/위젯은 연결된 운영·계측·GitHub Action 신호로 Health를 계산한다. 상세 Context는 기존 GithubService, CatalogService/DeviceOperations, TelemetryService 결과와 Resource, Activity를 묶는다. 외부 조회 실패 시 해당 Context 부분만 생략하고 Health는 UNKNOWN 신호를 표시한다. Activity는 카탈로그 이벤트와 기존 GitHub/장비/Telemetry 기록을 최신순으로 합친다. Runtime 탭은 기존 장비 목록과 선택 장비의 Docker 컨테이너 목록을 불러와 Service 리소스로 연결·해제한다. Settings의 GitHub 저장소 연결은 조회된 owner/name 목록을 입력값으로 필터링한 뒤 기존 Service API로 저장한다. Quick Action은 기존 GitHub/Terminal/Files/Remote/Telemetry 화면으로 이동한다. Docker restart는 기존 DeviceOperations API와 확인 대화상자를 사용한다. Ask Codex는 Service ID를 포함한 요청을 기존 assistant 화면에 넣고 MCP `get_service_context`로 같은 모델을 읽는다.
 
 ## GitHub Control Center
 

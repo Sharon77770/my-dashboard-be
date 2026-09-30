@@ -20,6 +20,8 @@ Service
 
 장비와 Telemetry는 기존 ID를 선택한다. GitHub 저장소는 접근 가능한 `owner/name`을 기존 GithubService로 확인한다. Docker는 기존 장비의 컨테이너 목록에서 선택하고 DeviceOperations로 존재를 검증한다. 컨테이너 재시작도 기존 DeviceOperations를 사용한다. 목록 조회 실패는 502로 응답한다. Endpoint는 HTTP(S) URL이며 서버에서 자동 호출하지 않는다. File은 절대 경로와 선택한 기존 장비 ID를 연결하고 Files 화면으로 전달한다. 같은 Service 안의 같은 type/reference/device 조합은 유일하다.
 
+서비스 상세의 Runtime 탭에서 등록된 장비를 선택해 연결하거나 장비별 Docker 컨테이너 목록에서 컨테이너를 선택해 연결한다. 기존 연결을 이 탭에서 해제할 수도 있다. Settings의 리소스 연결 폼에서는 GitHub 저장소 목록을 `owner/name`으로 검색한 뒤 선택한다. 검색은 이미 조회한 목록을 필터링하며 연결 검증과 저장은 기존 Service API가 수행한다.
+
 장비, Telemetry 또는 Database Connection이 삭제되면 연결은 남고 `orphaned=true`로 반환된다. 사용자가 설정에서 해제하거나 다시 유효한 리소스를 선택할 수 있다. Service 삭제는 그 Service의 연결과 카탈로그 활동만 삭제하며 기존 리소스는 삭제하지 않는다. GitHub 권한 변경 또는 외부 삭제는 Context에서 해당 항목을 건너뛰며 다른 데이터 조회를 유지한다.
 
 ## 상태와 활동
