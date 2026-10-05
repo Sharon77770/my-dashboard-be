@@ -1,0 +1,33 @@
+const {JSDOM}=require('jsdom');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'../..');
+const dom=new JSDOM('',{runScripts:'outside-only',url:'http://localhost'}),w=dom.window;
+for(const name of ['ui.js','launcher/widget-registry.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',name),'utf8'));
+const widgets=w.WorkspaceWidgets,state={devices:[{id:'dev',name:'Dev <script>'}]};
+const status=new Map();
+let fail=false,approval=true;
+const api=async p=>{
+ if(fail)throw Error('offline');
+ if(p==='/github/status')return {authenticated:true};
+ if(p==='/github/approvals')return approval?[{id:'approval'}]:[];
+ if(p==='/services')return [{id:'service',name:'API <script>'}];
+ if(p.endsWith('/health'))return {state:'DOWN'};
+ return [];
+};
+(async()=>{
+ assert.match(widgets.attention(state,status),/skeleton/,'no healthy claim before first response');
+ await widgets.refresh(api);
+ let html=widgets.attention(state,status);
+ assert.match(html,/승인 대기/,'pending approval remains visible even with no GitHub owner');
+ assert.match(html,/서비스 중단/);assert.ok(!html.includes('<script>'),'service names are escaped');
+ widgets.updateServices([]);approval=false;await widgets.refresh(api);widgets.updateServices([]);
+ assert.match(widgets.attention(state,status),/아직 확인 중/,'missing device status is unknown');
+ status.set('dev',{state:'OFFLINE'});assert.match(widgets.attention(state,status),/장비 오프라인/);
+ widgets.updateStudio({codex:'중지 또는 실패'});assert.match(widgets.attention(state,status),/작업 중지 또는 실패/);
+ widgets.updateStudio({codex:'완료'});status.set('dev',{state:'ONLINE'});
+ assert.match(widgets.attention(state,status),/확인된 알림이 없습니다/);
+ fail=true;await widgets.refresh(api,{quiet:true});
+ assert.match(widgets.attention(state,status),/일부 상태를 확인하지 못했습니다/,'quiet failures preserve data but never imply current health');
+ console.log('PASS Home Attention: initial, unknown, escaped outage, pending approval without owner, stopped/failed, healthy and stale states');
+ w.close();
+})().catch(error=>{console.error(error);w.close();process.exitCode=1;});

@@ -5,14 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>로그인 · Personal Workspace</title>
 
-<link rel="stylesheet" th:href="@{/css/design-system.css}">
-<link rel="stylesheet" th:href="@{/css/app.css}">
 <link rel="stylesheet" th:href="@{/vendor/workspace-ui.css}">
 </head>
 <body class="login-page">
   <main class="login-card">
     <div class="brand-mark" aria-hidden="true">◈</div>
     <h1>Workspace</h1>
+    <p class="muted">개발과 일상을 이어가는 나의 작업 공간</p>
     <p class="notice error" role="alert" th:if="${param.error}">아이디 또는 비밀번호를 확인해 주세요.</p>
     <p class="notice" role="status" th:if="${param.logout}">로그아웃되었습니다.</p>
     <form th:action="@{/login}" method="post" class="login-form">

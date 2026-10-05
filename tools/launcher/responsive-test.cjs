@@ -5,6 +5,8 @@ const root=path.resolve(__dirname,'../..'),base=path.join(root,'src/main/resourc
 const bundledCss=fs.readFileSync(path.join(base,'static/vendor/workspace-ui.css'),'utf8');
 const bundled=postcss.parse(bundledCss);
 const homeTemplate=fs.readFileSync(path.join(base,'templates/home.html'),'utf8');
+assert.ok(!homeTemplate.includes('href="@{/vendor/notes-editor.css}"'),'Notes vendor CSS must share the product cascade layer');
+assert.ok(bundledCss.includes('.bn-editor'),'Notes vendor CSS remains included in the product bundle');
 for(const feature of ['telemetry','assistant','github','services','databases']){
  assert.ok(!homeTemplate.includes(`/css/${feature}.css`),`${feature} must use the shared CSS layer`);
 }
@@ -140,7 +142,7 @@ for(const width of [1440,1280,1024,768,710,700,430,390,360]){
   assert.equal(css(github.querySelector('.github-scope-trigger')).display,'grid','GitHub browse drawer remains reachable');
   const githubDrawer=document.createElement('dialog');githubDrawer.className='ui-side-drawer';github.querySelector('.github-layout').append(githubDrawer);githubDrawer.append(github.querySelector('.github-scope'));
   assert.equal(css(githubDrawer.querySelector('.github-scope')).display,'flex','GitHub browse controls are visible inside the drawer');
-  assert.ok(Number.parseFloat(css(note).paddingLeft)<=12,'Notes side padding should preserve document width');
+  assert.ok(Number.parseFloat(css(note).paddingLeft)>=12&&Number.parseFloat(css(note).paddingLeft)<=20,'Notes keeps a readable mobile column with 12–20px side spacing');
   assert.equal(css(editor.querySelector('pre')).overflowX,'auto');
   assert.equal(css(editor.querySelector('table')).overflowX,'auto');
   assert.equal(css(workbench.querySelector('.studio-editor')).display,'flex');
@@ -165,7 +167,7 @@ for(const width of [1440,1280,1024,768,710,700,430,390,360]){
  dom.window.close();
  console.log(`PASS ${width}px: workstation shell, Home and content focus rules`);
 }
-const featureCss=fs.readFileSync(path.join(base,'static/css/notes.css'),'utf8')+fs.readFileSync(path.join(base,'static/css/databases.css'),'utf8')+fs.readFileSync(path.join(base,'static/css/shell.css'),'utf8');
+const featureCss=(fs.readFileSync(path.join(base,'static/css/notes.css'),'utf8')+fs.readFileSync(path.join(base,'static/css/databases.css'),'utf8')+fs.readFileSync(path.join(base,'static/css/shell.css'),'utf8')).replace(/\s*:\s*/g,':');
 for(const required of ['overflow-x:auto','safe-area-inset-bottom','--viewport-height','data-mobile-pane=result','data-mobile-pane=schema','data-active-view=studio','data-runtime-focus=true'])
  assert.ok(featureCss.includes(required),required);
 assert.ok(fs.readFileSync(path.join(base,'static/js/workspace.js'),'utf8').includes("window.visualViewport?.addEventListener('resize'"));

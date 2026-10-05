@@ -1,5 +1,39 @@
 # UI redesign 검증 현황
 
+## 2026-10-05 Personal Workspace 제품 디자인 통합
+
+이번 변경은 의미 토큰 → Shell/Home → Assistant/Studio/Device Codex → 인프라/개발/데이터 앱 → 생산성 앱/설정/Login 순서로 적용했다. API·WebSocket·SQLite·인증·백엔드 Java는 수정하지 않았다. UI 계약은 기존 ID/data 속성·HomeItem 저장을 유지하고, 모바일 요일 선택과 브라우저 세션의 Continue 문맥만 추가했다.
+
+### 자동 검사
+
+- `npm run build --prefix tools/ui`: 성공. 생성된 `vendor/workspace-ui.css` 포함.
+- `tools/launcher/*test.cjs` 23개: 통과. Home Attention의 초기/미확인/장애/승인/조회 실패, 요일 선택의 무저장·포커스 유지, Continue의 escaping·HomeItem 불변 검사를 포함한다.
+- `tools/studio-editor/test.cjs`, `device-codex-test.cjs`, `codex-chat-test.cjs`, `codex-settings-test.cjs`: 통과. 실제 CodeMirror bundle, 저장·취소·초안, 연결/기록 격리, 중복 메시지, 설정 계약을 검사한다. `npm test --prefix tools/notes-editor`도 통과했으며 실제 BlockNote bundle의 편집·표·Markdown 입출력·안전한 텍스트를 검사한다.
+- Responsive CSS/DOM: 1440/1280/1024/768/710/700/430/390/360px 통과. 이는 레이아웃 엔진 검증과 별개다.
+- Theme: 검사 대상 일반 텍스트 최소 대비 dark 5.55:1, light 4.83:1. Primary/state/control 대비도 통과. 모든 이미지·차트 조합을 측정한 결과는 아니다.
+- 변경 JS syntax와 `git diff --check`: 통과.
+- 로컬 Maven `-o -Dmaven.repo.local=C:/Users/User/.m2/repository -DskipTests spotless:check package`: 성공.
+- Maven 전체 `verify`: **실패**. 187건 중 실패 2건, 오류 0건, 건너뜀 14건. 수정하지 않은 `WorkspaceMemoryIntegrationTest.crossSessionSearchRetainsTentativeAndSeparatesCalendar`와 `pastIsoTimeHintExpiresTentativeMemory`에서 실패했다. 전체 백엔드 검사가 통과했다는 의미로 패키징 성공을 해석하면 안 된다.
+
+### 브라우저 검수 방식
+
+연결된 Browser 목록이 비어 있어 별도의 격리된 로컬 headless Chromium을 사용했다. 실제 template/CSS/JS renderer를 localhost에서 실행하고 API는 목 데이터로 응답했다. 이 검수는 운영 계정·서버 데이터·SSH·Codex·실제 DB에 접근하지 않는다. 검수용 CSRF 메타데이터와 초기 장비 rootPath 등은 실제 DTO 모양에 맞춰 제공했다.
+
+- Desktop 1440×1000 / Mobile 390×844, dark/light에서 28개 화면/상태 조합(112건)을 캡처했다. 추가로 360/700px에서 Home·대화·Studio·DB·Cloud·Calendar·서비스 오류·Login 32건을 확인했다. 해당 실행에서 문서/앱 본문의 의도하지 않은 가로 overflow와 미처리 JS 오류는 없었다. 캡처 수는 수동으로 모든 하위 기능을 검증했다는 뜻이 아니다.
+- Home, AI 대화(복원된 Markdown·code/table·user bubble), Studio(CodeMirror 파일), Device Codex, Devices, Services 목록/상세, GitHub 목록/상세, Database, Telemetry 목록/차트, Files/Terminal/Remote 진입, Notes, Cloud 목록, Calendar, Timetable, Military, Clipboard, Apps, Recent, Settings sheet, Login을 확인했다.
+- Services의 지연 응답·503·빈 목록을 별도 목 응답으로 검수했다. 지연 응답 직후의 첫 오류 캡처가 아직 로딩이어서 독립된 360/700px 실행에서 실제 503 안내를 다시 확인했다. 다른 오류·loading·empty·선택·초안 보호는 해당 앱의 회귀 검사와 구분한다.
+- Files 실제 목록, BlockNote 문서, Cloud 텍스트 편집 화면도 1440/390px의 두 테마에서 추가 캡처했다.
+- 검수 중 Database sidebar 버튼 폭, Calendar 보조 버튼 줄바꿈, 시간표 요일 selector 가림, 모바일 Assistant 긴 제목과 중복 focus ring, Studio touch target을 수정했다. Notes 문서에서 발견한 vendor CSS 우선순위 문제는 같은 base layer로 로드해 해결했고 제목 크기와 내부 여백을 다시 검수했다. 기능 CSS의 중복 base selector는 0개다.
+- 검수 스크립트/PNG/JSON은 이 작업 공간의 무시된 `.tools/ui-review/`, `.tools/workspace-preview.cjs`에 있다. 제품 파일이나 사용자 데이터로 배포하지 않는다.
+
+### 확인 범위의 제한
+
+실기기 touch/IME·가상 키보드·회전, 실제 SSH/원격 제어/WebSocket proxy, Codex streaming, 외부 GitHub 쓰기, 실제 DB 쿼리·파일 업로드는 이 화면 검수로 입증하지 않는다. Terminal/Remote는 진입 화면을 확인했고, 실제 연결은 미검증이다. Notes의 실문서/이미지·장기간 편집 역시 mock/jsdom 검사와 별개다. 아래 기록은 이전 작업의 역사이며 이번 작업의 성공/실패 결과를 대체하지 않는다.
+
+---
+
+## 이전 작업 기록
+
 2026-10-05 장비 Codex: AI 비서형 전체 화면·접이식 연결/기록 사이드바·중앙 본문/입력창을 적용했다. `device-codex-test.cjs`는 연결 후 닫기, 토글/Escape/배경 닫기, 포커스 복원, 입력 DOM·초안·스크롤 유지, 기록 복원, 장비 전환 시 기록 초기화와 기존 인증·설정 동작을 검사한다. `responsive-test.cjs`는 9개 폭에서 사이드바 표시, 모바일 서랍, 기록의 정상 문서 배치와 16px 입력 글자를 검사한다. Browser 연결 시도에서 사용 가능한 브라우저가 없었으므로 실제 화면·터치·가상 키보드 검증은 미실시다.
 
 ## Codex 채팅 영역과 중복 메시지 회귀 검사

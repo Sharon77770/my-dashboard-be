@@ -405,7 +405,7 @@
         return await loadApprovals();
       }
       const selected = event.target.closest('[data-repository]');
-      if (selected) {repository = selected.dataset.repository; tab = 'overview';if(selected.closest('.ui-side-drawer'))window.WorkspaceDrawers?.close();return await renderContent();}
+      if (selected) {repository = selected.dataset.repository; window.WorkspaceLauncher?.rememberContext('repository',repository,repository); tab = 'overview';if(selected.closest('.ui-side-drawer'))window.WorkspaceDrawers?.close();return await renderContent();}
       const detailButton = event.target.closest('[data-detail-kind]');
       if (detailButton) return await showDetail(detailButton);
       const create = event.target.closest('[data-create-kind]');

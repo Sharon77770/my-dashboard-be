@@ -7,6 +7,7 @@
 @import "../../src/main/resources/static/css/launcher.css" layer(base);
 @import "../../src/main/resources/static/css/device-logs.css" layer(base);
 @import "../../src/main/resources/static/css/cloud-drive.css" layer(base);
+@import "../../src/main/resources/static/vendor/notes-editor.css" layer(base);
 @import "../../src/main/resources/static/css/notes.css" layer(base);
 @import "../../src/main/resources/static/css/planner.css" layer(base);
 @import "../../src/main/resources/static/css/military.css" layer(base);
@@ -36,10 +37,9 @@
 /* Shared product components are compiled by Tailwind. Feature layouts remain in base. */
 @layer components {
 /* Shared product presentation: quiet surfaces, consistent controls and overlay navigation. */
-button,.button,input,select,textarea{border-radius:var(--radius-sm);}
 .page-head h1,.studio-head h1,.launcher-head h1{@apply [letter-spacing:-.025em] font-semibold;}
 .dialog,.editor-dialog{border-radius:var(--radius-xl);@apply border-subtle shadow-panel;}
-dialog::backdrop{@apply [background:var(--drawer-overlay)] [backdrop-filter:blur(4px)] [-webkit-backdrop-filter:blur(4px)];}
+dialog::backdrop{@apply [background:var(--drawer-overlay)];}
 .launcher-home{@apply bg-app;}
 .launcher-shortcut .launcher-icon{border-radius:var(--radius-md);@apply shadow-none;}
 .launcher-dock{@apply shadow-none;}
@@ -52,14 +52,14 @@ dialog::backdrop{@apply [background:var(--drawer-overlay)] [backdrop-filter:blur
 .ui-side-drawer[data-side=bottom]{@apply [inset:auto_0_0_0] w-full h-auto [max-height:min(70dvh,440px)] [border-right:0] [border-top:1px_solid_var(--border-subtle)] [border-radius:12px_12px_0_0] [animation-name:drawer-enter-bottom];}
 .ui-drawer-head{@apply flex items-center justify-between gap-3 [padding:calc(12px_+_env(safe-area-inset-top))_16px_12px] [border-bottom:1px_solid_var(--border-subtle)] shrink-0;}
 .ui-side-drawer[data-side=bottom] .ui-drawer-head{@apply [padding:10px_12px];}
-.ui-drawer-head button{@apply bg-transparent border-0 min-w-9 min-h-9 [font-size:22px];}.ui-drawer-head strong{@apply [font-size:13px] font-semibold;}
+.ui-drawer-head button{@apply bg-transparent border-0 min-w-11 min-h-11 [font-size:22px];}.ui-drawer-head strong{@apply [font-size:13px] font-semibold;}
 .ui-side-drawer>.notes-sidebar,.ui-side-drawer>.cloud-sidebar,.ui-side-drawer>.studio-explorer,.ui-side-drawer>.studio-inspector,.file-layout .ui-side-drawer>aside{@apply flex! flex-col flex-1 min-h-0 max-h-none w-full border-0 overflow-auto [padding-bottom:env(safe-area-inset-bottom)];}
 .ui-side-drawer>.cloud-sidebar{@apply items-stretch gap-2.5 p-4;}.ui-side-drawer>.cloud-sidebar p{@apply mt-auto w-auto;}.ui-side-drawer .notes-tree-menu{@apply opacity-100;}
 @keyframes drawer-enter-left{from{transform:translateX(-100%);opacity:.6}to{transform:translateX(0);opacity:1}}
 @keyframes drawer-enter-right{from{transform:translateX(100%);opacity:.6}to{transform:translateX(0);opacity:1}}
 @keyframes drawer-enter-bottom{from{transform:translateY(100%);opacity:.6}to{transform:translateY(0);opacity:1}}
 @media(max-width:800px){
- .ui-drawer-trigger,.notes-sidebar-toggle{@apply inline-flex min-w-9 min-h-9 justify-center bg-transparent border-0;}
+ .ui-drawer-trigger,.notes-sidebar-toggle{@apply inline-flex min-w-11 min-h-11 justify-center bg-transparent border-0;}
  #notes.active,#notes.notes-sidebar-open{@apply [grid-template-columns:minmax(0,1fr)] [grid-template-rows:minmax(0,1fr)];}
  #notes>.notes-sidebar,#notes.notes-sidebar-open>.notes-sidebar,#cloud>.cloud-sidebar{@apply hidden;}
  #cloud.active{@apply [grid-template-rows:minmax(0,1fr)];}

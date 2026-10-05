@@ -1,72 +1,100 @@
-# Refined Quiet Workspace
+# Personal Workspace 디자인 시스템
 
-Codex 채팅은 대화 공간을 우선한다. IDE는 기본 480px 보조 패널과 **대화 확대 / 분할 화면**, 장비 Codex는 전체 영역과 접을 수 있는 연결 설정, AI 비서는 접을 수 있는 대화 목록과 최대 1120px 본문·입력창을 제공한다. IDE·장비 본문은 14px, AI 비서는 15px이며 모바일 입력창은 16px로 유지한다. 확대 시 기존 에디터·대화 DOM을 폐기하지 않는다.
+개발·운영·일상을 연결하는 Desktop Productivity Workspace다. REST, WebSocket, SQLite, 인증, 런타임과 HomeItem 저장 계약은 유지한다. 읽기 쉬운 위계, 중요한 작업 표면, 일관된 조작과 작은 화면의 단일 작업을 기준으로 한다.
 
-Personal Workspace는 개발·운영 작업을 한곳에서 다루는 개인 workstation이다. 이 리디자인은 API, 저장 데이터, 인증, 앱 라우팅, Launcher의 `HomeItem` 계약을 변경하지 않는다. 이전 Android emulator 프레임, 하단 3버튼 탐색, 우측 도구 막대, 아이콘 격자 중심 홈은 사용하지 않는다.
+## 공통 토큰
 
-## 정보 구조
+`css/design-system.css`가 의미 토큰과 공통 primitive를 소유한다. 기능 CSS는 이를 소비한다.
 
-- **Desktop:** 46px global bar(Workspace / 현재 작업 / 명령 / 계정), 54px activity rail(Home, 검색, Services, Studio, 장비, Database, App Library, 최근 작업), 나머지는 앱 콘텐츠다. 저장된 pinned apps는 Home의 compact quick bar에 표시한다.
-- **Mobile:** safe area를 포함한 44px app bar(이전 작업 / 현재 작업 / 검색 / 메뉴), 콘텐츠, 48px Home·검색·앱·최근 작업 탐색이다. Notes, Assistant, Studio, Database 및 집중형 runtime에서는 하단 탐색을 접고 상단의 검색·최근 작업 진입은 유지한다.
-- **Home:** 최근 작업, Services, 오늘 일정, 장비 요약을 기존 API·widget renderer에서 조합한다. 저장된 `HomeItem`과 페이지는 그대로 읽는다. 평상시 `#home-grid`는 앱·폴더만 표시하고 `#home-widgets`는 위젯을 별도 접힌 행으로 표시한다. 홈 편집 시 모든 항목이 `#home-grid`의 기존 좌표 격자로 돌아가 드래그·크기 조절을 유지한다.
-- **App Library:** 기존 앱 등록부를 고정·개발·서비스와 인프라·생산성·기타 그룹의 목록으로 제시한다. 기존 검색, 홈 추가, 길게 누르기와 drag 동작을 유지한다.
+| 역할 | 토큰 | Dark | Light |
+| --- | --- | --- | --- |
+| 앱 배경 | `--bg-app` | #101116 | #f1f3f7 |
+| 내비게이션 | `--bg-sidebar` | #15171d | #e9edf3 |
+| 주요 작업 표면 | `--bg-surface` | #1c1f27 | #ffffff |
+| 보조 표면 | `--bg-secondary` | #171a21 | #f6f7fa |
+| 메뉴·다이얼로그 | `--bg-elevated` | #262a34 | #ffffff |
+| Hover | `--bg-surface-hover` | 테마별 중립 강조 | 테마별 중립 강조 |
+| 눌림 | `--bg-active` | #303748 | #dde4ee |
+| 선택 | `--bg-selected` | #29324b | #e4eafe |
 
-## 소스와 책임
+`--category-ai/dev/infra/monitor/productivity`는 각각 violet/blue/teal/indigo/muted warm 계열이다. Glyph·선택·차트에 제한적으로 사용하며 큰 패널을 앱별 색으로 칠하지 않는다. 성공·장애는 별도 의미 상태 토큰을 쓴다.
 
-| 파일 | 책임 |
+| 위계 | 크기 | 용도 |
+| --- | --- | --- |
+| Page | 24px | 화면 제목 |
+| Subtitle / Body / Row | 14px | 설명·기본 내용·행 이름 |
+| Section | 16px | 구역 제목 |
+| Card | 17px | 주요 표면 제목 |
+| Secondary | 13px | 보조 내용·일반 버튼 |
+| Metadata | 12px | 시각·경로·보조 수치 |
+| Badge | 11px | 짧은 상태 보조 표기 |
+| Code | 13px | 코드·SQL |
+
+AI 대화는 14–15px, Notes 본문은 Desktop 16px/Mobile 15px이다. Telemetry 핵심 수치는 28–40px이다. 모바일 입력창은 16px을 우선한다. 중요한 이름과 값을 metadata 크기로 축소하지 않는다.
+
+Radius는 tiny 6px, control 8px, panel 12px, floating 16px이다. 기존 radius 별칭은 호환을 위해 유지한다. 간격은 기존 2/4/6/8/12/16/20/24/32px 토큰을 사용한다. Desktop 기본 control은 36px, compact 32px, Mobile 주요 조작은 44px이다.
+
+## 표면과 조작
+
+한 화면에서 1–2개의 주요 작업 구역에 경계·높이를 집중한다. 편집기·대화·차트·달력은 주요 표면, 탐색과 metadata는 보조 표면이다. 행은 목록 안의 선택·hover를 담당하며 모든 행을 독립 카드로 만들지 않는다.
+
+- `.primary`: 제한된 주요 작업, solid accent.
+- `.secondary`: 보조 작업, 작업 표면과 경계.
+- `.ghost`, `.icon-btn`: 탐색·아이콘 작업, 기본 투명 배경.
+- `.danger`: 위험 작업의 의미 색.
+- `.ui-segmented`: 선택 상태가 있는 보기 전환.
+- `.sm`, `.ui-compact-button`: compact 도구 막대 조작.
+- 입력·select·textarea: 동일한 control radius와 focus ring. Search/command도 같은 입력 문법을 사용한다.
+
+아이콘 단독 조작의 aria-label과 tooltip을 유지한다. Hover에서 크기나 위치를 바꾸지 않는다. 상태는 텍스트와 dot를 함께 사용한다. `.ui-status`는 online/offline/degraded/warning/running/stopped/pending/loading/unknown 및 기존 success/danger/info 값을 지원한다. Loading은 회전 indicator, unknown은 빈 dot다.
+
+Motion은 120–240ms 범위의 opacity/background/pane 전환을 사용하며 reduced motion을 지원한다. 공통 API 진행 표시는 비차단 방식이다. Quiet 갱신은 기존 DOM·초안·선택·스크롤을 보존한다.
+
+## Shell과 Home
+
+Desktop은 52px global bar, 60px activity rail, 작업 본문으로 구성한다. Workspace → 이전/현재 작업 → 검색 → AI → 백그라운드 상태 → 시각/메뉴 순서다. Rail의 active는 선택 표면과 얇은 outline이다.
+
+700px 이하에서는 44px app bar와 48px 하단 내비게이션을 사용한다. Assistant, Device Codex, Studio, Notes, Database와 집중형 runtime에서는 하단 내비게이션을 접는다. 100dvh, VisualViewport와 safe area를 유지한다.
+
+Home의 첫 정보는 **오늘 → 확인 필요 → 이어하기**다. 오늘은 기존 일정, 확인 필요는 조회한 서비스 장애·장비 offline·GitHub CI 실패/승인 대기·Studio 중지/실패·조회 실패를 투영한다. 조회 전 skeleton과 미확인 상태를 정상으로 표현하지 않는다. GitHub CI는 기존 요약이 읽은 저장소의 최근 실행이며 전체 계정의 모든 장애를 뜻하지 않는다.
+
+이어하기는 기존 저장된 Studio 프로젝트, 현재 브라우저 세션에서 연 서비스/저장소, 기존 runtime 활동을 최대 5행으로 표시한다. 서버 활동 스키마나 HomeItem 저장을 변경하지 않는다. 서비스·인프라 요약, 고정 앱, 사용자 배치·위젯을 그 아래에 둔다. 평상시 앱·폴더는 compact 목록, 위젯은 disclosure이며 좌표 격자·drag·resize는 홈 편집에서만 노출한다.
+
+## 앱별 정보 위계
+
+| 앱 | 주요 작업 | 보조 정보 | Mobile |
+| --- | --- | --- | --- |
+| Assistant | 대화·하단 composer, user bubble, Markdown | 접이식 대화 목록·모델·사용량 | 본문과 서랍, 16px 입력 |
+| Studio | Editor | Explorer·Git/Codex·output | Files/Editor/Git·Codex 단일 pane |
+| Device Codex | 대화·입력 | 장비·경로 context, 연결·기록 | context bar와 drawer |
+| Devices | 이름·상태·CPU/RAM/Disk | GPU·로그·수정 overflow | 장비별 정보 묶음 |
+| Services | 이름·상태·상태 신호·리소스 관계 | 런타임·저장소·계측·설정 | 한 본문, 생성 sheet |
+| GitHub | repository row와 상세 | Owner·탭·검색·승인 | 탐색 drawer |
+| Database | Query editor·결과 | connection/schema/history | Query/Result/Schema/History |
+| Telemetry | health·request·error·latency·차트 | breakdown·사용자·설정 | 핵심 수치·차트 |
+| Files | 경로·목록·선택 작업 | overflow·즐겨찾기 | 경로 drawer, 이름 아래 metadata |
+| Terminal / Remote | 실행 화면 | 최소 연결 도구 막대 | 콘텐츠 전체 영역 |
+| Notes | 읽기 폭 880px 문서 | 폴더·도구 막대 | drawer와 본문 |
+| Cloud | 파일 목록·선택 상태 | 검색·드라이브·생성 | overlay/drawer/bottom sheet |
+| Calendar / Timetable | 달력·일정·수업 | 이동·학기·편집 | 달력+agenda, 시간표 선택 요일 |
+| Military | 진행·남은 기간 | 이정표·달력·설정 | 진행 표면과 줄바꿈 이정표 |
+| Clipboard / Apps / Recent | 내용·최근 작업 | 만료·등록·삭제 | 읽기 쉬운 행 |
+| Settings / Login | 현재 폼·제출 | 안내·오류 | 고정 작업 영역 sheet / 단일 로그인 표면 |
+
+코드·표·DB 결과 등 본질적으로 넓은 콘텐츠만 가로 스크롤한다. 시간표 선택 요일은 표시 상태이며 저장 데이터의 7일 구조를 바꾸지 않는다. 기존 id/data-* 이벤트 계약을 유지한다.
+
+## CSS 소유권과 빌드
+
+| 소스 | 책임 |
 | --- | --- |
-| `css/design-system.css` | 다크/라이트 의미 토큰, 공통 입력·상태·초점·motion |
-| `css/shell.css` | Desktop/Mobile global shell 및 기능 간 공통 밀도 |
-| `css/workspace.css` | 파일·터미널·장비의 동작 배치 |
-| `css/launcher.css` | Command Center, 저장 배치 편집, App Library |
-| `css/{notes,studio,telemetry,assistant,github,services,databases,...}.css` | 기능 고유 레이아웃. 공통 CSS 묶음의 `base` 계층에 포함 |
-| `tools/ui/workspace.css` | 공통·기능 CSS를 Tailwind 4로 묶는 진입점 |
-| `js/ui.js` | 공통 SVG 아이콘, 진행·상태·로딩 표현 |
-| `js/workspace.js` | 앱/실행 탭 전환, 전역 명령 팔레트, 현재 작업 표시 |
+| `css/design-system.css` | 토큰·버튼·입력·상태·focus·motion |
+| `css/shell.css` | 전역 Desktop/Mobile shell |
+| `css/launcher.css` | Home·저장 배치 편집·App Library |
+| `css/workspace.css` | 장비·Files·Terminal·Remote·Clipboard·Apps |
+| 기능별 CSS | 해당 앱의 표면·레이아웃·반응형 |
+| `tools/ui/workspace.css` | Tailwind 진입점과 공통 drawer primitive |
+| `js/ui.js` | 기존 SVG·진행·로딩 표현 |
 
-`tools/ui/workspace.css` → `vendor/workspace-ui.css` 빌드를 유지한다. Telemetry·Assistant·GitHub·Services·Database 스타일도 이 묶음에서 로드하여 shell의 공통 밀도 규칙이 같은 cascade 계층에서 적용되게 한다. 새 SPA framework는 없다. 홈·기능 화면의 ID와 `data-*` selector는 JS 계약이므로 외형 변경만을 이유로 바꾸지 않는다.
+기본 selector는 동일 조건 안에서 한 정의로 모으고 media adaptation을 뒤에 둔다. Shell에서 기능 CSS를 다시 평탄화하지 않는다. 공통 component layer에서 모든 버튼과 입력 radius를 강제하던 규칙을 제거했다. Login도 같은 bundle만 읽는다. Notes vendor CSS는 Notes 기능 CSS 앞에서 동일 base layer로 가져온다. 별도 unlayered link를 두면 라이브러리의 제목·내부 여백이 제품 토큰보다 우선하므로 중복 로드하지 않는다. `vendor/workspace-ui.css`는 `npm run build --prefix tools/ui`로 생성하며 직접 편집하지 않는다.
 
-기존 상단 실행 탭 막대의 `.tabs`, `.tab`, `.tab-group`, `.tab-close`, `.tab-pin`, `.tab-state` CSS는 제거했다. 세션 고정·닫기·전환은 기존 App Switcher 동작을 유지한다. `workspace.css`와 `launcher.css`에 남아 있던 `.main` 및 `.topbar` 레이아웃도 제거하여 전역 shell은 `shell.css`에서 정의한다.
-
-## 토큰과 시각 문법
-
-기본 바탕은 녹색 기운이 없는 neutral graphite/near-black이고, 밝은 테마는 cool neutral canvas와 흰 표면을 쓴다. Accent는 제한적인 blue-violet이며 primary action은 solid `--accent-solid`이다. 초록색은 성공·연결·실행 같은 상태에만 쓴다. 앱 아이콘의 배경도 neutral 표면으로 통일한다. 그라데이션은 선택된 컨텍스트처럼 제한된 곳에만 사용하고 버튼·진행 막대·일반 카드의 기본 배경으로 사용하지 않는다.
-
-공통 간격은 2/4/6/8/12/16/20/24/32px, radius는 control 6px·panel 8~10px·floating 12px을 기준으로 한다. Desktop 기본 버튼은 34px, compact/toolbar는 30px이며 모바일 icon touch target은 44px이다. 기능 화면의 독자적인 색과 크기 대신 이 토큰을 우선 사용한다.
-
-목록, 상태, 활동, DB 결과, 파일, repository 항목은 row와 구분선을 사용한다. `.panel`은 화면 구조를 위한 selector로 남지만 공통 border/card 모양을 강제하지 않는다. 테두리는 editor, modal, input 등 실제 경계에 사용한다. 아이콘만 있는 버튼은 DOM의 텍스트 또는 `aria-label`로 이름을 제공한다.
-
-공통 앱 헤더의 작업 버튼은 모바일에서 SVG 아이콘과 접근 가능한 이름을 사용한다. 장비·앱·GitHub 같은 주요 화면의 작업은 한 줄에 배치하고 다른 화면은 폭에 맞게 줄바꿈한다. 저장된 위젯은 기본 높이 42px의 disclosure로 표시하며, 펼치면 기존 위젯의 데이터와 동작을 그대로 사용한다. 화면·위젯·버튼에 떠오르는 이동 효과를 반복하지 않고 짧은 opacity/background 전환을 공통으로 사용한다.
-
-Desktop 작업 본문은 대략 12~14px, 모바일 고밀도 목록은 11~13px을 기본으로 한다. Notes 본문은 모바일 12.5px, h1/h2/h3는 각각 21/18/15.5px이다. 브라우저 확대를 막지 않는다. `:focus-visible`, 색상과 함께 있는 상태 텍스트, reduced motion, safe area, 36~44px 모바일 hitbox를 유지한다.
-
-## Mobile 콘텐츠 원칙
-
-Services 목록은 서비스 이름을 먼저 렌더하고 상태와 연결 정보를 각 서비스의 조회가 끝나는 대로 채운다. 전체·정상·확인 필요 건수, 이름·장비·저장소 검색, 상태·환경 필터, 각 서비스의 장비/컨테이너·저장소·텔레메트리 연결 상태를 한 화면에서 보여준다. 모바일에서도 상태 텍스트를 유지한다. 상세의 기본 탭은 상태 신호와 연결 현황, 런타임·개발·계측 요약 및 최근 활동을 표시하고 관련 탭으로 바로 이동한다. 서비스 생성 화면은 기본 정보를 저장한 다음 연결을 이어서 진행함을 명시한다. 개별 상태 조회 실패는 전체 목록을 가리지 않고 해당 서비스의 상태를 미확인으로 표시한다.
-
-- Notes는 문서 폭을 최대화하고 toolbar를 아이콘과 overflow로 축약한다. 코드·표는 축소하지 않고 가로 스크롤한다. 폴더 목록은 기존 drawer를 사용한다.
-- Database Studio는 Query / Result / Schema / History를 한 pane씩 표시한다. SQL 실행·취소는 이름이 있는 SVG 아이콘 작업이며 나머지 편집 명령은 overflow에 둔다. 결과 grid는 가로 스크롤한다.
-- Studio는 Editor를 기본으로 하며 Files·Git/Codex는 기존 drawer/단일 pane 전환을 유지한다. 서버 Files는 장비·경로 작업을 두 줄로 정렬하고 즐겨찾기·최근 경로를 drawer에 둔다. 파일 행의 수정 시각·크기는 이름 아래에 두고 이름 변경·삭제는 행 작업 메뉴에서 연다. Terminal·원격 화면은 한 줄의 연결 상태와 아이콘 작업만 남겨 앱 영역 전체를 사용한다.
-- Cloud는 루트 경로 중복을 접고 제목 줄과 목록 옵션 줄을 분리한다. 한 줄 파일 행, 선택 개수가 있는 조건부 작업줄, 검색 overlay, 드라이브 drawer 및 생성 하단 시트를 사용한다. Service와 Telemetry Detail은 목록 헤더를 접고 뒤로·서비스 상태를 한 줄에 배치한다. Telemetry 목록은 서비스명·상태·요청·오류율 중심의 compact row를 사용하고 나머지 지표는 상세 화면에서 확인한다. GitHub의 Owner·탭·저장소 검색은 모바일 drawer에 두어 상세 본문을 먼저 표시한다. 파일·GitHub·Service 목록도 compact row를 우선한다.
-- `100dvh`, `visualViewport`가 갱신하는 `--viewport-height`, `env(safe-area-inset-*)`를 shell과 작업 editor에 적용한다.
-- 공통 설정·편집 dialog는 모바일 하단 시트로 표시한다. 제목과 저장·취소 영역은 고정하고 입력 필드만 스크롤하며, 시트의 최대 높이는 VisualViewport와 safe area를 따른다.
-- Calendar·Timetable은 설명문 없이 작은 앱 제목과 추가 작업을 표시한다. 모바일 월·학기 선택과 이동/설정 작업은 한 줄에 배치하고, 날짜별 일정 및 시간표 데이터 영역을 우선한다.
-
-## 검증 경계
-
-장비 Codex는 AI 비서처럼 전체 영역 채팅, 접이식 사이드바, 최대 1120px의 본문·하단 입력창을 사용한다. 연결 폼·계정·대화 기록은 사이드바, 장비 이름·현재 폴더는 상단, 작업 제안은 빈 대화의 중앙에 배치한다. 700px 이하에서 사이드바는 배경 닫기와 Escape를 지원하는 서랍으로 표시한다. 모바일 입력은 16px, 전송·설정 작업은 44px 높이이며 모션 축소 설정을 따른다. 대화와 입력 DOM은 토글 때 교체하지 않는다.
-
-사용자가 시작한 공통 API 요청은 상단 우측에 작은 회전 아이콘과 조회·저장별 안내를 표시한다. 안내는 pointer-events:none으로 화면 조작을 가로채지 않으며 전체 화면 모달·배경 blur·inert·키보드 및 스크롤 차단을 사용하지 않는다. 로딩 시작과 종료에 포커스를 이동하지 않는다. 여러 요청이 겹치면 마지막 요청과 화면 반영이 끝난 뒤 숨기며 실패 때도 정리한다. 모션 축소 설정에서는 아이콘 회전을 생략한다. 새 실행 탭의 준비 상태는 본문에도 표시한다.
-
-Database Studio 메타데이터·Telemetry·메모 이미지 업로드·클라우드 이미지 조회도 같은 안내를 사용한다. 자동 저장과 quiet 백그라운드 요청, AI 비서·에디터·장비 Codex/SQL의 상태 폴링에는 공통 안내를 표시하지 않는다. 별도 진행률·취소 UI가 있는 클라우드 전송은 자체 진행 화면을 유지한다.
-
-서비스 생성은 목록을 유지한 채 별도 dialog(모바일에서는 하단 시트)에서 진행한다. 저장 중 중복 제출을 막고 실패 메시지를 폼에 남긴다. 저장 후 연결·설정 화면으로 이동한다.
-서비스 상세는 상태와 연결 목록을 먼저 표시하고 서비스 편집, 리소스 연결, 장비·컨테이너 연결 폼은 펼쳐서 사용한다.
-
-백그라운드 갱신은 전역 로딩을 켜지 않는다. 공통 WebSocket 변경 알림과 20초 heartbeat를 사용하고, 연결되지 않았을 때만 60초 조회를 적용한다. 숨겨진 탭은 화면 조회를 미루며 복귀·재접속 시 최신 상태를 받는다. 현재 화면의 변경된 목록·수치·속성만 키 기반으로 반영해 포커스·입력값·스크롤·열린 메뉴를 보존한다. 홈 위젯은 재조회 중에도 기존 내용을 유지한다. 메모/SQL/파일 편집기는 자동 갱신으로 다시 만들지 않는다. 새 항목과 변경 텍스트는 짧게 나타나고 그래프는 부드럽게 전환하며, 모션 축소 설정을 따른다. 적용 화면과 예외는 [실시간 UI 계약](realtime-ui.md)을 따른다.
-
-요구사항별 근거와 실제 화면 검증 대기 목록은 [UI redesign 검증 현황](ui-redesign-verification.md)을 따른다.
-
-병역 캘린더는 상단 복무율·D-day, 날짜 요약, 진급 이정표, 휴가 집계, 월간 달력과 선택 날짜 일정 순서로 배치한다. 기존 semantic 색상과 공통 폼을 재사용하고 매초 갱신은 숫자·진행 막대에 제한한다. 좁은 화면은 달력과 일정을 한 열로 배치하며 모션 축소 설정에서 진행 막대 전환을 생략한다. [기능 계약](military-calendar.md).
-
-`mvn verify`, `npm ci --prefix tools/ui`, `npm run build --prefix tools/ui`, `tools/launcher/*.cjs`, `tools/studio-editor/test.cjs`를 실행한다. Responsive DOM 테스트는 1440, 1280, 1024, 768, 710, 700, 430, 390, 360px에서 shell과 focus CSS 계약을 확인한다. 710px 검사는 Database 탐색기가 모바일 탭이 나타나기 전에 사라지지 않는지도 확인한다. jsdom은 실제 터치, virtual keyboard, line wrapping, 시각 대비를 렌더링하지 않으므로 이 결과를 기기 검증으로 부르지 않는다.
+현재 검증과 외부 연결·실기기 제한은 [검증 기록](ui-redesign-verification.md)에 구분한다.

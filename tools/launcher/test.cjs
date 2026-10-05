@@ -148,5 +148,13 @@ fileRuntime=d.querySelector('#runtime-host .runtime-pane');assert.equal(fileRunt
 assert.equal(d.querySelector('.ui-side-drawer[open]'),null,'navigating a bookmark closes its drawer');
 const dockerLaunch=d.createElement('button');dockerLaunch.dataset.open='DOCKER';dockerLaunch.dataset.target='device-1';d.body.append(dockerLaunch);dockerLaunch.click();await tick();
 assert.ok(d.querySelector('#runtime-host .runtime-pane:not([hidden]) [data-runtime-action="docker"][aria-label] .ui-icon'));
+const storedLayoutBeforeContext=w.localStorage.getItem(w.HomePersistence.key());
+w.WorkspaceLauncher.rememberContext('repository','owner/<script>','Repository <script>');
+w.WorkspaceLauncher.rememberContext('service','service-1','Service <script>');
+w.WorkspaceLauncher.updateActivity(w.workspaceInitial);
+assert.ok(d.querySelector('.overview-continue [data-continue-repository]'));
+assert.ok(d.querySelector('.overview-continue [data-service-open="service-1"]'));
+assert.equal(d.querySelector('.overview-continue script'),null,'Continue labels are escaped');
+assert.equal(w.localStorage.getItem(w.HomePersistence.key()),storedLayoutBeforeContext,'session navigation must not alter saved HomeItem layout');
 w.dispatchEvent(new w.Event('pagehide'));dom.window.close();console.log('PASS launcher: grid collisions/projection, registry XSS, tabs/switcher, pages, drawer, folders/extraction, widgets/resize, lock, shared search, account persistence, mobile files runtime');
 })().catch(error=>{console.error(error);w.dispatchEvent(new w.Event('pagehide'));dom.window.close();process.exitCode=1;});

@@ -34,6 +34,13 @@ click('[data-view=timetable]');await tick();assert.ok(d.querySelector('.planner-
 click('[data-plan=term-new]');await submit();assert.equal(d.querySelectorAll('.weekday-column').length,7);
 click('[data-plan=slot-new][data-day="7"]');set('title','일요일 세미나');click('#add-meeting');assert.equal(d.querySelectorAll('.meeting-row').length,2);await submit();
 assert.equal(courses[0].meetings[0].day,7);assert.equal(d.querySelectorAll('.course-block').length,2);assert.ok(d.querySelector('.semester-summary').textContent.includes('3 학점'));
+const callsBeforeWeekday=calls.length,storedCourses=JSON.stringify(courses);
+click('[data-plan=weekday][data-day="7"]');
+assert.equal(d.querySelector('.timetable-scroll').dataset.weekday,'7');
+assert.equal(d.activeElement.dataset.day,'7','weekday switch preserves keyboard focus');
+assert.equal(d.querySelector('[data-plan=weekday][data-day="7"]').getAttribute('aria-pressed'),'true');
+assert.equal(calls.length,callsBeforeWeekday,'display selection must not write or refetch courses');
+assert.equal(JSON.stringify(courses),storedCourses);assert.equal(d.querySelectorAll('.weekday-column').length,7);
 click('[data-plan=course-edit]');click('#delete-planner-item');await submit();assert.equal(d.querySelectorAll('.course-block').length,0);
 console.log('PASS: calendar navigation, inclusive all-day form, escaped titles, semester creation, seven-day grid, multi-slot courses, credit summary and deletion');w.close();
 })().catch(e=>{console.error(e);w.close();process.exitCode=1;});

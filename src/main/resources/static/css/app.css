@@ -1,13 +1,92 @@
-.login-page{min-height:100dvh;display:grid;place-items:center;padding:24px;background:var(--bg-app);color:var(--text-primary)}
-.login-card{width:min(100%,360px);padding:24px 0;background:transparent;border:0;border-radius:0;box-shadow:none}
-.brand-mark{display:grid;place-items:center;width:36px;height:36px;margin-bottom:26px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg-surface);color:var(--accent);font-size:11px;font-weight:700}
-.login-card .eyebrow{display:none}
-.login-card h1{margin:0 0 7px;font-size:24px;line-height:1.25;letter-spacing:-.03em}
-.login-card>.muted{margin:0;color:var(--text-secondary);font-size:12px}
-.login-form{display:grid;gap:6px;margin-top:26px}
-.login-form label{font-size:11px;font-weight:650;color:var(--text-secondary)}
-.login-form input{width:100%;min-height:42px;margin-bottom:10px;background:var(--bg-surface)}
-.login-form button{min-height:42px;margin-top:4px}
-.notice{margin-top:16px;font-size:12px}
-.login-card>a{display:inline-flex;margin-top:22px}
-@media(max-width:600px){.login-page{place-items:start stretch;padding:calc(10dvh + env(safe-area-inset-top)) 14px 24px}.login-card{width:100%;max-width:none;padding:0}.brand-mark{margin-bottom:22px}.login-card h1{font-size:22px}.login-form{margin-top:22px}}
+.login-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--text-primary);
+  background: radial-gradient(ellipse at 50% 10%,var(--accent-subtle),transparent 65%),var(--bg-app)
+}
+.login-card {
+  width: min(100%,420px);
+  padding: 36px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-floating);
+  box-shadow: var(--shadow-raised)
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  color: var(--accent);
+  font-weight: 700;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-panel);
+  background: var(--accent-subtle);
+  border-color: transparent;
+  font-size: 24px;
+  margin-bottom: 24px
+}
+.login-card .eyebrow {
+  display: none
+}
+.login-card h1 {
+  margin: 0 0 7px;
+  line-height: 1.25;
+  letter-spacing: -.03em;
+  font-size: 28px
+}
+.login-card>.muted {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px
+}
+.login-form {
+  display: grid;
+  gap: 6px;
+  margin-top: 26px
+}
+.login-form label {
+  font-weight: 650;
+  color: var(--text-secondary);
+  font-size: 13px
+}
+.login-form input {
+  width: 100%;
+  margin-bottom: 10px;
+  min-height: 44px;
+  background: var(--bg-secondary)
+}
+.login-form button {
+  margin-top: 4px;
+  min-height: 44px
+}
+.notice {
+  margin-top: 16px;
+  font-size: 12px
+}
+.login-card>a {
+  display: inline-flex;
+  margin-top: 22px
+}
+@media(max-width:600px){
+.login-page {
+  place-items: start stretch;
+  padding: calc(8dvh + env(safe-area-inset-top)) 20px 32px
+}
+.login-card {
+  width: 100%;
+  padding: 28px 24px;
+  max-width: 420px;
+  margin: 0 auto
+}
+.brand-mark {
+  margin-bottom: 22px
+}
+.login-card h1 {
+  font-size: 22px
+}
+.login-form {
+  margin-top: 22px
+}}

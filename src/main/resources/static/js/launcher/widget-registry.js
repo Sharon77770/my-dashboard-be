@@ -15,7 +15,7 @@ window.WorkspaceWidgets = (() => {
     {id:'project',appId:'studio',name:'최근 프로젝트',sizes:[[2,1],[4,2]],defaultSize:[4,2],description:'최근 작업 폴더와 이 세션에서 확인한 Git 상태입니다.'},
     {id:'codex',appId:'studio',name:'Codex 작업',sizes:[[2,1],[4,2]],defaultSize:[2,1],description:'현재 브라우저 세션의 마지막 Codex 실행 상태입니다.'}
   ];
-  let today=[],calendarError='',calendarLoading=false,studio={},telemetry=[],github=null,githubLoading=false,serviceItems=[],databaseItems=[];
+  let today=[],calendarError='',calendarLoading=false,studio={},telemetry=[],github=null,githubLoading=false,serviceItems=[],databaseItems=[],summaryLoaded=false,summaryStale=false;
   const day=date=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
   function rows(items){return items.join('')||window.WorkspaceUI.emptyState('표시할 항목 없음');}
   return {
@@ -24,6 +24,22 @@ window.WorkspaceWidgets = (() => {
     updateTelemetry(items){telemetry=items||[];},
     updateServices(items){serviceItems=items||[];},
     updateDatabases(items){const known=new Map(databaseItems.map(item=>[item.id,item.connected]));databaseItems=(items||[]).map(item=>({...item,connected:known.get(item.id)}));},
+    /** Attention projects already loaded signals; unknown data is never reported as healthy. */
+    attention(state,statuses){
+      const signals=[];
+      const signal=(title,detail,action,tone='warning')=>`<button class="widget-row attention-row" ${action}><b>${e(title)}</b><span class="ui-status" data-state="${tone}">${e(detail)}</span></button>`;
+      for(const service of serviceItems.filter(item=>['DOWN','DEGRADED'].includes(item.health?.state)))signals.push(signal(service.name,service.health.state==='DOWN'?'서비스 중단':'상태 확인 필요',`data-service-open="${e(service.id)}"`,service.health.state==='DOWN'?'danger':'warning'));
+      for(const device of state.devices.filter(item=>statuses.get(item.id)?.state==='OFFLINE'))signals.push(signal(device.name,'장비 오프라인','data-view="devices"','offline'));
+      if(github?.run?.conclusion==='failure')signals.push(signal('GitHub Actions','최근 실행 실패','data-view="github"','danger'));
+      if(github?.approvals?.length)signals.push(signal('GitHub 승인 대기',`${github.approvals.length}건 확인 필요`,'data-view="github"','pending'));
+      if(studio.codex==='중지 또는 실패')signals.push(signal('Studio Codex','작업 중지 또는 실패','data-view="studio"','warning'));
+      if(calendarError)signals.push(signal('오늘 일정','일정 조회 실패','data-view="calendar"'));
+      if(summaryStale)signals.push(signal('일부 상태를 확인하지 못했습니다','새로고침으로 다시 확인','data-launcher="refresh-widgets"','unknown'));
+      if(signals.length)return signals.slice(0,4).join('')+(signals.length>4?`<p class="overview-empty">추가 ${signals.length-4}건 · 서비스와 장비에서 확인</p>`:'');
+      if(!summaryLoaded)return window.WorkspaceUI.skeleton(2);
+      const unverified=state.devices.some(item=>!statuses.has(item.id)||!['ONLINE','OFFLINE'].includes(statuses.get(item.id)?.state))||serviceItems.some(item=>!item.health?.state||item.health.state==='UNKNOWN');
+      return window.WorkspaceUI.emptyState(unverified?'아직 확인 중인 상태가 있습니다':'확인된 알림이 없습니다',unverified?'장비와 서비스에서 연결 상태를 확인하세요.':'현재 조회한 서비스·장비·CI 기준',unverified?'info':'check');
+    },
     async refresh(api,options={}){
       if(!options.quiet){calendarLoading=true;githubLoading=true;}
       const now=new Date(),next=new Date(now);next.setDate(next.getDate()+1);
@@ -32,11 +48,12 @@ window.WorkspaceWidgets = (() => {
         api('/telemetry/services'),
         (async()=>{
           const status=await api('/github/status');if(!status.authenticated)return {authenticated:false};
-          const owners=await api('/github/owners');const owner=owners[0];if(!owner)return {authenticated:true};
+          const approvals=await api('/github/approvals');
+          const owners=await api('/github/owners');const owner=owners[0];if(!owner)return {authenticated:true,approvals};
           const overview=await api('/github/owners/'+encodeURIComponent(owner.login)+'/overview');
           const firstRepository=overview.repositories?.[0]?.nameWithOwner;
           const runs=firstRepository?await api('/github/actions/runs?repository='+encodeURIComponent(firstRepository)).catch(()=>[]):[];
-          return {authenticated:true,overview,run:runs[0]};
+          return {authenticated:true,overview,run:runs[0],approvals};
         })(),
         (async()=>Promise.all((await api('/services')).map(async service=>({...service,health:await api('/services/'+encodeURIComponent(service.id)+'/health')}))))(),
         (async()=>{const items=await api('/databases');return Promise.all(items.map(async(item,index)=>index<4?{...item,connected:(await api('/databases/'+encodeURIComponent(item.id)+'/test','POST').catch(()=>({connected:false}))).connected}:item))})()
@@ -47,6 +64,7 @@ window.WorkspaceWidgets = (() => {
       if(results[3].status==='fulfilled')serviceItems=results[3].value;
       if(results[4].status==='fulfilled')databaseItems=results[4].value;
       calendarLoading=false;githubLoading=false;
+      summaryLoaded=true;summaryStale=results.some(result=>result.status==='rejected');
       return {stale:results.some(result=>result.status==='rejected')};
     },
     render(item,state,statuses){const compact=item.h===1;switch(item.widgetId){
