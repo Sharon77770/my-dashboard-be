@@ -27,29 +27,35 @@ window.WorkspacePlanner = (() => {
     }
   }
   async function open(id) { if(id==='calendar')await loadCalendar();if(id==='timetable')await loadTerms(); }
-  async function loadCalendar() {
+  async function loadCalendar(options={}) {
     const version=++calendarVersion;
     const first=asDate(`${month}-01`), offset=(first.getDay()+6)%7;
     const from=addDays(`${month}-01`,-offset), to=addDays(from,42);
     $('#calendar').setAttribute('aria-busy','true');
     try {
-      const result=await ui.api(`/calendar/events?from=${from}&to=${to}`);
+      const result=await ui.api(`/calendar/events?from=${from}&to=${to}`,'GET',undefined,options);
       if(version!==calendarVersion)return;
-      events=result; renderCalendar(from);
-    } catch(error) { if(version===calendarVersion)$('#calendar').innerHTML=notice(error.message)+'<button data-plan="calendar-reload">다시 시도</button>'; }
+      events=result; renderCalendar(from,options);
+    } catch(error) { if(options.quiet)throw error;if(version===calendarVersion)$('#calendar').innerHTML=notice(error.message)+'<button data-plan="calendar-reload">다시 시도</button>'; }
     finally { if(version===calendarVersion)$('#calendar').removeAttribute('aria-busy'); }
   }
-  function renderCalendar(from) {
+  const paint=(target,html,options)=>options.quiet&&window.WorkspaceLiveDOM?window.WorkspaceLiveDOM.patch(target,html):target.innerHTML=html;
+  function renderCalendar(from,options={}) {
     if(!from){const first=asDate(`${month}-01`);from=addDays(`${month}-01`,-((first.getDay()+6)%7));}
     const daily=events.filter(event=>onDay(event,selectedDay));
-    $('#calendar').innerHTML=`<div class="page-head"><h1>캘린더</h1><button class="primary" data-plan="event-new" aria-label="일정 추가" title="일정 추가">${window.WorkspaceUI.icon('plus')}<span class="planner-action-label">일정 추가</span></button></div>
+    paint($('#calendar'),`<div class="page-head"><h1>캘린더</h1><button data-view="military">병역 캘린더</button><button class="primary" data-plan="event-new" aria-label="일정 추가" title="일정 추가">${window.WorkspaceUI.icon('plus')}<span class="planner-action-label">일정 추가</span></button></div>
       <div class="planner-toolbar"><div class="actions"><button data-plan="month-prev" aria-label="이전 달" title="이전 달">${window.WorkspaceUI.icon('back')}</button><h2>${Number(month.slice(0,4))}년 ${Number(month.slice(5))}월</h2><input type="month" aria-label="조회할 월" data-month value="${month}" min="1900-01" max="2199-12"><button data-plan="month-next" aria-label="다음 달" title="다음 달">${window.WorkspaceUI.icon('arrowRight')}</button><button data-plan="today">오늘</button></div></div>
       <div class="calendar-layout"><div class="month-board"><div class="week-labels">${weekdays.map(day=>`<span>${day}</span>`).join('')}</div><div class="month-grid">${Array.from({length:42},(_,index)=>{
         const day=addDays(from,index), items=events.filter(event=>onDay(event,day));
-        return `<div class="calendar-day ${day.slice(0,7)!==month?'outside':''} ${day===selectedDay?'selected':''}"><button class="day-number ${day===today()?'is-today':''}" data-plan="day" data-day="${day}" aria-label="${day} 일정 보기" aria-pressed="${day===selectedDay}">${Number(day.slice(8))}</button>${items.slice(0,3).map(event=>`<button class="event-chip" style="--event-color:${safe(event.color)}" data-plan="event-edit" data-id="${safe(event.id)}" title="${safe(event.title)}"><span>${event.allDay?'':event.start.slice(11,16)}</span> ${safe(event.title)}</button>`).join('')}${items.length>3?`<button class="more-events" data-plan="day" data-day="${day}">+${items.length-3}개 더 보기</button>`:''}</div>`;
-      }).join('')}</div></div><aside class="day-agenda"><div class="panel-head"><div><span>선택한 날짜</span><h2>${Number(selectedDay.slice(5,7))}월 ${Number(selectedDay.slice(8))}일</h2></div><button data-plan="event-new" aria-label="선택한 날짜에 일정 추가">＋</button></div>${daily.map(event=>`<button class="agenda-event" data-plan="event-edit" data-id="${safe(event.id)}" style="--event-color:${safe(event.color)}"><small>${safe(eventTime(event))}</small><strong>${safe(event.title)}</strong><span>${safe(event.location)}</span><small>${event.start.slice(0,10)!==event.end.slice(0,10)?safe(event.start.slice(0,10)+' ~ '+(event.allDay?addDays(event.end.slice(0,10),-1):event.end.slice(0,10))):''}</small></button>`).join('')||notice('등록된 일정이 없습니다. 새로운 일정을 추가해 보세요.')}</aside></div>`;
+        return `<div data-live-key="${day}" class="calendar-day ${day.slice(0,7)!==month?'outside':''} ${day===selectedDay?'selected':''}"><button class="day-number ${day===today()?'is-today':''}" data-plan="day" data-day="${day}" aria-label="${day} 일정 보기" aria-pressed="${day===selectedDay}">${Number(day.slice(8))}</button>${items.slice(0,3).map(event=>`<button class="event-chip" style="--event-color:${safe(event.color)}" data-plan="event-edit" data-id="${safe(event.id)}" title="${safe(event.title)}"><span>${event.allDay?'':event.start.slice(11,16)}</span> ${safe(event.title)}</button>`).join('')}${items.length>3?`<button class="more-events" data-plan="day" data-day="${day}">+${items.length-3}개 더 보기</button>`:''}</div>`;
+      }).join('')}</div></div><aside class="day-agenda"><div class="panel-head"><div><span>선택한 날짜</span><h2>${Number(selectedDay.slice(5,7))}월 ${Number(selectedDay.slice(8))}일</h2></div><button data-plan="event-new" aria-label="선택한 날짜에 일정 추가">＋</button></div>${daily.map(event=>`<button class="agenda-event" data-plan="event-edit" data-id="${safe(event.id)}" style="--event-color:${safe(event.color)}"><small>${safe(eventTime(event))}</small><strong>${safe(event.title)}</strong><span>${safe(event.location)}</span><small>${event.start.slice(0,10)!==event.end.slice(0,10)?safe(event.start.slice(0,10)+' ~ '+(event.allDay?addDays(event.end.slice(0,10),-1):event.end.slice(0,10))):''}</small></button>`).join('')||notice('등록된 일정이 없습니다. 새로운 일정을 추가해 보세요.')}</aside></div>`,options);
   }
   function editEvent(id) {
+    const linked=events.find(event=>event.id===id);
+    if(linked?.source==='MILITARY'){
+      window.WorkspaceMilitary?.queueEvent(linked.sourceId);
+      window.dispatchEvent(new CustomEvent('assistant:navigate',{detail:{route:'military'}}));return;
+    }
     const item=events.find(event=>event.id===id)||{title:'',start:`${selectedDay}T09:00`,end:`${selectedDay}T10:00`,allDay:false,location:'',notes:'',color:palette[0]};
     ui.editor(id?'일정 수정':'새 일정',field('title','일정 제목',item.title,'text','required maxlength="120"')+ui.fields.check('allDay','종일',item.allDay)+`<div class="form-grid">${field('start','시작',item.start.slice(0,16),'datetime-local','required')}${field('end','종료',item.end.slice(0,16),'datetime-local','required')}${field('location','장소',item.location,'text','maxlength="200"')}${colorField(item.color)}</div>`+memo(item.notes)+(id?'<button type="button" class="danger" id="delete-planner-item">일정 삭제</button>':''),async form=>{
       const allDay=form.has('allDay');
@@ -69,24 +75,25 @@ window.WorkspacePlanner = (() => {
   function remove(title,message,path,reload) {
     ui.confirmAction(title,message,async()=>{await ui.api(path,'DELETE');await reload();ui.toast('삭제했습니다.');});
   }
-  async function loadTerms() {
-    terms=await ui.api('/timetables');
+  async function loadTerms(options={}) {
+    const initialTerm=activeTerm, next=await ui.api('/timetables','GET',undefined,options);
+    if(options.quiet&&initialTerm!==activeTerm)return;terms=next;
     if(!terms.some(term=>term.id===activeTerm))activeTerm=terms[0]?.id||'';
-    await loadTable();
+    await loadTable(options);
   }
-  async function loadTable() {
+  async function loadTable(options={}) {
     const version=++tableVersion;
-    if(!activeTerm){table=null;renderTable();return;}
-    const result=await ui.api(`/timetables/${activeTerm}`);
-    if(version!==tableVersion)return;table=result;renderTable();
+    if(!activeTerm){table=null;renderTable(options);return;}
+    const result=await ui.api(`/timetables/${activeTerm}`,'GET',undefined,options);
+    if(version!==tableVersion)return;table=result;renderTable(options);
   }
-  function renderTable() {
+  function renderTable(options={}) {
     const courses=table?.courses||[], slots=courses.flatMap(course=>course.meetings);
     const start=Math.min(8,...slots.map(slot=>Math.floor(minutes(slot.start)/60)));
     const end=Math.max(20,...slots.map(slot=>Math.ceil(minutes(slot.end)/60)));
-    $('#timetable').innerHTML=`<div class="page-head"><h1>시간표</h1><button class="primary" data-plan="${table?'course-new':'term-new'}" aria-label="${table?'수업 추가':'시간표 만들기'}" title="${table?'수업 추가':'시간표 만들기'}">${window.WorkspaceUI.icon('plus')}<span class="planner-action-label">${table?'수업 추가':'시간표 만들기'}</span></button></div>
+    paint($('#timetable'),`<div class="page-head"><h1>시간표</h1><button class="primary" data-plan="${table?'course-new':'term-new'}" aria-label="${table?'수업 추가':'시간표 만들기'}" title="${table?'수업 추가':'시간표 만들기'}">${window.WorkspaceUI.icon('plus')}<span class="planner-action-label">${table?'수업 추가':'시간표 만들기'}</span></button></div>
       <div class="planner-toolbar"><div class="actions">${terms.length?`<select data-term aria-label="학기 시간표 선택">${terms.map(term=>`<option value="${safe(term.id)}" ${term.id===activeTerm?'selected':''}>${safe(term.name)}</option>`).join('')}</select>`:''}<button data-plan="term-new" aria-label="새 시간표" title="새 시간표">${window.WorkspaceUI.icon('plus')}<span class="planner-action-label">새 시간표</span></button>${table?`<button data-plan="term-edit" aria-label="학기 설정" title="학기 설정">${window.WorkspaceUI.icon('settings')}<span class="planner-action-label">학기 설정</span></button>`:''}</div>${table?`<div class="semester-summary"><b>${table.totalCredits} 학점</b><span>${courses.length} 과목</span><small>${safe(table.term.start)} ~ ${safe(table.term.end)}</small></div>`:''}</div>
-      ${!table?`<div class="planner-welcome"><span>▦</span><h2>이번 학기를 그려보세요</h2><p>학기별 시간표를 만들고 과목, 강의실, 교수님과 수업 시간을 기록하세요.</p><button class="primary" data-plan="term-new">첫 시간표 만들기</button></div>`:`<div class="timetable-scroll"><div class="weekly-table"><div class="timetable-heading"><span>시간</span>${weekdays.map(day=>`<b>${day}</b>`).join('')}</div><div class="timetable-body" style="height:${(end-start)*64}px"><div class="hour-axis">${Array.from({length:end-start},(_,index)=>`<span style="top:${index*64}px">${pad(start+index)}:00</span>`).join('')}</div>${weekdays.map((day,index)=>`<div class="weekday-column">${Array.from({length:end-start},(_,hour)=>`<button class="empty-slot" style="top:${hour*64}px" data-plan="slot-new" data-day="${index+1}" data-time="${pad(start+hour)}:00" aria-label="${day}요일 ${start+hour}시 수업 추가"></button>`).join('')}${courses.flatMap(course=>course.meetings.filter(slot=>slot.day===index+1).map(slot=>`<button class="course-block" style="top:${(minutes(slot.start)-start*60)*64/60}px;height:${(minutes(slot.end)-minutes(slot.start))*64/60}px;--course-color:${safe(course.color)}" data-plan="course-edit" data-id="${safe(course.id)}" title="${safe(course.title+' '+slot.start.slice(0,5)+'–'+slot.end.slice(0,5)+' '+course.location)}"><strong>${safe(course.title)}</strong><span>${safe(course.location)}</span><small>${slot.start.slice(0,5)}–${slot.end.slice(0,5)}</small></button>`)).join('')}</div>`).join('')}</div></div></div><div class="course-cards">${courses.map(course=>`<button data-plan="course-edit" data-id="${safe(course.id)}" class="course-summary" style="--event-color:${safe(course.color)}"><strong>${safe(course.title)}</strong><span>${course.credits}학점 · ${safe(course.professor||'교수 미입력')} · ${safe(course.location||'강의실 미입력')}</span><small>${course.meetings.map(slot=>`${weekdays[slot.day-1]} ${slot.start.slice(0,5)}–${slot.end.slice(0,5)}`).join(' / ')}</small></button>`).join('')||notice('빈 시간 칸을 눌러 첫 수업을 추가하세요.')}</div>`}`;
+      ${!table?`<div class="planner-welcome"><span>▦</span><h2>이번 학기를 그려보세요</h2><p>학기별 시간표를 만들고 과목, 강의실, 교수님과 수업 시간을 기록하세요.</p><button class="primary" data-plan="term-new">첫 시간표 만들기</button></div>`:`<div class="timetable-scroll"><div class="weekly-table"><div class="timetable-heading"><span>시간</span>${weekdays.map(day=>`<b>${day}</b>`).join('')}</div><div class="timetable-body" style="height:${(end-start)*64}px"><div class="hour-axis">${Array.from({length:end-start},(_,index)=>`<span style="top:${index*64}px">${pad(start+index)}:00</span>`).join('')}</div>${weekdays.map((day,index)=>`<div class="weekday-column">${Array.from({length:end-start},(_,hour)=>`<button class="empty-slot" style="top:${hour*64}px" data-plan="slot-new" data-day="${index+1}" data-time="${pad(start+hour)}:00" aria-label="${day}요일 ${start+hour}시 수업 추가"></button>`).join('')}${courses.flatMap(course=>course.meetings.filter(slot=>slot.day===index+1).map(slot=>`<button class="course-block" style="top:${(minutes(slot.start)-start*60)*64/60}px;height:${(minutes(slot.end)-minutes(slot.start))*64/60}px;--course-color:${safe(course.color)}" data-plan="course-edit" data-id="${safe(course.id)}" title="${safe(course.title+' '+slot.start.slice(0,5)+'–'+slot.end.slice(0,5)+' '+course.location)}"><strong>${safe(course.title)}</strong><span>${safe(course.location)}</span><small>${slot.start.slice(0,5)}–${slot.end.slice(0,5)}</small></button>`)).join('')}</div>`).join('')}</div></div></div><div class="course-cards">${courses.map(course=>`<button data-plan="course-edit" data-id="${safe(course.id)}" class="course-summary" style="--event-color:${safe(course.color)}"><strong>${safe(course.title)}</strong><span>${course.credits}학점 · ${safe(course.professor||'교수 미입력')} · ${safe(course.location||'강의실 미입력')}</span><small>${course.meetings.map(slot=>`${weekdays[slot.day-1]} ${slot.start.slice(0,5)}–${slot.end.slice(0,5)}`).join(' / ')}</small></button>`).join('')||notice('빈 시간 칸을 눌러 첫 수업을 추가하세요.')}</div>`}`,options);
   }
   function editTerm(edit=false) {
     const year=new Date().getFullYear(), second=new Date().getMonth()>=6;
@@ -127,5 +134,5 @@ window.WorkspacePlanner = (() => {
     if(event.target.matches('[data-month]')&&event.target.value){month=event.target.value;selectedDay=`${month}-01`;await loadCalendar();}
     if(event.target.matches('[data-term]')){activeTerm=event.target.value;await loadTable();}
   }
-  return {init,open};
+  return {init,open,focusDate(value){if(/^\d{4}-\d{2}-\d{2}$/.test(value)){selectedDay=value;month=value.slice(0,7);}},refresh(id){if(!ui)return;if(id==='calendar')return loadCalendar({quiet:true});if(id==='timetable')return loadTerms({quiet:true});}};
 })();

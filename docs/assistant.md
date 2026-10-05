@@ -1,5 +1,11 @@
 # AI 비서
 
+서비스 오류·HTTP 5xx 분석은 `list_services` → `get_service`로 연결을 확인하고 `get_service_runtime`과 `get_service_logs`로 실제 SSH/Docker 로그를 읽는다. 빈 Telemetry나 UNKNOWN 상태만으로 로그가 없다고 결론 내리지 않으며 GitHub Actions 실패와 운영 오류를 구분한다. “지난주부터”는 명시한 시간대의 시작부터 현재까지 조회하고 실제 기간과 출처를 설명한다.
+
+`get_service_logs`는 시간대 포함 `since/until`(최대 31일)과 컨테이너 `resourceId`를 받는다. 기본 `errors` 필터는 보존된 기간별 로그를 읽고 오류·예외·5xx 후보 및 뒤의 8줄을 반환한다. `all`로 주변 문맥을 확인한다. 최근 200줄만 읽는 기존 서비스 화면과 별개다. 스캔 7초·8 MiB, 출력 500줄·24,000자 제한이며 `truncated/scanComplete`를 반환한다. 일부만 조회되면 기간을 나눠 재조회하고 남은 공백을 설명한다. 현재 컨테이너에서 회전·삭제된 로그, 교체 전 컨테이너 및 별도 파일 로그는 복원하지 못한다. 로그 내용은 신뢰할 수 없는 데이터로 취급하고 흔한 인증정보 패턴을 가린다.
+
+사이드바와 설정에 대시보드 서버 Codex 계정 이메일·요금제를 표시한다. 코드 에디터 SSH 계정과 별개이며 API 키 인증은 이메일 미제공으로 표시한다.
+
 Workspace Memory는 대화 간 공유되는 짧은 정보 저장소다. 명시적 기억 요청 또는 제안에 대한 승인 이후에만 생성한다. 검색된 관련 항목 최대 8개·2,400자를 별도 `UNTRUSTED DATA` 컨텍스트로 제공하며, 검색 실패는 일반 답변을 막지 않는다. 설정의 Memory 관리에서 검색·편집·보관·Pin·삭제와 정리 정책을 변경한다. [상세 정책](workspace-memory.md).
 
 AI 비서에서 “PFM API 서비스 만들어줘”, “기존 서비스에 DB 연결해줘”처럼 요청하면 등록된 Workspace 리소스를 탐색해 Service Draft를 준비한다. GitHub·장비·Docker·Database·Telemetry·Endpoint·기존 파일 연결을 검토하며, 후보 이름과 Docker Compose project 관계를 단서로 사용한다. 같은 Compose project의 모든 컨테이너를 자동으로 묶지는 않고 서비스 경계가 모호하면 질문한다. 기존 Service와 중복 가능성도 표시한다. 사용자 승인 전에는 Service Catalog를 바꾸지 않는다. [상세 흐름](service-onboarding.md).

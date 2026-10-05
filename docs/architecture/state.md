@@ -1,5 +1,9 @@
 # 상태
 
+공통 foreground 로딩은 `WorkspaceUI.beginTask`의 요청별 Map으로 관리한다. 첫 요청에서 즉시 모달·배경 inert·입력 잠금을 활성화하고, 마지막 finish 후 호출자의 렌더 microtask가 끝난 다음 해제한다. finish는 중복 호출에 안전하며 겹치는 요청 중 하나가 먼저 끝나도 잠금을 유지한다. 기존 inert와 포커스를 복구한다. quiet 폴링·메모 자동 저장은 이 상태에 포함하지 않는다.
+
+장비 Codex job은 기존 `RUNNING → SUCCEEDED/FAILED/CANCELLED`를 사용한다. 서버 메모리의 owner와 deviceScope가 다른 작업 범위 접근을 거부한다. UI selected는 적용된 장비/폴더, prepared는 해당 연결에서 CLI 준비 완료 여부, busy/job은 변경 잠금·취소 상태다. 장비/폴더 적용 시 준비·계정·대화 표시를 초기화하며 실행 중 전환은 막는다. 실제 계정/대화는 원격 장비별 CODEX_HOME에 저장한다. 브라우저 sessionStorage의 `device-codex:` 키에는 장비/폴더와 thread ID만 기록한다.
+
 Database Studio 연결 accessMode는 READ_ONLY(SELECT 한 문장과 DB read-only 강제) 또는 READ_WRITE(DB 권한 내 실행)다. 실행은 RUNNING → SUCCEEDED/FAILED/CANCELLED로 끝나며 worker 메모리의 실행 결과는 재시작 시 복원하지 않는다. resultType은 QUERY/MUTATION 또는 미완료·실패의 빈 값이다. 편집 중 SQL 탭은 브라우저 메모리 상태이며 연결·이력·즐겨찾기는 Workspace SQLite에 남는다.
 
 | 상태 | 저장 | 소유자/수명 |
@@ -69,3 +73,8 @@ Tailscale 인증 상태는 tailscale-state 볼륨이 소유한다. NeedsLogin �
 AI 비서의 모델·추론 강도 선택은 설정 창과 채팅 입력창에서 동기화한다. 사용자가 마지막으로 고른 모델 ID와 추론 강도만 localStorage에 보관하고, Codex 모델 목록을 다시 불러올 때 가능한 값인지 검증한다. 저장한 값이 현재 목록에 없으면 사용 가능한 기본값을 표시하되 저장값은 자동으로 덮어쓰지 않는다. 대화 내용과 첨부 본문은 이 설정 저장소에 넣지 않는다.
 
 Service Onboarding Draft는 Codex thread ID당 최신 하나를 서버 메모리에 연결한다. 상태는 `DRAFT → APPROVED → COMMITTED`이며 수정하면 `APPROVED → DRAFT`, 취소 또는 30분 만료 시 제거된다. Draft revision과 기존 Service의 수정 시각·연결 집합을 검사한다. `DRAFT`의 후보 선택은 영속 Service와 분리되고, `APPROVED`는 현재 revision의 브라우저 승인만 의미한다. 서버 재시작 후 재탐색이 필요하다.
+## 실시간 연결 상태
+
+브라우저 연결 상태는 `connecting → connected → reconnecting`이며 인증 종료 시 `expired`로 재시도를 멈춘다. 화면 갱신 실패는 표시 상태 `stale`로 나타낸다. epoch/revision은 프로세스별 알림 순서를 위한 메모리 상태로 SQLite에 저장하지 않는다. dirty topic은 조회 중 누적해 다음 한 번의 갱신으로 합친다. 폼·에디터·선택·스크롤은 클라이언트 소유 상태다. 메모의 외부 변경은 기존 revision 충돌 검증을 유지한다.
+
+병역 복무 유형은 `ARMY` 육군, `NAVY` 해군, `AIR_FORCE` 공군, `MARINES` 해병대, `SOCIAL_SERVICE` 사회복무, `CUSTOM` 직접 설정이다. 일정 종류는 `LEAVE` 휴가, `TRAINING` 훈련, `DUTY` 근무, `OTHER` 기타다. 계산 상태는 서울 날짜에 따라 `UPCOMING` 입대 전 → `SERVING` 전역 당일까지 → `COMPLETED` 다음 날부터이며 DB에 저장하지 않는다. 이정표 종류는 `ENLISTMENT`/`PROMOTION`/`DISCHARGE`다. 저장 revision은 생성 1, 수정 시 증가하고 요청의 기존 revision 불일치는 409다. 월·선택 날짜·폼 초안·서버 시각 보간용 단조 증가 시계는 브라우저 상태다. 조회 generation이 달라진 지연 응답은 저장 결과를 덮어쓰지 않는다.

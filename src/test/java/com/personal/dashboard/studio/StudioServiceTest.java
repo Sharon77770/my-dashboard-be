@@ -18,6 +18,58 @@ import org.junit.jupiter.api.Test;
  * Tests login ownership, bounded concurrency and cancellation races without external credentials.
  */
 class StudioServiceTest {
+  @Test
+  void deviceJobsCannotCrossDeviceSessionOrEditorBoundaries() throws Exception {
+    var adapter = mock(StudioAdapter.class);
+    var entered = new CountDownLatch(1);
+    var release = new CountDownLatch(1);
+    doAnswer(
+            invocation -> {
+              entered.countDown();
+              release.await(5, TimeUnit.SECONDS);
+              return null;
+            })
+        .when(adapter)
+        .executeDeviceCodex(any(), any(), any(), any());
+    var service = service(adapter);
+    var input =
+        new com.personal.dashboard.studio.dto.AssistantDto.Control(
+            "interrupt", null, null, null, null);
+    try {
+      var job = service.startDevice("owner", request("codex-run"));
+      assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+      assertThat(service.getDevice("owner", "remote", job.id()).state()).isEqualTo("RUNNING");
+      assertThatThrownBy(() -> service.get("owner", job.id()))
+          .isInstanceOf(WorkspaceException.class);
+      assertThatThrownBy(() -> service.getDevice("owner", "other", job.id()))
+          .isInstanceOf(WorkspaceException.class);
+      assertThatThrownBy(() -> service.getDevice("other", "remote", job.id()))
+          .isInstanceOf(WorkspaceException.class);
+      assertThatThrownBy(() -> service.control("owner", job.id(), input))
+          .isInstanceOf(WorkspaceException.class);
+      assertThatThrownBy(() -> service.cancelDevice("owner", "other", job.id()))
+          .isInstanceOf(WorkspaceException.class);
+      service.controlDevice("owner", "remote", job.id(), input);
+      verify(adapter).control(any(), eq(input));
+      service.cancelDevice("owner", "remote", job.id());
+      assertThat(service.getDevice("owner", "remote", job.id()).state()).isEqualTo("CANCELLED");
+      assertThatThrownBy(() -> service.startDevice("owner", request("save")))
+          .isInstanceOf(WorkspaceException.class);
+      assertThatThrownBy(
+              () -> service.startDevice("owner", new Request("local", "/", "setup", null)))
+          .isInstanceOf(WorkspaceException.class);
+      assertThatThrownBy(
+              () ->
+                  service.startDevice(
+                      "owner", new Request("remote", "relative", "codex-run", null)))
+          .isInstanceOf(WorkspaceException.class);
+      verify(adapter, never()).execute(any(), any(), any(), any());
+    } finally {
+      release.countDown();
+      service.shutdown();
+    }
+  }
+
   private StudioService service(StudioAdapter adapter) {
     var catalog = mock(CatalogService.class);
     when(catalog.requireDevice("remote"))
@@ -38,7 +90,8 @@ class StudioServiceTest {
                 "",
                 "",
                 false));
-    return new StudioService(catalog, adapter);
+    return new StudioService(
+        catalog, adapter, new com.personal.dashboard.realtime.service.WorkspaceEvents());
   }
 
   private Request request(String action) {
@@ -67,7 +120,9 @@ class StudioServiceTest {
                 "",
                 false));
     var adapter = mock(StudioAdapter.class);
-    var service = new StudioService(catalog, adapter);
+    var service =
+        new StudioService(
+            catalog, adapter, new com.personal.dashboard.realtime.service.WorkspaceEvents());
     try {
       assertThatThrownBy(
               () ->
@@ -103,7 +158,9 @@ class StudioServiceTest {
                 "",
                 false));
     var adapter = mock(StudioAdapter.class);
-    var service = new StudioService(catalog, adapter);
+    var service =
+        new StudioService(
+            catalog, adapter, new com.personal.dashboard.realtime.service.WorkspaceEvents());
     try {
       var request =
           new ObjectMapper()

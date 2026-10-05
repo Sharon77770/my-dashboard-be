@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
       "com.personal.dashboard.nas.controller",
       "com.personal.dashboard.runtime.controller",
       "com.personal.dashboard.planner.controller",
+      "com.personal.dashboard.military.controller",
       "com.personal.dashboard.notes.controller",
       "com.personal.dashboard.studio.controller",
       "com.personal.dashboard.github.controller",

@@ -24,8 +24,8 @@ window.WorkspaceWidgets = (() => {
     updateTelemetry(items){telemetry=items||[];},
     updateServices(items){serviceItems=items||[];},
     updateDatabases(items){const known=new Map(databaseItems.map(item=>[item.id,item.connected]));databaseItems=(items||[]).map(item=>({...item,connected:known.get(item.id)}));},
-    async refresh(api){
-      calendarLoading=true;githubLoading=true;
+    async refresh(api,options={}){
+      if(!options.quiet){calendarLoading=true;githubLoading=true;}
       const now=new Date(),next=new Date(now);next.setDate(next.getDate()+1);
       const results=await Promise.allSettled([
         api(`/calendar/events?from=${day(now)}&to=${day(next)}`),
@@ -41,12 +41,13 @@ window.WorkspaceWidgets = (() => {
         (async()=>Promise.all((await api('/services')).map(async service=>({...service,health:await api('/services/'+encodeURIComponent(service.id)+'/health')}))))(),
         (async()=>{const items=await api('/databases');return Promise.all(items.map(async(item,index)=>index<4?{...item,connected:(await api('/databases/'+encodeURIComponent(item.id)+'/test','POST').catch(()=>({connected:false}))).connected}:item))})()
       ]);
-      if(results[0].status==='fulfilled'){today=results[0].value;calendarError='';}else calendarError=results[0].reason?.message||'일정 조회 실패';
+      if(results[0].status==='fulfilled'){today=results[0].value;calendarError='';}else if(!options.quiet)calendarError=results[0].reason?.message||'일정 조회 실패';
       if(results[1].status==='fulfilled')telemetry=results[1].value||[];
-      github=results[2].status==='fulfilled'?results[2].value:{error:true};
+      if(results[2].status==='fulfilled')github=results[2].value;else if(!options.quiet)github={error:true};
       if(results[3].status==='fulfilled')serviceItems=results[3].value;
       if(results[4].status==='fulfilled')databaseItems=results[4].value;
       calendarLoading=false;githubLoading=false;
+      return {stale:results.some(result=>result.status==='rejected')};
     },
     render(item,state,statuses){const compact=item.h===1;switch(item.widgetId){
       case 'search':return '<button class="widget-search" data-action="palette">'+window.WorkspaceUI.icon('search')+'<span>앱, 파일, 장비 검색</span><kbd>Ctrl K</kbd></button>';

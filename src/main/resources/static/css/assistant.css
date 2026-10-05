@@ -20,6 +20,7 @@
 #assistant-more { margin:6px 4px; min-height:30px; font-size:11px; }
 .assistant-sidebar-foot { display:grid; gap:var(--space-2); border-top:1px solid var(--border-subtle); padding:12px 4px 2px; font-size:11px; color:var(--text-muted); }
 .assistant-sidebar-foot button { text-align:left; justify-content:flex-start; border:0; background:transparent; color:var(--text-primary); }
+#assistant-sidebar-account,#assistant-settings-account { min-width:0; overflow-wrap:anywhere; }
 .assistant-sidebar-backdrop[hidden] { display:none; }
 
 .assistant-window {

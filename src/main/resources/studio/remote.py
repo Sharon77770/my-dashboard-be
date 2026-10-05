@@ -312,7 +312,7 @@ def ensure_server_codex(destination, arch, cache):
     install_codex_artifact(destination, arch, release['url'], release['digest'])
 
 
-def setup(device_id=None, refresh=False):
+def setup(device_id=None, refresh=False, device_codex=False):
     emit(event='Codex CLI 확인 중')
     arch = os.uname().machine
     hashes = {'x86_64': 'd7e18b2597ae8f242f5f31ee9e90deef48dbc9edd634d9868fb6435d08c07f02',
@@ -329,7 +329,9 @@ def setup(device_id=None, refresh=False):
         fallback = dict(version='0.154.0',
             hostUrl='https://github.com/openai/codex/releases/download/rust-v0.154.0/codex-code-mode-host-' + arch + '-unknown-linux-musl.tar.gz',
             hostDigest='sha256:' + host_hashes[arch])
-        if device_id == 'local':
+        if device_id == 'local' or device_codex:
+            if refresh:
+                (lockdir / 'codex-release.json').unlink(missing_ok=True)
             try:
                 ensure_server_codex(destination, arch, lockdir / 'codex-release.json')
             except Exception:
@@ -378,7 +380,18 @@ def setup(device_id=None, refresh=False):
 
 def handle(request):
     action, args = request['action'], request.get('args', {})
-    if action == 'setup': return setup(request.get('deviceId'), args.get('refresh') is True)
+    device_codex = request.get('deviceCodex') is True
+    if device_codex:
+        if request.get('deviceId') == 'local' or not (action == 'setup' or action.startswith('codex-') or action in ('github-login', 'github-status')):
+            raise Failure('장비 Codex 작업이 아닙니다.')
+        # The trusted adapter supplies this flag, never public request args.
+        identity = hashlib.sha256(request['deviceId'].encode()).hexdigest()
+        home = Path.home() / '.local/share/personal-workspace/device-codex' / identity
+        home.mkdir(parents=True, exist_ok=True, mode=0o700)
+        env['CODEX_HOME'] = str(home)
+        for key in ('CODEX_SQLITE_HOME', 'OPENAI_API_KEY', 'CODEX_API_KEY', 'DASHBOARD_MCP_TOKEN', 'DASHBOARD_MCP_URL'):
+            env.pop(key, None)
+    if action == 'setup': return setup(request.get('deviceId'), args.get('refresh') is True, device_codex)
     base = Path(request['base']).resolve(strict=True)
     root = within(base, request['root']).resolve(strict=True)
     if not root.is_dir(): raise Failure('작업 폴더가 아닙니다.')
@@ -499,7 +512,7 @@ def handle(request):
         if action == 'codex-logout':
             run(['codex', 'logout']); return dict(authenticated=False)
         if action.startswith('codex-'):
-            return codex_action(root, action, args, dashboard=request.get('deviceId') == 'local')
+            return codex_action(root, action, args, dashboard=request.get('deviceId') == 'local', device_codex=device_codex)
         raise Failure('지원하지 않는 작업입니다.')
 
 

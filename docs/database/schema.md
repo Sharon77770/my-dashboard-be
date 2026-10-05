@@ -272,3 +272,39 @@ Service 1:N Event. `service_id` FK CASCADE. GitHub/장비/Telemetry의 기존 �
 | severity | TEXT | 예 | 없음 | 없음 | 현재 INFO |
 | title | TEXT | 예 | 없음 | 없음 | 안전한 표시 제목 |
 | metadata | TEXT | 예 | '{}' | 없음 | 향후 source 메타데이터 JSON |
+
+## 병역 캘린더 (owner: military)
+
+`V10__military_calendar.sql`을 DatabaseInitialization에서 실행한다. CREATE IF NOT EXISTS로 반복 적용 가능하며 기존 데이터 변경은 없다. 단일 OWNER 프로필 1:N 병역 일정, soft delete 없음. 일반 calendar 테이블과 FK나 복제 행을 만들지 않는다. 인증·세션·토큰 테이블을 추가하지 않는다.
+
+### military_profile
+
+| Column | Type | Required | Default | Index/Unique | 의미 |
+| --- | --- | --- | --- | --- | --- |
+| id | INTEGER | 예 | 없음 | PK, CHECK id=1 | 개인 프로필 하나 |
+| nickname | TEXT | 예 | 없음 | 없음 | 표시 이름 |
+| service_type | TEXT | 예 | 없음 | 없음 | ARMY/NAVY/AIR_FORCE/MARINES/SOCIAL_SERVICE/CUSTOM, service 검증 |
+| enlistment_date | TEXT | 예 | 없음 | 없음 | ISO 입대·소집 날짜 |
+| discharge_override | TEXT | 아니오 | NULL | 없음 | ISO 실제 종료일, null이면 예상 계산 |
+| private_first_date | TEXT | 아니오 | NULL | 없음 | ISO 일병 진급일 |
+| corporal_date | TEXT | 아니오 | NULL | 없음 | ISO 상병 진급일 |
+| sergeant_date | TEXT | 아니오 | NULL | 없음 | ISO 병장 진급일 |
+| leave_allowance | INTEGER | 아니오 | NULL | 없음 | 휴가 예산 |
+| calendar_enabled | INTEGER | 예 | 1 | 없음 | 일반 캘린더 투영 0/1 |
+| revision | INTEGER | 예 | 1 | 없음 | 조건부 저장·삭제 버전 |
+
+### military_events
+
+| Column | Type | Required | Default | Index/Unique | 의미 |
+| --- | --- | --- | --- | --- | --- |
+| id | TEXT | 예 | 서버 UUID | PK/unique | 일정 ID |
+| profile_id | INTEGER | 예 | 1 | FK military_profile.id CASCADE | 소유 프로필 |
+| kind | TEXT | 예 | 없음 | 없음 | LEAVE/TRAINING/DUTY/OTHER, service 검증 |
+| title | TEXT | 예 | 없음 | 없음 | 일정 제목 |
+| start_date | TEXT | 예 | 없음 | military_events_dates 복합, non-unique | ISO 시작일, 포함 |
+| end_date | TEXT | 예 | 없음 | military_events_dates 복합, non-unique | ISO 종료일, 포함 |
+| leave_days | INTEGER | 예 | 0 | 없음 | 휴가 차감일수 |
+| notes | TEXT | 예 | '' | 없음 | 메모 |
+| revision | INTEGER | 예 | 1 | 없음 | 조건부 저장·삭제 버전 |
+
+프로필 삭제는 해당 병역 일정만 CASCADE 삭제한다. 프로필과 일정의 수정은 기존 revision 일치 조건에서만 가능하다. 진행률·휴가 집계·일반 캘린더 투영은 읽을 때 계산하고 저장하지 않는다.

@@ -7,7 +7,7 @@ w.WorkspaceCodeEditor=(parent,onChange)=>{edit=onChange;return {load:(name,text)
 w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
 const calls=[];let jobs=0;const requests=new Map();const notices=[];
 const project={devices:[{id:'remote',name:'Test',host:'localhost',rootPath:'/home/tester'},{id:'local',name:'Dashboard Server',host:'localhost',rootPath:'/app/data/files'}]};
-let content='print("hello")';let revision='v1';let running=false,cancelled=false;
+let content='print("hello")';let revision='v1';let running=false,cancelled=false,authenticated=false;
 const api=async(url,method,body)=>{
  if(url==='/workspace')return project;
  if(url.endsWith('/inputs')){cancelled=true;return null;}
@@ -19,7 +19,9 @@ const api=async(url,method,body)=>{
   if(body.action==='save'){assert.equal(body.args.revision,revision);content=body.args.content;revision='v2';result={revision};}
   if(body.action==='git-status')result={branch:'main',branches:['main'],changes:[{index:'M',worktree:' ',path:'staged.ts'},{index:' ',worktree:'M',path:'working.ts'},{index:'U',worktree:'U',path:'conflict.ts'},{index:'?',worktree:'?',path:'new.ts'}],history:'abc first'};
   if(body.action==='codex-status')result={authenticated:false};
-  if(body.action==='codex-account')result={assistant:{authenticated:false}};
+  if(body.action==='codex-account')result={assistant:{authenticated,email:authenticated?'ssh@example.com':null,accountType:'chatgpt',plan:'plus'}};
+  if(body.action==='codex-login'){authenticated=true;result={authenticated:true};}
+  if(body.action==='codex-logout'){authenticated=false;result={authenticated:false};}
   if(body.action==='codex-models')result={assistant:{models:[{id:'test-model',name:'Test',defaultModel:true,defaultEffort:'medium',efforts:[{reasoningEffort:'medium'}]}]}};
   if(body.action==='codex-run')result={assistant:{thread:{id:'thread-1',turns:[{id:'turn-1',items:[{id:'user-1',type:'userMessage',text:body.args.prompt},{id:'answer-1',type:'agentMessage',text:'Result <img src=x>'}]}]}}};
   if(body.action==='codex-thread-new')result={assistant:{thread:{id:'',turns:[]}}};
@@ -58,6 +60,9 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  d.querySelector('#studio-prompt').value='Review';d.querySelector('#studio-prompt-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();
  assert.equal(calls.some(c=>c.action==='codex-run'),false);assert.ok(notices.some(n=>n.includes('저장')));
  await tick();assert.equal(d.querySelector('#studio-auth-cta').hidden,false);assert.equal(d.querySelector('[data-studio="codex-logout"]').hidden,true);
+ authenticated=true;click('[data-cx="refresh"]');await tick();
+ assert.match(d.querySelector('#cx-account').textContent,/ssh@example.com/);
+ assert.match(d.querySelector('#studio-auth').textContent,/ssh@example.com/);
  click('[data-studio="save"]');await tick();
  d.querySelector('#studio-prompt').value='Review project';d.querySelector('#studio-prompt').dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));await tick();
  assert.equal(calls.filter(c=>c.action==='codex-run').length,1);assert.match(d.querySelector('#studio-conversation').textContent,/Result <img/);assert.equal(d.querySelector('#studio-conversation img'),null);assert.equal(d.querySelector('#studio-prompt').value,'');
@@ -76,6 +81,12 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  d.querySelector('#studio-device').value='remote';
  d.querySelector('#studio-device').dispatchEvent(new w.Event('change'));
  assert.equal(d.querySelector('#studio-root').value,'/home/tester');
+ authenticated=false;
+ d.querySelector('.studio-connect').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();
+ assert.doesNotMatch(d.querySelector('#cx-account').textContent,/ssh@example.com/);
+ click('#studio-auth-cta [data-studio="codex-login"]');await tick();
+ assert.match(d.querySelector('#cx-account').textContent,/ssh@example.com/);
+ assert.equal(calls.filter(c=>c.action==='codex-account').at(-1).deviceId,'remote');
  w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/vendor/studio-editor.js'),'utf8'));
  const mount=d.createElement('div');d.body.append(mount);
  const actualEditor=w.WorkspaceCodeEditor(mount,()=>{});

@@ -1,5 +1,22 @@
 # HTTP/API 계약
 
+## 장비 Codex API
+
+공통 접두사는 `/api/v1/devices/{deviceId}/codex/jobs`다. 모든 요청에 OWNER 세션을 적용하고 변경 요청에는 CSRF를 적용한다. `deviceId`는 등록된 SSH 장비의 문자열 ID이며 `local`은 허용하지 않는다. Query parameter는 없다. `{id}`는 시작 응답의 job ID다. 같은 로그인 세션과 같은 장비의 작업만 조회·제어할 수 있다. IDE/AI 비서 API에서는 장비 job을 조회할 수 없다.
+
+| Method/하위 경로 | Request | Response/상태 |
+| --- | --- | --- |
+| POST `/` | `DeviceCodexDto.Request` | `StudioDto.JobView`, 202 |
+| GET `/{id}` | 없음 | `StudioDto.JobView`, 200 |
+| POST `/{id}/inputs` | 기존 `AssistantDto.Control` (approval/answer/steer/interrupt) | 본문 없음, 204 |
+| DELETE `/{id}` | 없음 | 본문 없음, 204 |
+
+시작 본문은 `root`(필수 non-null string, 절대 폴더 경로, 최대 4096자), `action`(필수 non-null string, 최대 40자), `args`(선택 nullable object, 기존 StudioDto.Args 계약)를 받는다. 장비 ID는 route로만 결정한다. 허용 action은 `setup`, `github-login`, `github-status`, `codex-status`, `codex-login`, `codex-logout`, `codex-run`, `codex-models`, `codex-threads`, `codex-thread-read`, `codex-thread-new`, `codex-thread-rename`, `codex-thread-archive`, `codex-thread-delete`, `codex-thread-unarchive`, `codex-thread-fork`, `codex-thread-compact`, `codex-thread-rollback`, `codex-skills`, `codex-connections`, `codex-account`, `codex-rate-limits`, `codex-review`다. `setup.args.refresh=true`는 release 캐시를 갱신한다. `codex-run.args.mode`는 생략 시 `read-only`이며 `workspace-write`도 허용한다. 승인 정책은 서버가 `on-request`로 고정한다. 나머지 args, 이벤트·계정·세션 응답 및 control field 정의는 기존 Studio/Assistant 계약과 같다.
+
+JobView: `id/action/state`(필수 non-null string), `events`(필수 non-null Event 배열), `result`(선택 nullable StudioDto.Result), `error`(필수 non-null string, 정상 시 빈 값), `errorStatus`(필수 int, 정상 시 0). state는 `RUNNING/SUCCEEDED/FAILED/CANCELLED`. 계정 result.assistant의 `authenticated`는 boolean, `email/accountType/plan`은 선택 nullable string이다. 키·토큰은 반환하지 않는다. setup result는 git/codex 버전 문자열을 제공한다. URL/일회용 코드는 로그인 중 Event의 선택 `url/code`로만 전달한다.
+
+공통 오류 응답을 사용한다. 시작 검증 400(지원하지 않는 action, local 대상, 상대 root), 404(장비 없음), 413(첨부 4 MB 초과), 429(동시 실행 4개 초과). 조회·제어 404(작업 없음·다른 세션·다른 장비·다른 작업 범위), 입력 409(실행 중이 아닌 작업·연결 준비 전). 비인증/권한/CSRF 오류는 기존 보안 계약의 401/403을 따른다. 비동기 SSH·설치 실패는 조회 HTTP 200의 FAILED job과 `errorStatus=502`, 폴더·모드 오류는 400, 폴더 잠금은 409, Codex 인증 만료는 401로 표현한다. 사용자 오류 메시지는 SSH 연결·도구 설치·경로·로그인 재시도 안내이며 자격 증명은 포함하지 않는다. 취소는 이미 적용된 변경을 복구하지 않는다.
+
 ## Workspace Memory API
 
 OWNER 세션과 CSRF를 적용한다. `GET /api/v1/assistant/memories`는 `query/status/type/confidence/scope/serviceId/offset/limit` 서버 필터와 `items/nextOffset/hasMore`를 반환한다(최대 50건). `GET /{id}`, `POST /`, `PUT /{id}`, `DELETE /{id}`로 조회·생성·수정·삭제한다. 본문의 `content/type/confidence/scope`가 필수이며 Service 범위는 유효한 `relatedServiceId`, Project 범위는 `relatedProject`가 필요하다. `POST /{id}/archive`, `/restore`, `/pin`, `DELETE /{id}/pin`, `POST /{id}/supersede`, `/promote/calendar`, `/promote/note`, `POST /promotions/note`는 상태와 대상 연결을 변경한다. `GET/PUT /preferences`는 정리 설정을 읽고 변경한다. 잘못된 입력은 400, 미존재는 404, 승인 누락은 403, 인증 실패는 401이다. MCP는 동일 service를 호출하며 별도 bearer 인증을 요구한다.
@@ -295,7 +312,7 @@ POST /api/v1/devices 및 PUT /api/v1/devices/{id}에서 fingerprint 생략/null�
 | MeetingRequest | start / end | ISO LocalTime 필수 | 00:00~23:59 분 단위, end > start, 자정 넘김 불가 |
 
 ### Planner 응답 타입
-모든 응답 필드는 필수, null 불가. 배열은 빈 배열 가능(meetings는 최소 1개). EventView: id String UUID 및 EventRequest와 동일한 title/start/end/allDay/location/notes/color. TermView: id String UUID 및 TermRequest와 동일한 name/start/end. MeetingView: day int, start/end LocalTime. CourseView: id String UUID, termId String UUID, title/professor/location String, credits int, color/notes String, meetings MeetingView[]. TimetableView: term TermView, courses CourseView[], totalCredits int(과목별 credits 합계). 일반 일정끼리 겹침은 허용하고, 수업은 같은 학기의 같은 요일 [start,end) 구간끼리 겹치면 거부한다. 학기 기간은 시간표 구분용이며 캘린더 이벤트를 자동 생성하지 않는다.
+응답 필드는 아래 명시한 예외 외에는 필수, null 불가. 배열은 빈 배열 가능(meetings는 최소 1개). EventView: id String(일반 일정 UUID, 병역 일정 `military:<원본 ID 또는 milestone ID>`), EventRequest와 동일한 title/start/end/allDay/location/notes/color, source String enum `CALENDAR`/`MILITARY`, sourceId nullable String(병역 사용자 일정 원본 UUID, 일반 일정과 병역 milestone은 null). 병역 연동을 켜면 조회 결과에 종일 병역 일정을 포함하며 end는 종료일 다음 날 00:00이다. `military:` ID를 일반 캘린더 PUT/DELETE에 사용하면 409이며 병역 API에서 수정한다. TermView: id String UUID 및 TermRequest와 동일한 name/start/end. MeetingView: day int, start/end LocalTime. CourseView: id String UUID, termId String UUID, title/professor/location String, credits int, color/notes String, meetings MeetingView[]. TimetableView: term TermView, courses CourseView[], totalCredits int(과목별 credits 합계). 일반 일정끼리 겹침은 허용하고, 수업은 같은 학기의 같은 요일 [start,end) 구간끼리 겹치면 거부한다. 학기 기간은 시간표 구분용이며 캘린더 이벤트를 자동 생성하지 않는다.
 
 ## SSH 코드 에디터
 
@@ -476,6 +493,16 @@ GitHub API 403/404와 네트워크 오류는 현재 CLI adapter에서 안전한 
 
 ## 서버 Codex assistant와 MCP
 
+Studio/assistant의 `codex-account`는 각 실행 환경의 App Server `account/read` 결과를 `result.assistant`에 투영한다. `authenticated`(boolean, 필수)는 계정 존재 여부, `plan`(string/null, 선택)은 요금제/인증 종류, `email`(string/null, 선택)은 로그인 이메일, `accountType`(string/null, 선택)은 공급자 인증 종류(`chatgpt`, `apiKey` 등 upstream 문자열)다. null 필드는 생략 가능하고 API 키 계정에는 이메일이 없다. 토큰·키는 반환하지 않는다. OWNER·job 소유 세션·CSRF 경계는 기존과 같다. 성공은 SUCCEEDED job, 조회 오류는 FAILED job의 502/504다. 실패 turn은 IDE와 비서 모두 FAILED job이며 인증 오류 401, 샌드박스·기타 모델 오류 502다. 명령 시작의 nullable 출력은 빈 문자열로 투영하고 출력 delta를 item 이벤트로 전달한다.
+
+### 기간별 서비스 운영 로그
+
+`GET /api/v1/services/{id}/resources/{resourceId}/log-history`는 OWNER 전용이다. path `id/resourceId`는 필수 서비스/연결 ID, query `since/until`은 필수 시간대 포함 ISO 8601 문자열(시작 포함, 끝 이전; 시작 < 끝, 최대 31일), `filter`는 선택 enum `errors|all`(기본 errors), body는 없다. 성공은 200 `LogHistory`, `Cache-Control: no-store`. 잘못된 기간·필터·연결 종류는 400, 미인증 401, 권한 실패 403, 없는 서비스/연결 404, 삭제된 장비 409, 원격/Python/Docker/응답 오류 502, SSH 명령 시간 초과 504이며 `message`로 안내한다.
+
+`LogHistory`의 모든 필드는 필수 non-null이다. `serviceId/resourceId/deviceId/container`(string)는 출처, `since/until`(string)은 정규화된 UTC ISO 시각, `filter`(string enum errors/all), `output`(string)은 가림 처리된 로그 또는 빈 문자열이다. `scannedLines`(long)는 읽은 줄 수, `matchedLines`(long)는 오류·예외·5xx 후보 줄 수이며 정확한 HTTP 오류 건수가 아니다. `truncated`(boolean)는 스캔/출력 제한으로 일부 생략, `scanComplete`(boolean)는 현재 보존 로그 스트림의 끝 도달 여부다. `firstTimestamp/lastTimestamp`(string)는 스캔한 첫/마지막 Docker 시각(없으면 빈 문자열), `retentionNotice`(string)는 교체/회전/파일 로그 한계다. 스캔 7초/8 MiB, 출력 500줄/24,000자, 개별 줄 12,000자 제한이며 오류 후보 뒤 8줄을 함께 반환한다. 보존 완전성을 보장하지 않으며 Service Context/Activity에 본문을 저장하지 않는다.
+
+MCP `get_service_runtime`은 필수 `id`(string ≤36)로 `{runtime: RuntimeSnapshot[]}`를 반환한다. `get_service_logs`는 필수 `id/resourceId`(string ≤36), `since/until`(string ≤40), 선택 `filter`(errors/all, 기본 errors)로 `{logs: LogHistory}`를 반환한다. 모두 readOnly이며 REST와 동일한 service/연결 검증을 사용한다. MCP 인증은 아래 bearer 경계이며 service 오류는 기존 tools/call 오류 응답으로 반환한다. 부분 결과는 기간을 나눠 재조회한다. 빈 Telemetry 또는 CI 로그로 운영 로그 조회를 대체하지 않는다.
+
 서버 assistant job은 기존 Studio job 수명·이벤트·취소 DTO와 Codex 권한을 사용하며 별도 경로에서 OWNER 로그인 세션 소유권과 변경 요청 CSRF를 검사한다. 앱 assistant UI는 IDE Codex 화면과 분리되어 대시보드 기능에 맞는 요청만 표시한다.
 
 | Method / URL | Auth | Request | Response |
@@ -637,3 +664,74 @@ MCP `discover_service_resources(threadId,query)`는 탐색/결정적 후보를 �
 `RuntimeSnapshot`: `resourceId` 연결 ID, `type` enum `DEVICE|DOCKER_CONTAINER`, `name` 표시 문자열, `deviceId` 장비 ID, `state` enum `ONLINE|REACHABLE|UNAVAILABLE|RUNNING|STOPPED|UNKNOWN`, `cpu/memory/disk` 0~100 Double 또는 null(장비 미계측·컨테이너에서는 null), `image`와 `detail` 문자열(없으면 빈 문자열), `checkedAt` epoch ms. 장비는 기존 DeviceOperations 계측을 사용하고 컨테이너는 Docker 목록의 이름·상태·이미지만 읽는다. 연결이 삭제되거나 개별 조회에 실패하면 그 항목은 UNKNOWN이며 다른 항목은 유지한다. `RuntimeActionRequest`의 `action`은 필수 enum `start|stop|restart`이다. `RuntimeOutput`은 `output` 문자열 하나를 가진다. 로그는 Docker 최근 200줄과 기존 명령 어댑터의 최대 256 KiB·10초 제한을 적용하며 `Cache-Control: no-store`로 응답한다. 로그 본문은 Service Context나 Activity에 저장하지 않는다. 세 경로 모두 등록된 Service 연결만 대상으로 한다. 로그·작업은 DOCKER_CONTAINER 연결만 허용한다. 미인증 401, 권한·CSRF 실패 403, 잘못된 연결 종류·action은 400, 없는 서비스·연결은 404, 삭제된 장비 연결은 409, 원격 명령 실패는 502 또는 시간 초과 504이며 오류 응답은 `message` 문자열을 반환한다.
 
 MCP read-only 도구 `list_services`(입력 없음), `get_service`, `get_service_context`, `get_service_health`(각각 `id` 필수 문자열 최대 36자)는 동일 ServiceCatalogService를 호출한다. 반환 필드는 각각 `services`, `service+resources`, `context`, `health`다. 기존 `/api/v1/mcp` bearer 인증과 OWNER 컨텍스트를 그대로 사용한다.
+## Workspace 실시간 알림
+
+`GET /ws/workspace`는 OWNER 로그인 세션과 same-origin WebSocket Upgrade를 요구한다. path/query parameter와 요청 body는 없다. 연결 성공은 HTTP 101, 비로그인은 401, 다른 Origin은 403이다. 로그인 세션 만료/교체·로그아웃 및 클라이언트 명령 전송은 close 1008, 연결 한도 초과는 1013, 송신 실패는 1011로 종료한다. 프레임은 서버에서 클라이언트로만 전송한다.
+
+| 응답 필드 | 타입 | 필수/null | 의미 |
+| --- | --- | --- | --- |
+| type | string | 필수, null 불가 | `ready`, `changed`, `heartbeat` |
+| epoch | string | 필수, null 불가 | 서버 프로세스 수명을 나타내는 UUID |
+| revision | integer | 필수, null 불가 | 프로세스 내 단조 증가하는 알림 버전 |
+| topics | string[] | 필수, null 불가 | 재조회 영역. 없으면 빈 배열 |
+| jobs | string[] | 필수, null 불가 | 동일 로그인 세션에 속한 변경 작업 ID. 없으면 빈 배열 |
+
+topic은 `workspace`, `devices`, `notes`, `calendar`, `military`, `timetables`, `services`, `telemetry`, `databases`, `github`, `cloud`, `memory`이다. 병역 쓰기는 `military`와 `calendar`를 함께 무효화한다. ready에는 빈 topics/jobs가 오며 클라이언트가 최신 REST 상태를 조회한다. 신호는 재조회 힌트이며 영속 이벤트 스트림이나 쓰기 성공 영수증이 아니다. 서버는 200ms 단위로 합치며 20초마다 heartbeat를 보낸다. 브라우저의 `all`은 재접속·누락 복구용 로컬 무효화 값이다. REST 권한 검사를 우회하지 않는다. 세부 흐름과 검증은 [실시간 UI](../realtime-ui.md)를 따른다.
+
+## 병역 캘린더
+
+모든 API는 OWNER 세션, 쓰기는 CSRF가 필요하다. JSON 본문과 응답을 사용한다. 아래 명시하지 않은 path/query/body는 없다. 날짜는 ISO `yyyy-MM-dd`, 서울 기준이다.
+
+| Method / URL | Path / Query / Body | 성공 응답 |
+| --- | --- | --- |
+| GET `/api/v1/military` | 없음 | 200 Dashboard, 미등록도 200 |
+| PUT `/api/v1/military/profile` | ProfileRequest 전체 교체 | 200 Dashboard |
+| DELETE `/api/v1/military/profile` | query revision: 필수 long ≥1 | 204 빈 본문, 하위 병역 일정 cascade |
+| POST `/api/v1/military/events` | EventRequest, revision=0 | 201 EventView |
+| PUT `/api/v1/military/events/{id}` | path id: 원본 UUID, EventRequest 전체 교체 | 200 EventView |
+| DELETE `/api/v1/military/events/{id}` | path id: 원본 UUID, query revision: 필수 long ≥1 | 204 빈 본문 |
+
+### 요청 DTO
+
+| ProfileRequest 필드 | 형식 / 필수·null / 의미 |
+| --- | --- |
+| nickname | String, 필수·null 불가, 공백 제외 1~60자 표시 이름 |
+| serviceType | String enum, 필수·null 불가: ARMY 육군, NAVY 해군, AIR_FORCE 공군, MARINES 해병대, SOCIAL_SERVICE 사회복무, CUSTOM 직접 설정 |
+| enlistmentDate | LocalDate, 필수·null 불가, 입대·소집일 |
+| dischargeDate | LocalDate, 선택·null 허용, 실제 종료일. null이면 기본 기간 추정; CUSTOM 또는 2022년 이전 입대는 필수 |
+| privateFirstDate / corporalDate / sergeantDate | 각각 LocalDate, 선택·null 허용, 실제 일병·상병·병장 진급일 |
+| leaveAllowance | Integer, 선택·null 허용, 휴가 예산 0~1000일 |
+| calendarEnabled | boolean, 누락/null 입력 시 false, 일반 캘린더 투영 여부; UI 기본값 true |
+| revision | long ≥0, 누락/null 입력 시 0, 생성 0 / 수정은 조회한 최신 버전 |
+
+복무기간은 1900~2199년, 입대일부터 최대 40년 이내다. 진급일은 현역 4개 유형에서만 허용하며 입대일 이후부터 종료일까지 순서대로 입력한다. 이미 저장한 일정이 새 복무기간을 벗어나면 변경을 거부한다. [계산 기준](../military-calendar.md)을 따른다.
+
+| EventRequest 필드 | 형식 / 필수·null / 의미 |
+| --- | --- |
+| kind | String enum, 필수·null 불가: LEAVE 휴가, TRAINING 훈련, DUTY 근무, OTHER 기타 |
+| title | String, 필수·null 불가, 공백 제외 1~120자 |
+| startDate / endDate | 각각 LocalDate, 필수·null 불가, 양 끝 포함. 복무기간 안에서 최대 366일 |
+| leaveDays | Integer, 선택·null 허용, 0~일정 날짜 수. LEAVE 미입력 시 날짜 수, 다른 종류는 0만 허용 |
+| notes | String, 선택·null 허용, 최대 2000자, null은 빈 문자열로 저장 |
+| revision | long ≥0, 누락/null 입력 시 0, 생성 0 / 수정은 조회한 최신 버전 |
+
+전체 일정 최대 1,000개이며 휴가끼리는 날짜 겹침을 허용하지 않는다. 저장한 revision은 1부터 시작하며 성공한 수정마다 증가한다.
+
+### 응답 DTO
+
+아래 응답의 모든 필드는 항상 포함된다. nullable로 표시하지 않은 필드는 null 불가이며 배열은 비어 있을 수 있다.
+
+- Dashboard: profile(nullable ProfileView), progress(nullable ProgressView), currentRank(nullable String), milestones(Milestone[]), events(EventView[]), leave(LeaveSummary), serviceTypes(ServiceOption[]), sources(Source[]), serverNow(UTC ISO instant String), timeZone(String, `Asia/Seoul`). 미등록 시 앞의 세 필드는 null, milestones/events는 빈 배열, leave는 null 예산·잔여와 0 사용·예정이다.
+- ProfileView: ProfileRequest와 같은 이름·형식의 필드, dischargeDate는 계산된 날짜로 null 불가, estimatedDischarge(boolean, 자동 추정 여부) 추가. 진급일과 leaveAllowance만 nullable이다.
+- ProgressView: status(String enum UPCOMING 입대 전 / SERVING 복무 중 / COMPLETED 종료 다음 날부터), startsAt/endsAt/nextDayAt(long epoch ms, 시작·종료 다음 날·다음 서울 자정), totalDays/elapsedDays/remainingDays/serviceDay/daysToDischarge(long, 전체·완료 날짜·오늘 포함 잔여·복무 일차·종료일까지 일수), percent(double 0~100). serviceDay는 입대 전 0, 복무 중 1부터, 종료 후 전체 일수로 제한한다. daysToDischarge는 종료 후 음수다.
+- EventView: id(String UUID), EventRequest의 모든 필드. leaveDays는 int, notes는 String으로 null 불가다.
+- Milestone: id(String, enlistment/private-first/corporal/sergeant/discharge), title(String), kind(String enum ENLISTMENT/PROMOTION/DISCHARGE), date(LocalDate), daysUntil(long, 과거 음수), reached(boolean, 오늘 또는 과거).
+- LeaveSummary: allowance(nullable Integer), used(int, 시작한 휴가 전체 차감일수), planned(int, 미래 휴가 차감일수), remaining(nullable Integer, 예산-사용-예정, 초과 시 음수).
+- ServiceOption: id(serviceType enum), label(String), months(nullable Integer, CUSTOM만 null).
+- Source: title(String), url(String HTTPS), checkedOn(LocalDate, 자료 확인일).
+
+### 오류와 연동
+
+미인증 401, OWNER/CSRF 실패 403은 공통 보안 계약을 따른다. 도메인 오류 본문은 `{message: String}`이며 별도 error code 필드는 없다. 입력 형식 오류 400은 `입력 형식과 필수 항목을 확인해 주세요.`; 도메인 검증 400은 기간·진급 순서·중복 휴가·일정 한도에 대한 한국어 안내다. 프로필 미등록 404는 `복무 정보를 먼저 등록해 주세요.`, 일정 미존재 404는 `병역 일정을 찾을 수 없습니다.`. revision 불일치 409는 `다른 곳에서 변경되었습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.`다. 예상하지 못한 오류는 공통 500 응답이다.
+
+기존 Calendar API 및 MCP `list_calendar_events`는 연동된 병역 투영도 반환한다. 병역 항목은 일반 Calendar/MCP 쓰기 대상이 아니며 원본은 위 API로 수정한다. 삭제·연동 해제 후 투영은 사라지지만 일반 일정에는 영향을 주지 않는다. 성공한 변경 후 WebSocket은 `military`, `calendar` 재조회를 알린다. 외부 군돌이/병무청 개인정보 API 호출은 없다.

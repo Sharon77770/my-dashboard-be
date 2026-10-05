@@ -69,15 +69,17 @@ window.fetch = async (url, options = {}) => {
 };
 
 const scripts = [
-  'ui.js', 'launcher/app-registry.js', 'launcher/grid-model.js',
+  'ui.js', 'live-dom.js', 'launcher/app-registry.js', 'launcher/grid-model.js',
   'launcher/persistence.js', 'launcher/widget-registry.js',
   'launcher/interactions.js', 'launcher/launcher.js', 'workspace.js', 'drawers.js', 'github.js'
 ];
 for (const file of scripts) window.eval(fs.readFileSync('src/main/resources/static/js/' + file, 'utf8'));
 
+async function settled(){for(let i=0;i<100;i++){await new Promise(resolve=>setTimeout(resolve,10));if(document.documentElement.dataset.loading!=='true')return;}throw Error('foreground loading did not finish');}
 (async () => {
   window.dispatchEvent(new window.Event('DOMContentLoaded'));
   await window.WorkspaceGithub.open('github');
+  await settled();
   assert.match(document.querySelector('#github-status').textContent, /로그인 필요/);
   document.querySelector('#github-login').click();
   await new Promise(resolve => setTimeout(resolve, 800));
@@ -87,31 +89,31 @@ for (const file of scripts) window.eval(fs.readFileSync('src/main/resources/stat
   assert.equal(document.querySelectorAll('#github-owner option').length, 2);
   const scope = document.querySelector('#github-owner');
   scope.value = 'example-org'; scope.dispatchEvent(new window.Event('change', {bubbles:true}));
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await settled();
   assert.ok(document.querySelector('[data-repository="example-org/service"]'));
   document.querySelector('[data-repository="example-org/service"]').click();
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await settled();
   assert.equal(document.querySelector('#github-selected').textContent, 'example-org/service');
   document.querySelector('[data-tab="issues"]').click();
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await settled();
   document.querySelector('[data-create-kind="issue"]').click();
   assert.ok(document.querySelector('form[data-github-create="issue"]'));
   document.querySelector('[data-detail-kind="issue"]').click();
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await settled();
   const response = document.querySelector('[data-github-response="issue"]');
   assert.ok(response);
   response.querySelector('textarea').value = 'Investigating';
   response.dispatchEvent(new window.Event('submit', {bubbles:true,cancelable:true}));
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await settled();
   assert.ok(requests.some(request => request.method === 'POST'
     && request.url === '/api/v1/github/issues/7/comments?repository=example-org%2Fservice'));
   document.querySelector('[data-tab="actions"]').click();
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await settled();
   document.querySelector('[data-dispatch-workflow="11"]').click();
   const dispatch = document.querySelector('[data-github-dispatch]');
   dispatch.querySelector('input').value = 'main';
   dispatch.dispatchEvent(new window.Event('submit', {bubbles:true,cancelable:true}));
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await settled();
   assert.ok(requests.some(request => request.method === 'POST'
     && request.url === '/api/v1/github/actions/workflows/11/dispatches?repository=example-org%2Fservice'));
   approvals = [{id:'delete-fixture',operation:'DELETE_RELEASE',repository:'example-org/service',number:5000000000}];
@@ -120,17 +122,17 @@ for (const file of scripts) window.eval(fs.readFileSync('src/main/resources/stat
   const approval = document.querySelector('[data-approval="delete-fixture"]');
   assert.match(approval.parentElement.textContent, /릴리스 #5000000000/);
   approval.click();
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await settled();
   assert.ok(!requests.some(request => request.url.endsWith('/approvals/delete-fixture')));
   window.confirm = () => true;
   approval.click();
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await settled();
   assert.ok(requests.some(request => request.url.endsWith('/approvals/delete-fixture') && request.method === 'POST'));
   mobile = true;
   document.querySelector('.github-scope-trigger').click();
   assert.ok(document.querySelector('.ui-side-drawer[open] .github-scope'));
   document.querySelector('.ui-side-drawer [data-tab="issues"]').click();
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await settled();
   assert.equal(document.querySelector('.ui-side-drawer'), null);
   assert.equal(document.querySelector('[data-tab="issues"]').getAttribute('aria-current'), 'true');
   console.log('PASS GitHub UI: login, Owner switch, issue comment, workflow dispatch and mobile browse drawer');

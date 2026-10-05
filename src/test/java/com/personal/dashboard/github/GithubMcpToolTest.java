@@ -59,7 +59,9 @@ class GithubMcpToolTest {
           mock(com.personal.dashboard.services.service.ServiceCatalogService.class),
           databases,
           mock(com.personal.dashboard.services.service.ServiceOnboardingService.class),
-          mock(com.personal.dashboard.assistant.service.WorkspaceMemoryService.class));
+          mock(com.personal.dashboard.assistant.service.WorkspaceMemoryService.class),
+          mock(com.personal.dashboard.services.service.ServiceLogService.class),
+          mock(com.personal.dashboard.services.service.ServiceRuntimeService.class));
 
   @Test
   void databaseToolsAreReadOnlyAndUseStudioService() {

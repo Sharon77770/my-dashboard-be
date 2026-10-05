@@ -48,35 +48,85 @@ window.WorkspaceUI = (() => {
   };
   const emptyState = (title, detail = '', symbol = 'apps') => `<div class="ui-empty">${icon(symbol)}<strong>${escape(title)}</strong>${detail ? `<small>${escape(detail)}</small>` : ''}</div>`;
   const skeleton = (count = 2) => Array.from({length:Math.max(1,Math.min(5,count))}, () => '<div class="ui-skeleton-row"><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>').join('');
-  let pendingTasks = 0;
-  let activityTimer;
+  const pendingTasks = new Map();
+  const inertElements = new Map();
   let activityHideTimer;
-  let activityShownAt = 0;
+  let activityFocus;
+  let activityObserver;
+  let activityLocked = false;
+
+  function lockBackground(indicator) {
+    if (typeof document === 'undefined' || !document.body) return;
+    for (const element of document.body.children) {
+      if (element === indicator || inertElements.has(element)) continue;
+      inertElements.set(element, element.hasAttribute('inert'));
+      element.setAttribute('inert', '');
+    }
+  }
+
+  // Capture at window level so app shortcuts and dialogs cannot bypass the loading lock.
+  function blockLoadingInput(event) {
+    if (!activityLocked) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+  for (const type of ['click', 'dblclick', 'contextmenu', 'pointerdown', 'pointermove', 'pointerup', 'keydown', 'keyup', 'beforeinput', 'submit', 'dragstart', 'drop', 'wheel', 'touchmove']) {
+    window.addEventListener(type, blockLoadingInput, {capture:true, passive:false});
+  }
+
+  /** Locks immediately and releases only after all foreground requests and their render continuations settle. */
   function beginTask(message = '불러오는 중…') {
-    pendingTasks++;
+    const task = Symbol('loading');
+    pendingTasks.set(task, message);
     let indicator = document.querySelector('#workspace-activity');
     if (!indicator) {
-      indicator = document.createElement('div');
+      indicator = document.createElement('dialog');
       indicator.id = 'workspace-activity';
       indicator.className = 'workspace-activity';
-      indicator.setAttribute('role', 'status');
-      indicator.setAttribute('aria-live', 'polite');
-      indicator.hidden = true;
-      indicator.innerHTML = '<span class="workspace-activity-track" aria-hidden="true"></span><span class="workspace-activity-message"></span>';
+      indicator.setAttribute('aria-modal', 'true');
+      indicator.setAttribute('aria-labelledby', 'workspace-loading-title');
+      indicator.setAttribute('aria-describedby', 'workspace-loading-detail');
+      indicator.tabIndex = -1;
+      indicator.innerHTML = '<div class="workspace-loading-content" role="status" aria-live="polite" aria-atomic="true"><span class="workspace-loading-spinner" aria-hidden="true"></span><strong id="workspace-loading-title" class="workspace-activity-message"></strong><span id="workspace-loading-detail">잠시만 기다려 주세요.</span></div>';
+      indicator.addEventListener('cancel', event => event.preventDefault());
       document.body.append(indicator);
     }
     indicator.querySelector('.workspace-activity-message').textContent = message;
-    clearTimeout(activityTimer);
     clearTimeout(activityHideTimer);
-    if (indicator.hidden) activityTimer = setTimeout(() => { if (pendingTasks) { indicator.hidden = false; activityShownAt = Date.now(); } }, 220);
+    if (!activityLocked) {
+      activityFocus = document.activeElement;
+      activityLocked = true;
+      document.documentElement.dataset.loading = 'true';
+      lockBackground(indicator);
+      activityObserver = new MutationObserver(() => lockBackground(indicator));
+      activityObserver.observe(document.body, {childList:true});
+      if (typeof indicator.showModal === 'function') indicator.showModal();
+      else indicator.setAttribute('open', '');
+      indicator.focus({preventScroll:true});
+    }
     let ended = false;
     return () => {
       if (ended) return;
       ended = true;
-      pendingTasks = Math.max(0, pendingTasks - 1);
-      if (!pendingTasks) {
-        clearTimeout(activityTimer);
-        activityHideTimer = setTimeout(() => { if (!pendingTasks) indicator.hidden = true; }, indicator.hidden ? 0 : Math.max(0, 400 - (Date.now() - activityShownAt)));
+      pendingTasks.delete(task);
+      if (pendingTasks.size) {
+        indicator.querySelector('.workspace-activity-message').textContent = [...pendingTasks.values()].at(-1);
+      } else {
+        // The API's awaiting caller renders in a microtask before this unlock.
+        activityHideTimer = setTimeout(() => {
+          if (pendingTasks.size) return;
+          activityObserver.disconnect();
+          for (const [element, wasInert] of inertElements) {
+            if (!wasInert) element.removeAttribute('inert');
+          }
+          inertElements.clear();
+          activityLocked = false;
+          delete document.documentElement.dataset.loading;
+          if (typeof indicator.close === 'function') indicator.close();
+          else indicator.removeAttribute('open');
+          if (activityFocus?.isConnected && !activityFocus.closest('[inert]') && !activityFocus.disabled) activityFocus.focus({preventScroll:true});
+          activityFocus = null;
+        }, 0);
       }
     };
   }

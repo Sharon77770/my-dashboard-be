@@ -16,6 +16,16 @@ class AssistantConnectionJsonTest {
   @Autowired ObjectMapper json;
 
   @Test
+  void preservesAccountIdentityAcrossHelperBoundary() throws Exception {
+    var message =
+        json.readValue(
+            "{\"result\":{\"assistant\":{\"authenticated\":true,\"email\":\"account@example.com\",\"accountType\":\"chatgpt\",\"plan\":\"plus\"}}}",
+            StudioAdapter.Message.class);
+    assertThat(message.result().assistant().email()).isEqualTo("account@example.com");
+    assertThat(message.result().assistant().accountType()).isEqualTo("chatgpt");
+  }
+
+  @Test
   void preservesMcpToolIdentityInStreamedEvents() throws Exception {
     var frame =
         json.readTree(

@@ -66,6 +66,23 @@ public final class ServiceDto {
 
   public record RuntimeOutput(String output) {}
 
+  public record LogHistory(
+      String serviceId,
+      String resourceId,
+      String deviceId,
+      String container,
+      String since,
+      String until,
+      String filter,
+      String output,
+      long scannedLines,
+      long matchedLines,
+      boolean truncated,
+      boolean scanComplete,
+      String firstTimestamp,
+      String lastTimestamp,
+      String retentionNotice) {}
+
   public record Health(String state, List<Signal> signals, long checkedAt) {}
 
   public record Activity(

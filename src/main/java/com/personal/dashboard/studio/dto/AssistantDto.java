@@ -96,6 +96,8 @@ public final class AssistantDto {
       String effort,
       Boolean authenticated,
       String plan,
+      String email,
+      String accountType,
       List<Skill> skills,
       List<Connection> connections,
       List<RateLimit> rateLimits,

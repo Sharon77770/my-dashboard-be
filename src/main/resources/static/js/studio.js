@@ -85,7 +85,7 @@
     try {
       let job=await ui.api('/studio/jobs','POST',{...context,action,args}); jobId=job.id;
       while(job.state === 'RUNNING') {
-        await new Promise(resolve=>setTimeout(resolve,650));
+        await (window.WorkspaceRealtime?.waitForJob(job.id,650)||new Promise(resolve=>setTimeout(resolve,650)));
         job=await ui.api(`/studio/jobs/${job.id}`);
         renderEvents(job.events);
       }
@@ -132,7 +132,7 @@
     const base=selectedDeviceRoot(),value=$('#studio-root').value.trim()||base;
     if(!base)return null;
     let job=await ui.api('/studio/jobs','POST',{deviceId:$('#studio-device').value,root:base,action:'list',args:{path:relativeFolderPath(value,base)}});
-    while(job.state==='RUNNING'){await new Promise(resolve=>setTimeout(resolve,250));job=await ui.api('/studio/jobs/'+job.id);}
+    while(job.state==='RUNNING'){await (window.WorkspaceRealtime?.waitForJob(job.id,250)||new Promise(resolve=>setTimeout(resolve,250)));job=await ui.api('/studio/jobs/'+job.id);}
     if(job.state!=='SUCCEEDED')throw new Error(job.error||'폴더 목록을 불러오지 못했습니다.');
     return job.result;
   }
@@ -232,7 +232,7 @@
       if(action==='git-identity') {await input('이 저장소의 커밋 작성자',[{name:'name',label:'이름',max:200},{name:'email',label:'이메일',max:200}],args=>execute(action,args));return;}
       if(action==='git-remote') {await input('origin 원격 저장소 설정',[{name:'url',label:'HTTPS 또는 SSH 저장소 주소',max:2048}],args=>execute(action,args));return;}
       if(action.startsWith('git-')) {if(dirty() && action==='git-pull')throw new Error('편집 내용을 먼저 저장해 주세요.');if(action==='git-push' && !await confirmChange('현재 브랜치의 커밋을 원격 저장소로 Push할까요?'))return;await execute(action,path?{path}:{});await refreshGit();return;}
-      if(action.startsWith('codex-')) {if(action==='codex-logout' && !await confirmChange('이 서버 계정의 Codex에서 로그아웃할까요?'))return;const result=await execute(action);updateAuth(result.authenticated);return;}
+      if(action.startsWith('codex-')) {if(action==='codex-logout' && !await confirmChange('이 서버 계정의 Codex에서 로그아웃할까요?'))return;const result=await execute(action);updateAuth(result.authenticated);if(action==='codex-logout')codex.account({authenticated:false});else if(action==='codex-login')await codex.refreshAccount();return;}
     });
   }
   function updateAuth(authenticated){authKnown=authenticated!==null;$('#studio-auth').textContent=authenticated===null?'인증 확인 전':authenticated?'CLI 인증됨':'로그인 필요';$('#studio-auth-cta').hidden=authenticated!==false;root.querySelectorAll('.ui-menu [data-studio="codex-login"]').forEach(button=>button.hidden=authenticated!==false);$('[data-studio="codex-logout"]').hidden=authenticated!==true;}

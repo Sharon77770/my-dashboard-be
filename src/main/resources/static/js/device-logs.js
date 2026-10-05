@@ -34,7 +34,10 @@ window.WorkspaceLogs = (() => {
           const view=await ui.api(`/studio/jobs/${created.id}`);
           if(version!==generation)return;
           onUpdate(view);
-          if(['QUEUED','RUNNING'].includes(view.state))timer=setTimeout(poll,400);
+          if(['QUEUED','RUNNING'].includes(view.state)){
+            if(window.WorkspaceRealtime)window.WorkspaceRealtime.waitForJob(created.id,400).then(()=>{if(version===generation)poll();});
+            else timer=setTimeout(poll,400);
+          }
           else{job=null;controls(false);if(view.state==='FAILED')status(view.error||'로그 조회에 실패했습니다.');else if(view.state==='CANCELLED')status('중지됨 · 다시 시작할 수 있습니다.');}
         }catch(error){if(version===generation){await stop().catch(()=>{});status(error.message);}}
       };

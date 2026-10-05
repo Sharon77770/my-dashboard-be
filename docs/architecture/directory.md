@@ -1,5 +1,13 @@
 # 디렉토리
 
+- `studio/controller/DeviceCodexController.java`, `studio/dto/DeviceCodexDto.java`: 장비 Codex 전용 요청 경계. 기존 Studio service/adapter 실행기를 공유한다.
+- `static/js/device-codex.js`, `static/css/device-codex.css`: 장비 선택·CLI 준비·인증·대화 화면. 공통 `studio-codex.js` 패널을 재사용한다.
+- `docs/device-codex.md`: 장비별 저장소, 권한, 설치와 사용 흐름.
+
+- `services/service/ServiceLogService.java`: 저장된 서비스 연결·시간 구간 검증과 로그 응답 조합.
+- `services/adapter/ServiceLogAdapter.java`, `studio/service_logs.py`: 기존 CommandAdapter/SSH를 통한 제한된 Docker 로그 수집과 인증정보 가림.
+- `tools/deployment/ssh-codex-test.*`, `docker-log-test-proxy.py`, `service-log-fixture.sh`: 로컬 SSH 실접속 회귀 검사 환경. 중계기는 테스트 컨테이너 하나의 읽기 API만 허용한다.
+
 `docker/tailscale/start.sh`는 공식 이미지의 tailscaled를 유지하고 인증을 별도 시도한다. 로그인 대기/거부는 공유 네트워크를 종료하지 않는다.
 
 
@@ -131,3 +139,20 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 - `telemetry/{controller,service,repository,dto}`: OWNER service management/analytics와 별도 service-key ingestion, SQLite raw/hourly aggregates.
 - `static/js/telemetry.js`, `static/css/telemetry.css`: Telemetry 앱과 Integration 화면, 반응형 분석 카드.
 - `db/migrations/V6__telemetry.sql`: 서비스/API key hash/event/gauge/hourly aggregate schema.
+## 실시간 UI
+
+- `realtime/service/WorkspaceEvents.java`: 영역 무효화와 세션별 작업 알림 묶음 처리.
+- `realtime/controller/WorkspaceChangeFilter.java`: 성공한 REST 변경/MCP 완료를 화면 재조회 영역으로 변환.
+- `realtime/controller/WorkspaceSocketHandler.java`, `realtime/WorkspaceRealtimeConfiguration.java`: OWNER 세션·same-origin 연결, 제한, 세션 종료 정리.
+- `static/js/realtime.js`: 단일 소켓, 재접속·누락 복구·작업 알림 대기.
+- `static/js/live-dom.js`: 키 기반 부분 DOM 갱신과 편집 상태 보존.
+- `docs/realtime-ui.md`: 갱신 범위, 예외, 운영 및 검증 계약.
+
+## 병역 캘린더
+
+- `military/controller`, `military/service`, `military/repository`: OWNER HTTP 계약, 유스케이스, SQLite 접근.
+- `military/domain/MilitaryDates.java`, `ServiceType.java`, `MilitaryEventKind.java`: 서울 날짜 계산과 복무·일정 종류.
+- `military/entity/MilitaryRecords.java`, `military/dto/MilitaryDto.java`: 저장 모델과 요청·응답 모델.
+- `db/migrations/V10__military_calendar.sql`: 개인 복무 프로필과 일정 테이블.
+- `static/js/military.js`, `static/css/military.css`: 실시간 현황·월간 달력·휴가·복무 정보 폼.
+- `docs/military-calendar.md`: 사용법, 계산 기준, 참고 자료와 검증 범위.

@@ -2,6 +2,7 @@ package com.personal.dashboard.services.controller;
 
 import com.personal.dashboard.services.dto.ServiceDto;
 import com.personal.dashboard.services.service.ServiceCatalogService;
+import com.personal.dashboard.services.service.ServiceLogService;
 import com.personal.dashboard.services.service.ServiceRuntimeService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -16,10 +17,13 @@ import org.springframework.web.bind.annotation.*;
 public class ServiceCatalogController {
   private final ServiceCatalogService services;
   private final ServiceRuntimeService runtime;
+  private final ServiceLogService logs;
 
-  public ServiceCatalogController(ServiceCatalogService services, ServiceRuntimeService runtime) {
+  public ServiceCatalogController(
+      ServiceCatalogService services, ServiceRuntimeService runtime, ServiceLogService logs) {
     this.services = services;
     this.runtime = runtime;
+    this.logs = logs;
   }
 
   @GetMapping
@@ -92,6 +96,18 @@ public class ServiceCatalogController {
     return ResponseEntity.ok()
         .cacheControl(org.springframework.http.CacheControl.noStore())
         .body(runtime.logs(id, resourceId));
+  }
+
+  @GetMapping("/{id}/resources/{resourceId}/log-history")
+  public ResponseEntity<ServiceDto.LogHistory> logHistory(
+      @PathVariable String id,
+      @PathVariable String resourceId,
+      @RequestParam String since,
+      @RequestParam String until,
+      @RequestParam(defaultValue = "errors") String filter) {
+    return ResponseEntity.ok()
+        .cacheControl(org.springframework.http.CacheControl.noStore())
+        .body(logs.read(id, resourceId, since, until, filter));
   }
 
   @PostMapping("/{id}/resources/{resourceId}/actions")

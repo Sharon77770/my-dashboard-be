@@ -38,7 +38,7 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.remove('show'), 5500);
   }
   async function api(path, method = 'GET', body, options = {}) {
-    const isBackgroundRequest = options.quiet || path.startsWith('/assistant/events?') || path.startsWith('/studio/jobs/');
+    const isBackgroundRequest = options.quiet || path.startsWith('/assistant/events?') || path.startsWith('/assistant/jobs/') || path.startsWith('/studio/jobs/') || /^\/devices\/[^/]+\/codex\/jobs\//.test(path);
     const finishTask = isBackgroundRequest ? () => {} : window.WorkspaceUI.beginTask(method === 'GET' ? '데이터를 불러오는 중…' : '변경사항을 저장하는 중…');
     try {
     const headers = {};
@@ -61,7 +61,7 @@
       const clipsChanged = JSON.stringify(state.clips) !== JSON.stringify(nextState.clips);
       state = nextState;
       if (activityChanged) {
-        $('#all-recent').innerHTML = recent(state.activity);
+        paint($('#all-recent'), recent(state.activity));
         window.WorkspaceLauncher?.updateActivity(state);
       }
       if (clipsChanged) renderClips();
@@ -82,8 +82,9 @@
   function recent(items) {
     return items.map(item => `<button ${openAttrs(item.kind,item.targetId,item.path || '/')}><span class="type">${icons[item.kind] || '◇'}</span><span class="main-copy"><b>${escape(item.label)}</b><small>${escape(item.path || labels[item.kind])}</small></span><time>${timestamp(item.occurredAt)}</time></button>`).join('') || empty('아직 실행한 작업이 없습니다.');
   }
+  const paint=(target,html)=>window.WorkspaceLiveDOM?window.WorkspaceLiveDOM.patch(target,html):target.innerHTML=html;
   function renderClips() {
-    $('#clip-list').innerHTML = state.clips.filter(item => item.expiresAt > Date.now()).map(item => `<div class="clip-item"><button data-action="clip-view" data-id="${item.id}"><b>${escape(item.content)}</b><small>${Math.max(1,Math.ceil((item.expiresAt-Date.now())/60000))}분 후 만료</small></button><button data-action="clip-delete" data-id="${item.id}" aria-label="삭제">×</button></div>`).join('') || empty('텍스트를 저장해 다른 세션에서 이어 쓰세요.');
+    paint($('#clip-list'), state.clips.filter(item => item.expiresAt > Date.now()).map(item => `<div class="clip-item"><button data-action="clip-view" data-id="${item.id}"><b>${escape(item.content)}</b><small>${Math.max(1,Math.ceil((item.expiresAt-Date.now())/60000))}분 후 만료</small></button><button data-action="clip-delete" data-id="${item.id}" aria-label="삭제">×</button></div>`).join('') || empty('텍스트를 저장해 다른 세션에서 이어 쓰세요.'));
   }
   function render() {
     document.documentElement.dataset.theme = state.preferences.theme;
@@ -91,19 +92,19 @@
     $('meta[name=theme-color]').content=window.WorkspaceUI.token('bg-app');
     for (const runtime of runtimes.values()) if (runtime.terminal) {runtime.terminal.options.fontSize = state.preferences.terminalFont; runtime.terminal.options.theme=window.WorkspaceUI.terminalTheme();}
     window.WorkspaceLauncher?.sync(state,statuses);
-    $('#all-recent').innerHTML = recent(state.activity);
+    paint($('#all-recent'), recent(state.activity));
     renderClips();
-    $('#device-grid').innerHTML = state.devices.map(item => {
+    paint($('#device-grid'), state.devices.map(item => {
       const status = statuses.get(item.id);
       const stateTone=status?.state==='ONLINE'?'success':status?.state==='OFFLINE'?'danger':'warning';
       const stateLabel=status?.state==='ONLINE'?'온라인':status?.state==='OFFLINE'?'오프라인':'미확인';
-      return `<article class="device-card"><header><div><span class="ui-status" data-state="${stateTone}">${stateLabel}</span><b>${escape(item.name)}</b></div><small>${escape(item.host)}${item.networkMode==='TAILSCALE'?' · Tailscale':''}</small></header><div class="metrics">${metricTile('CPU',status?.cpu,'cpu')}${metricTile('RAM',status?.memory,'memory')}${metricTile('Disk',status?.disk,'disk')}</div><details class="device-extra"><summary>상태 상세</summary><p>${escape(status?.details || '새로고침으로 상태를 확인하세요.')}</p></details><footer><button ${openAttrs('TERMINAL',item.id)}>${item.id === 'local' ? '셸' : 'SSH'}</button><button ${openAttrs('FILES',item.id)}>파일</button><button ${openAttrs('DOCKER',item.id)}>Docker</button><button ${openAttrs('GPU',item.id)}>GPU</button>${item.remoteProtocol !== 'NONE' ? `<button ${openAttrs('REMOTE',item.id)}>원격</button>` : ''}<button data-action="device-logs" data-id="${escape(item.id)}">로그</button><button data-action="status" data-id="${item.id}">새로고침</button>${item.id !== 'local' ? `<button data-action="remote-setup" data-id="${item.id}">원격 자동 연결</button><button data-action="device-edit" data-id="${item.id}">설정</button><button data-action="wake" data-id="${item.id}">Wake</button><button data-action="device-delete" data-id="${item.id}" class="danger">삭제</button>` : ''}</footer></article>`;
-    }).join('');
+      return `<article class="device-card" data-live-key="${escape(item.id)}"><header><div><span class="ui-status" data-state="${stateTone}">${stateLabel}</span><b>${escape(item.name)}</b></div><small>${escape(item.host)}${item.networkMode==='TAILSCALE'?' · Tailscale':''}</small></header><div class="metrics">${metricTile('CPU',status?.cpu,'cpu')}${metricTile('RAM',status?.memory,'memory')}${metricTile('Disk',status?.disk,'disk')}</div><details class="device-extra"><summary>상태 상세</summary><p>${escape(status?.details || '새로고침으로 상태를 확인하세요.')}</p></details><footer><button ${openAttrs('TERMINAL',item.id)}>${item.id === 'local' ? '셸' : 'SSH'}</button><button ${openAttrs('FILES',item.id)}>파일</button><button ${openAttrs('DOCKER',item.id)}>Docker</button><button ${openAttrs('GPU',item.id)}>GPU</button>${item.remoteProtocol !== 'NONE' ? `<button ${openAttrs('REMOTE',item.id)}>원격</button>` : ''}<button data-action="device-logs" data-id="${escape(item.id)}">로그</button><button data-action="status" data-id="${item.id}">새로고침</button>${item.id !== 'local' ? `<button data-action="device-codex" data-id="${escape(item.id)}">Codex</button><button data-action="remote-setup" data-id="${item.id}">원격 자동 연결</button><button data-action="device-edit" data-id="${item.id}">설정</button><button data-action="wake" data-id="${item.id}">Wake</button><button data-action="device-delete" data-id="${item.id}" class="danger">삭제</button>` : ''}</footer></article>`;
+    }).join(''));
     for (const [container,kind] of [['file-choices','FILES'],['terminal-choices','TERMINAL'],['remote-choices','REMOTE']]) {
-      $(`#${container}`).innerHTML = state.devices.filter(item => kind !== 'REMOTE' || item.remoteProtocol !== 'NONE').map(item => `<button class="device-card choice" ${openAttrs(kind,item.id)}><span class="type">${icons[kind]}</span><b>${escape(item.name)}</b><small>${escape(item.host)}</small></button>`).join('') || empty('장비 설정에서 RDP 또는 VNC 접속을 추가해 주세요.');
+      paint($(`#${container}`), state.devices.filter(item => kind !== 'REMOTE' || item.remoteProtocol !== 'NONE').map(item => `<button class="device-card choice" ${openAttrs(kind,item.id)}><span class="type">${icons[kind]}</span><b>${escape(item.name)}</b><small>${escape(item.host)}</small></button>`).join('') || empty('장비 설정에서 RDP 또는 VNC 접속을 추가해 주세요.'));
     }
     $('#browser-mode').textContent = `앱 실행 위치: ${modes[state.browserSettings.mode]}`;
-    $('#apps-list').innerHTML = state.applications.map(item => `<div class="app-item"><button ${openAttrs('APP',item.id)}><span class="app-icon">${escape(item.name.slice(0,3))}</span><span><b>${escape(item.name)} ${item.pinned ? '★' : ''}</b><small>${escape(item.url)}</small></span><em>${modes[state.browserSettings.mode]}</em></button><button data-action="app-edit" data-id="${item.id}" aria-label="앱 설정">⚙</button><button data-action="app-delete" data-id="${item.id}" aria-label="앱 삭제">×</button></div>`).join('') || empty('앱 추가로 자주 사용하는 웹사이트를 등록하세요.');
+    paint($('#apps-list'), state.applications.map(item => `<div class="app-item"><button ${openAttrs('APP',item.id)}><span class="app-icon">${escape(item.name.slice(0,3))}</span><span><b>${escape(item.name)} ${item.pinned ? '★' : ''}</b><small>${escape(item.url)}</small></span><em>${modes[state.browserSettings.mode]}</em></button><button data-action="app-edit" data-id="${item.id}" aria-label="앱 설정">⚙</button><button data-action="app-delete" data-id="${item.id}" aria-label="앱 삭제">×</button></div>`).join('') || empty('앱 추가로 자주 사용하는 웹사이트를 등록하세요.'));
     renderTabs();
   }
   async function checkStatus(id, options = {}) {
@@ -116,7 +117,7 @@
       const label = $('.ui-status', card);
       label.textContent = stateLabel;
       label.dataset.state = stateTone;
-      $('.metrics', card).innerHTML = metricTile('CPU', status.cpu, 'cpu') + metricTile('RAM', status.memory, 'memory') + metricTile('Disk', status.disk, 'disk');
+      paint($('.metrics', card), metricTile('CPU', status.cpu, 'cpu') + metricTile('RAM', status.memory, 'memory') + metricTile('Disk', status.disk, 'disk'));
       $('.device-extra p', card).textContent = status.details || '새로고침으로 상태를 확인하세요.';
     }
     window.WorkspaceLauncher?.updateStatuses(statuses);
@@ -133,7 +134,9 @@
     window.WorkspaceLogs?.open(id).catch(error=>toast(error.message));
     $('#palette-dialog').close();$('#app-switcher').close();
     window.WorkspacePlanner?.open(id).catch(error=>toast(error.message));
+    window.WorkspaceMilitary?.open(id).catch(error=>toast(error.message));
     window.WorkspaceStudio?.open(id).catch(error=>toast(error.message));
+    window.WorkspaceDeviceCodex?.open(id).catch(error=>toast(error.message));
     window.WorkspaceGithub?.open(id)?.catch(error=>toast(error.message));
     window.WorkspaceTelemetry?.open(id);
     window.WorkspaceServices?.open(id);
@@ -162,7 +165,7 @@
     const home='<article class="os-task '+(!activeTab&&activeView==='home'?'active':'')+'"><button class="os-task-open" data-view="home"><span class="os-task-icon">'+icon('home')+'</span><b>홈</b><small>앱과 위젯</small></button></article>';
     const pages=pageTabs.map(id=>{const app=appRegistry.get(id);if(!app)return '';return '<article class="os-task '+(!activeTab&&activeView===id?'active':'')+'"><button class="os-task-open" data-view="'+escape(id)+'" aria-current="'+(!activeTab&&activeView===id)+'"><span class="os-task-icon">'+icon(app.icon)+'</span><b>'+escape(app.name)+'</b><small>'+(!activeTab&&activeView===id?'현재 화면':'다시 열기')+'</small></button><button class="os-task-close" data-action="page-close" data-id="'+escape(id)+'" aria-label="'+escape(app.name)+' 닫기">×</button></article>';}).join('');
     const sessions=tabs.map(tab=>'<article class="os-task '+(activeTab===tab.id?'active':'')+'"><button class="os-task-open" data-tab="'+escape(tab.id)+'" aria-current="'+(activeTab===tab.id)+'"><span class="os-task-icon">'+icon({TERMINAL:'terminal',FILES:'files',REMOTE:'remote',APP:'browser'}[tab.kind]||'apps')+'</span><b>'+escape(tab.title)+'</b><small>'+ (runtimes.get(tab.id)?.connected?'연결됨':'저장된 세션')+'</small></button><button class="os-task-pin" data-action="tab-pin" data-id="'+escape(tab.id)+'" aria-label="세션 고정" aria-pressed="'+Boolean(tab.pinned)+'">'+(tab.pinned?'◆':'◇')+'</button><button class="os-task-close" data-action="tab-close" data-id="'+escape(tab.id)+'" aria-label="'+escape(tab.title)+' 닫기">×</button></article>').join('');
-    $('#switcher-apps').innerHTML=home+pages+sessions;
+    paint($('#switcher-apps'),home+pages+sessions);
     $('#mobile-current-app').textContent=activeTab?tabs.find(tab=>tab.id===activeTab)?.title||'작업':appRegistry.get(activeView)?.name||'홈';
     document.body.dataset.activeView=activeTab?'runtime':activeView;
     document.body.dataset.runtimeFocus=String(Boolean(activeTab&&['TERMINAL','REMOTE','FILES'].includes(tabs.find(tab=>tab.id===activeTab)?.kind)));
@@ -440,6 +443,7 @@
         case 'device-add':connectDevice();break;
         case 'device-manual':editDevice();break;
         case 'device-logs':window.WorkspaceLogs?.select(id);showView('logs');break;
+        case 'device-codex':window.WorkspaceDeviceCodex?.select(id);showView('device-codex');break;
         case 'remote-setup':window.WorkspaceRemoteSetup.open(id,{api,editor,refresh,connect:()=>openResource('REMOTE',id,'/',true)});break;
         case 'device-edit':editDevice(id);break;
         case 'app-add':editApp();break;
@@ -461,6 +465,7 @@
   for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('click',event=>{if(event.target===dialog){const box=dialog.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)dialog.close();}});
   window.addEventListener('beforeunload',()=>{for(const runtime of runtimes.values()){runtime.socket?.close();runtime.guacamole?.disconnect();}});
   window.WorkspacePlanner?.init({api,editor,fields,escape,toast,confirmAction});
+  window.WorkspaceMilitary?.init({api,editor,fields,escape,toast,confirmAction});
   window.WorkspaceLogs?.init({api,escape,toast});
   window.WorkspaceNotes?.init({api,escape,toast,editor,confirmAction});
   window.WorkspaceCloud?.init({api,escape,toast,editor,confirmAction});
@@ -468,11 +473,47 @@
   window.WorkspaceTailscale?.init({api,confirmAction});
   window.addEventListener('DOMContentLoaded', () => window.WorkspaceGithub?.init({api}));
   window.addEventListener('DOMContentLoaded', () => window.WorkspaceStudio?.init({api,editor,escape,toast,confirmAction,openTerminal: id=>openResource('TERMINAL',id)}));
+  window.addEventListener('DOMContentLoaded', () => window.WorkspaceDeviceCodex?.init({api,editor,escape,toast,confirm:message=>window.WorkspaceAssistantRuntime.confirm(message)}));
   window.WorkspaceLauncher.init({api,editor,toast,state:()=>state,showHome:()=>showView('home')});
   window.WorkspaceAssistantRuntime={
     api,editor,toast,
     confirm(message){return new Promise(resolve=>{let accepted=false;const dialog=$('#editor-dialog');dialog.addEventListener('close',()=>resolve(accepted),{once:true});editor('Codex 확인',`<p>${escape(message)}</p>`,async()=>{accepted=true;},'확인');});}
   };
   window.visualViewport?.addEventListener('resize',()=>{document.documentElement.style.setProperty('--viewport-height',window.visualViewport.height+'px');for(const runtime of runtimes.values()){runtime.fit?.fit();runtime.scale?.();}});
-  render();refreshStatuses({quiet:true});setInterval(()=>{if(!document.hidden)refresh({quiet:true}).catch(error=>toast(error.message));},60000);
+  // Coalesce bursts and serialize refreshes. Foreground operations finish before live updates.
+  const liveTopics=new Set();let liveRunning=false,liveTimer;
+  function queueLive(topics){
+    topics.forEach(topic=>liveTopics.add(topic));
+    if(!liveTopics.size||liveRunning||liveTimer)return;
+    liveTimer=setTimeout(drainLive,180);
+  }
+  async function drainLive(){
+    liveTimer=null;
+    if(document.hidden)return;
+    if(document.documentElement.dataset.loading==='true'){liveTimer=setTimeout(drainLive,250);return;}
+    const topics=new Set(liveTopics);liveTopics.clear();liveRunning=true;
+    const all=topics.has('all'), changed=name=>all||topics.has(name);
+    try{
+      if(changed('workspace')||changed('devices'))await refresh({quiet:true});
+      if(!activeTab){
+        const view=activeView;
+        const updates=[];
+        if(['home','devices'].includes(view)&&(all||topics.has('devices')))updates.push(refreshStatuses({quiet:true}));
+        if(view==='home')updates.push(window.WorkspaceLauncher?.refreshWidgets({quiet:true}));
+        if(['calendar','timetable'].includes(view)&&changed(view==='timetable'?'timetables':'calendar'))updates.push(window.WorkspacePlanner?.refresh(view));
+        const modules={services:'Services',telemetry:'Telemetry',notes:'Notes',databases:'Databases',github:'Github',cloud:'Cloud',military:'Military'};
+        if(modules[view]&&changed(view))updates.push(window['Workspace'+modules[view]]?.refresh?.());
+        const results=await Promise.allSettled(updates);
+        if(results.some(result=>result.status==='rejected'))markLiveStale();
+      }
+    }catch{markLiveStale();}
+    finally{liveRunning=false;if(liveTopics.size)queueLive([]);}
+  }
+  function markLiveStale(){const label=$('#workspace-live');if(label){label.textContent='갱신 재시도 중';label.dataset.state='stale';}}
+  window.addEventListener('workspace:invalidate',event=>queueLive(event.detail.topics));
+  window.addEventListener('workspace:heartbeat',()=>queueLive(['all']));
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)queueLive(['all']);});
+  render();refreshStatuses({quiet:true});
+  setInterval(()=>{if(!document.hidden&&!window.WorkspaceRealtime?.connected())queueLive(['all']);},60000);
+  window.WorkspaceRealtime?.start();
 })();

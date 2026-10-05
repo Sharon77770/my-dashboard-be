@@ -26,7 +26,9 @@ public final class PlannerDto {
       boolean allDay,
       String location,
       String notes,
-      String color) {}
+      String color,
+      String source,
+      String sourceId) {}
 
   public record TermRequest(
       @NotBlank @Size(max = 80) String name, @NotNull LocalDate start, @NotNull LocalDate end) {}

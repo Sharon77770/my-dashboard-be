@@ -2,6 +2,7 @@ package com.personal.dashboard.studio.service;
 
 import com.personal.dashboard.catalog.service.CatalogService;
 import com.personal.dashboard.global.WorkspaceException;
+import com.personal.dashboard.realtime.service.WorkspaceEvents;
 import com.personal.dashboard.studio.adapter.StudioAdapter;
 import com.personal.dashboard.studio.dto.AssistantDto;
 import com.personal.dashboard.studio.dto.StudioDto.*;
@@ -65,12 +66,14 @@ public class StudioService {
   private static final Set<String> AUTH_ACTIONS = Set.of("github-login", "github-status");
   private final CatalogService catalog;
   private final StudioAdapter adapter;
+  private final WorkspaceEvents events;
   private final Map<String, Job> jobs = new LinkedHashMap<>();
   private final ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
 
-  public StudioService(CatalogService catalog, StudioAdapter adapter) {
+  public StudioService(CatalogService catalog, StudioAdapter adapter, WorkspaceEvents events) {
     this.catalog = catalog;
     this.adapter = adapter;
+    this.events = events;
   }
 
   public synchronized JobView start(String owner, Request input) {
@@ -83,6 +86,21 @@ public class StudioService {
   }
 
   private JobView start(String owner, Request input, boolean assistant) {
+    return start(owner, input, assistant, null);
+  }
+
+  /** Device management uses a separate remote Codex home and job access boundary. */
+  public synchronized JobView startDevice(String owner, Request input) {
+    if (input.deviceId().equals("local")
+        || !(input.action().equals("setup")
+            || input.action().startsWith("codex-")
+            || AUTH_ACTIONS.contains(input.action())))
+      throw new WorkspaceException(400, "장비 Codex는 등록한 SSH 장비의 Codex 작업만 지원합니다.");
+    if (!input.root().startsWith("/")) throw new WorkspaceException(400, "장비 작업 폴더는 절대 경로로 입력하세요.");
+    return start(owner, input, false, input.deviceId());
+  }
+
+  private JobView start(String owner, Request input, boolean assistant, String deviceScope) {
     if (!ACTIONS.contains(input.action()) && !AUTH_ACTIONS.contains(input.action()))
       throw new WorkspaceException(400, "지원하지 않는 작업 또는 입력 크기입니다.");
     if (input.args() != null && input.args().context() != null) {
@@ -117,12 +135,14 @@ public class StudioService {
       if (oldest.isEmpty()) break;
       jobs.remove(oldest.get().id);
     }
-    var job = new Job(owner, input.action(), assistant);
+    var job = new Job(owner, input.action(), assistant, deviceScope, events);
     jobs.put(job.id, job);
     workers.submit(
         () -> {
           try {
-            if (assistant) adapter.executeAssistant(device, input, job.execution, job::accept);
+            if (deviceScope != null)
+              adapter.executeDeviceCodex(device, input, job.execution, job::accept);
+            else if (assistant) adapter.executeAssistant(device, input, job.execution, job::accept);
             else adapter.execute(device, input, job.execution, job::accept);
             job.finish();
           } catch (WorkspaceException exception) {
@@ -138,12 +158,28 @@ public class StudioService {
     return owned(owner, id).view();
   }
 
+  public synchronized JobView getDevice(String owner, String deviceId, String id) {
+    return owned(owner, id, deviceId).view();
+  }
+
+  public synchronized void cancelDevice(String owner, String deviceId, String id) {
+    owned(owner, id, deviceId).cancel();
+  }
+
+  public synchronized void controlDevice(
+      String owner, String deviceId, String id, AssistantDto.Control input) {
+    control(owned(owner, id, deviceId), input);
+  }
+
   public synchronized void cancel(String owner, String id) {
     owned(owner, id).cancel();
   }
 
   public synchronized void control(String owner, String id, AssistantDto.Control input) {
-    var job = owned(owner, id);
+    control(owned(owner, id), input);
+  }
+
+  private void control(Job job, AssistantDto.Control input) {
     if (!job.running()
         || !Set.of("codex-run", "codex-review", "codex-thread-compact").contains(job.action))
       throw new WorkspaceException(409, "실행 중인 Codex 작업만 입력을 받을 수 있습니다.");
@@ -151,8 +187,12 @@ public class StudioService {
   }
 
   private Job owned(String owner, String id) {
+    return owned(owner, id, null);
+  }
+
+  private Job owned(String owner, String id, String deviceScope) {
     var job = jobs.get(id);
-    if (job == null || !job.owner.equals(owner))
+    if (job == null || !job.owner.equals(owner) || !Objects.equals(job.deviceScope, deviceScope))
       throw new WorkspaceException(404, "작업을 찾을 수 없습니다.");
     return job;
   }
@@ -188,6 +228,8 @@ public class StudioService {
     final String id = UUID.randomUUID().toString();
     final String owner, action;
     final boolean assistant;
+    final String deviceScope;
+    final WorkspaceEvents notifications;
     final long created = System.currentTimeMillis();
     final StudioAdapter.Execution execution = new StudioAdapter.Execution();
     final List<Event> events = new ArrayList<>();
@@ -196,10 +238,17 @@ public class StudioService {
     Result result;
     int eventBytes;
 
-    Job(String owner, String action, boolean assistant) {
+    Job(
+        String owner,
+        String action,
+        boolean assistant,
+        String deviceScope,
+        WorkspaceEvents notifications) {
       this.owner = owner;
       this.action = action;
       this.assistant = assistant;
+      this.deviceScope = deviceScope;
+      this.notifications = notifications;
     }
 
     synchronized boolean running() {
@@ -208,6 +257,7 @@ public class StudioService {
 
     synchronized void accept(StudioAdapter.Message message) {
       if (!running()) return;
+      notifications.jobChanged(owner, id);
       if (message.error() != null) {
         fail(message.error(), message.status() == null ? 502 : message.status());
         return;
@@ -236,6 +286,7 @@ public class StudioService {
       if (running()) {
         if (result != null) state = "SUCCEEDED";
         else fail("원격 도구가 결과 없이 종료되었습니다. 도구 준비를 다시 실행해 주세요.", 502);
+        notifications.jobChanged(owner, id);
       }
     }
 
@@ -244,6 +295,7 @@ public class StudioService {
         state = "FAILED";
         error = message;
         errorStatus = status;
+        notifications.jobChanged(owner, id);
       }
     }
 
@@ -252,6 +304,7 @@ public class StudioService {
         if (!running()) return;
         state = "CANCELLED";
         error = "작업이 중지되었습니다. 이미 적용된 파일/Git 변경은 유지됩니다.";
+        notifications.jobChanged(owner, id);
       }
       execution.cancel();
     }

@@ -28,11 +28,13 @@
 .view{padding:18px 22px}.view.active{min-height:100%}
 .view.active.view-entering{animation:workspace-view-enter var(--motion-base) var(--motion-ease) both}
 @keyframes workspace-view-enter{from{opacity:.45;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
-.workspace-activity{position:fixed;top:46px;right:18px;z-index:180;min-width:180px;max-width:min(340px,calc(100vw - 24px));padding:10px 14px 10px 29px;border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--bg-elevated);box-shadow:var(--shadow-soft);color:var(--text-secondary);font-size:12px}
-.workspace-activity::before{content:'';position:absolute;left:10px;top:12px;width:11px;height:11px;border:2px solid var(--accent);border-right-color:transparent;border-radius:50%;animation:ui-spin .8s linear infinite}
-.workspace-activity-track{position:absolute;left:0;right:0;bottom:0;height:2px;overflow:hidden;background:var(--accent-subtle)}
-.workspace-activity-track::after{content:'';display:block;width:36%;height:100%;background:var(--accent);animation:workspace-progress 1.2s ease-in-out infinite alternate}
-@keyframes workspace-progress{to{transform:translateX(180%)}}
+.workspace-activity{position:fixed;inset:0;z-index:10000;width:100%;height:100dvh;max-width:none;max-height:none;margin:0;padding:20px;border:0;border-radius:0;background:transparent;color:var(--text-primary);outline:none;overscroll-behavior:contain;touch-action:none}
+.workspace-activity[open]{display:grid;place-items:center}
+.workspace-loading-content{display:flex;flex-direction:column;align-items:center;gap:12px;width:min(320px,100%);padding:28px 24px;text-align:center;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:var(--radius-md);box-shadow:var(--shadow-soft);overflow-wrap:anywhere}
+.workspace-loading-spinner{width:32px;height:32px;margin-bottom:4px;border:3px solid var(--border-default);border-top-color:var(--accent);border-radius:50%;animation:ui-spin .8s linear infinite}
+.workspace-activity-message{font-size:14px;font-weight:600;line-height:1.6}
+#workspace-loading-detail{color:var(--text-secondary);font-size:12px}
+html[data-loading=true],html[data-loading=true] body{overflow:hidden}
 .page-head,.launcher-head{margin-bottom:16px}
 .page-head h1,.launcher-head h1{font-size:17px;line-height:1.3;font-weight:650;letter-spacing:-.02em}
 .eyebrow,.section-hint{display:none}
@@ -79,7 +81,6 @@
  .workspace-bar .ui-menu>summary{min-width:40px;min-height:40px}
  .activity-rail{display:none}
  .main>.content{grid-column:1;grid-row:2}
- .workspace-activity{top:calc(44px + env(safe-area-inset-top));right:8px}
  .os-navigation{grid-column:1;grid-row:3;display:grid;grid-template-columns:repeat(4,1fr);align-items:stretch;padding:0 4px env(safe-area-inset-bottom);border-top:1px solid var(--border-subtle);background:var(--bg-sidebar)}
  .os-navigation button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-height:44px;padding:0;border:0;border-radius:0;background:transparent;color:var(--text-secondary);font-size:19px;line-height:1}
  .os-navigation button[aria-current=page]{color:var(--accent)}
@@ -110,7 +111,7 @@
 }
 @media(max-width:390px){.view,html[data-compact=false] .view{padding-inline:10px}}
 @media(max-width:360px){.view,html[data-compact=false] .view{padding-inline:10px}.workspace-bar{padding-inline:4px}}
-@media(prefers-reduced-motion:reduce){.view.active,.workspace-activity-track::after{animation:none}}
+@media(prefers-reduced-motion:reduce){.view.active,.workspace-loading-spinner{animation:none}}
 
 /* Existing feature selectors keep their behavior while sharing the new workstation density. */
 .assistant-window #assistant-send{background:var(--accent-solid);border-radius:4px}
@@ -144,3 +145,10 @@
  #logs [data-log-output]{padding:4px 0;border:0;font-size:11px}
 }
 @media(max-width:390px){.assistant-window .assistant-messages{padding-inline:7px}}
+.workspace-live{display:inline-flex;align-items:center;gap:5px;color:var(--text-muted);font-size:10px;white-space:nowrap}
+.workspace-live::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--warning)}
+.workspace-live[data-state=connected]::before{background:var(--success)}
+.workspace-live[data-state=expired]::before{background:var(--danger)}
+.telemetry-bar,.telemetry-bar>i{transition:height 240ms ease-out,background-color 180ms ease-out}
+@media(max-width:700px){.workspace-live{max-width:5px;overflow:hidden;font-size:0;gap:0}.workspace-live::before{flex:none}}
+@media(prefers-reduced-motion:reduce){.telemetry-bar,.telemetry-bar>i{transition:none}}

@@ -56,6 +56,14 @@ class ServiceCatalogIntegrationTest {
 
     mvc.perform(get(path + "/runtime")).andExpect(status().isOk());
     mvc.perform(get(resourcePath + "/logs")).andExpect(status().isBadRequest());
+    mvc.perform(get(resourcePath + "/log-history")).andExpect(status().isBadRequest());
+    mvc.perform(
+            get(resourcePath + "/log-history")
+                .param("since", "2026-09-28T00:00:00Z")
+                .param("until", "2026-10-05T00:00:00Z"))
+        .andExpect(status().isBadRequest());
+    assertThat(mcp.tools().stream().map(tool -> tool.get("name")))
+        .contains("get_service_logs", "get_service_runtime");
     mvc.perform(
             post(resourcePath + "/actions")
                 .contentType(MediaType.APPLICATION_JSON)

@@ -134,6 +134,21 @@ public class StudioAdapter {
 
   private void executeForDevice(
       DeviceRecord device, Request request, Execution execution, Consumer<Message> output) {
+    executeForDevice(device, request, execution, output, false);
+  }
+
+  public void executeDeviceCodex(
+      DeviceRecord device, Request request, Execution execution, Consumer<Message> output) {
+    if (device.id().equals("local")) throw new WorkspaceException(400, "장비 Codex에는 SSH 장비가 필요합니다.");
+    executeForDevice(device, request, execution, output, true);
+  }
+
+  private void executeForDevice(
+      DeviceRecord device,
+      Request request,
+      Execution execution,
+      Consumer<Message> output,
+      boolean deviceCodex) {
     String encoded = Base64.getEncoder().encodeToString(program.getBytes(StandardCharsets.UTF_8));
     String python =
         "exec python3 -u -c 'import base64;exec(base64.b64decode(\"" + encoded + "\"))'";
@@ -148,7 +163,13 @@ public class StudioAdapter {
       try (var session = client.startSession();
           var remote = session.exec(command)) {
         exchange(
-            device, request, remote.getOutputStream(), remote.getInputStream(), execution, output);
+            device,
+            request,
+            remote.getOutputStream(),
+            remote.getInputStream(),
+            execution,
+            output,
+            deviceCodex);
       }
     } catch (WorkspaceException exception) {
       throw exception;
@@ -179,7 +200,13 @@ public class StudioAdapter {
       var process = builder.start();
       execution.attach(process);
       exchange(
-          device, request, process.getOutputStream(), process.getInputStream(), execution, output);
+          device,
+          request,
+          process.getOutputStream(),
+          process.getInputStream(),
+          execution,
+          output,
+          false);
     } catch (WorkspaceException exception) {
       throw exception;
     } catch (Exception exception) {
@@ -203,11 +230,13 @@ public class StudioAdapter {
       OutputStream inputStream,
       InputStream outputStream,
       Execution execution,
-      Consumer<Message> output)
+      Consumer<Message> output,
+      boolean deviceCodex)
       throws IOException {
     var input = json.createObjectNode();
     input.put("deviceId", device.id());
-    input.put("base", device.rootPath());
+    input.put("base", deviceCodex ? "/" : device.rootPath());
+    input.put("deviceCodex", deviceCodex);
     input.put("root", request.root());
     input.put("action", request.action());
     input.set(

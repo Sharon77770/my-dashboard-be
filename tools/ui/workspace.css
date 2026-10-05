@@ -9,8 +9,10 @@
 @import "../../src/main/resources/static/css/cloud-drive.css" layer(base);
 @import "../../src/main/resources/static/css/notes.css" layer(base);
 @import "../../src/main/resources/static/css/planner.css" layer(base);
+@import "../../src/main/resources/static/css/military.css" layer(base);
 @import "../../src/main/resources/static/css/studio.css" layer(base);
 @import "../../src/main/resources/static/css/studio-codex.css" layer(base);
+@import "../../src/main/resources/static/css/device-codex.css" layer(base);
 @import "../../src/main/resources/static/css/telemetry.css" layer(base);
 @import "../../src/main/resources/static/css/assistant.css" layer(base);
 @import "../../src/main/resources/static/css/github.css" layer(base);
@@ -38,6 +40,7 @@ button,.button,input,select,textarea{border-radius:var(--radius-sm);}
 .page-head h1,.studio-head h1,.launcher-head h1{@apply [letter-spacing:-.025em] font-semibold;}
 .dialog,.editor-dialog{border-radius:var(--radius-xl);@apply border-subtle shadow-panel;}
 dialog::backdrop{@apply [background:var(--drawer-overlay)] [backdrop-filter:blur(4px)] [-webkit-backdrop-filter:blur(4px)];}
+.workspace-activity::backdrop{background:color-mix(in srgb,var(--bg-app) 35%,transparent);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
 .launcher-home{@apply bg-app;}
 .launcher-shortcut .launcher-icon{border-radius:var(--radius-md);@apply shadow-none;}
 .launcher-dock{@apply shadow-none;}

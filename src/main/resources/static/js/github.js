@@ -102,7 +102,7 @@
     }
   }
   function detailRow(title, detail, kind, id, url, targetRepository = repository) {
-    const row = document.createElement('div'); row.className = 'github-detail-row';
+    const row = document.createElement('div'); row.className = 'github-detail-row';row.dataset.liveKey=kind+':'+targetRepository+':'+id;
     const button = document.createElement('button'); button.type = 'button'; button.className = 'github-row';
     button.dataset.detailKind = kind; button.dataset.detailId = String(id);
     button.dataset.detailRepository = targetRepository;
@@ -172,36 +172,39 @@
     if (token !== viewToken) return;
     renderRepositories(); await renderContent();
   }
-  async function renderContent() {
+  async function renderContent(options={}) {
+    if(options.quiet&&(!formHost.hidden||!$('#github-detail').hidden||busy))return;
+    const get=path=>ui.api(path,'GET',undefined,options);
     const token = ++viewToken;
-    const list = $('#github-items'); list.innerHTML = window.WorkspaceUI.skeleton(3);
+    const list = options.quiet?document.createElement('div'):$('#github-items');
+    if(!options.quiet){list.innerHTML = window.WorkspaceUI.skeleton(3);
     $('#github-detail').hidden = true; $('#github-detail').replaceChildren();
     $('#github-selected').textContent = repository || owner;
     $('#github-context').textContent = repository ? 'Repository' : owners.find(item => item.login === owner)?.type || '';
-    renderNav(); renderRepositories(); renderActions();
+    renderNav(); renderRepositories(); renderActions();}
     try {
       let data;
       const repoQuery = '?repository=' + encodeURIComponent(repository);
       if (tab === 'overview') data = repository
-        ? await ui.api('/github/repositories/context' + repoQuery)
-        : await ui.api('/github/owners/' + encodeURIComponent(owner) + '/overview');
+        ? await get('/github/repositories/context' + repoQuery)
+        : await get('/github/owners/' + encodeURIComponent(owner) + '/overview');
       else if (tab === 'repositories') data = repositories;
-      else if (tab === 'issues') data = await ui.api('/github/owners/' + encodeURIComponent(owner)
+      else if (tab === 'issues') data = await get('/github/owners/' + encodeURIComponent(owner)
         + '/issues?state=' + encodeURIComponent(workState) + '&role=' + encodeURIComponent(issueRole)
         + (repository ? '&repository=' + encodeURIComponent(repository) : '')
         + (issueLabel ? '&label=' + encodeURIComponent(issueLabel) : ''));
-      else if (tab === 'pull-requests') data = await ui.api('/github/owners/' + encodeURIComponent(owner)
+      else if (tab === 'pull-requests') data = await get('/github/owners/' + encodeURIComponent(owner)
         + '/pull-requests?state=' + encodeURIComponent(workState)
         + (repository ? '&repository=' + encodeURIComponent(repository) : ''));
       else if (tab === 'actions') data = {
-        runs: await ui.api('/github/actions/runs' + repoQuery),
-        workflows: await ui.api('/github/actions/workflows' + repoQuery)
+        runs: await get('/github/actions/runs' + repoQuery),
+        workflows: await get('/github/actions/workflows' + repoQuery)
       };
-      else if (tab === 'releases') data = await ui.api('/github/releases' + repoQuery);
-      else if (tab === 'files') {const detail = await ui.api('/github/repositories/detail' + repoQuery); fileRef = detail.defaultBranch;
-        data = await ui.api('/github/repositories/tree' + repoQuery + '&ref=' + encodeURIComponent(fileRef));}
-      else if (tab === 'commits') data = await ui.api('/github/repositories/commits' + repoQuery);
-      else if (tab === 'members') data = await ui.api('/github/organizations/' + encodeURIComponent(owner) + '/members');
+      else if (tab === 'releases') data = await get('/github/releases' + repoQuery);
+      else if (tab === 'files') {const detail = await get('/github/repositories/detail' + repoQuery); fileRef = detail.defaultBranch;
+        data = await get('/github/repositories/tree' + repoQuery + '&ref=' + encodeURIComponent(fileRef));}
+      else if (tab === 'commits') data = await get('/github/repositories/commits' + repoQuery);
+      else if (tab === 'members') data = await get('/github/organizations/' + encodeURIComponent(owner) + '/members');
       if (token !== viewToken) return;
       list.replaceChildren();
       if (tab === 'overview') {
@@ -261,7 +264,8 @@
           else if (tab === 'members') list.append(line(item.login, '', item.url));
         }
       }
-    } catch (error) {if (token === viewToken) list.innerHTML = window.WorkspaceUI.emptyState('조회 실패',error.message,'warning');}
+      if(options.quiet&&token===viewToken&&formHost.hidden&&$('#github-detail').hidden)window.WorkspaceLiveDOM?.patch($('#github-items'),list.innerHTML);
+    } catch (error) {if(options.quiet)throw error;if (token === viewToken) list.innerHTML = window.WorkspaceUI.emptyState('조회 실패',error.message,'warning');}
   }
   async function showDetail(button) {
     if (button.dataset.detailKind === 'tree') return;
@@ -379,7 +383,7 @@
       let job = await ui.api('/studio/jobs', 'POST', {deviceId:'local', root:localDevice.rootPath, action:'github-login', args:{}});
       jobId = job.id;
       while (job.state === 'RUNNING') {
-        await new Promise(resolve => setTimeout(resolve, 700));
+        await (window.WorkspaceRealtime?.waitForJob(jobId,700)||new Promise(resolve => setTimeout(resolve, 700)));
         job = await ui.api('/studio/jobs/' + encodeURIComponent(jobId)); showAuthEvents(job.events);
       }
       showAuthEvents(job.events);
@@ -482,6 +486,6 @@
     renderContent();
   });
   window.setInterval(() => {if (ui && root.getClientRects().length && !$('#github-login').hidden) return;
-    if (ui && root.getClientRects().length) loadApprovals().catch(() => {});}, 10000);
-  window.WorkspaceGithub = {init(runtime) {ui = runtime;}, queueRepository(name) {pendingRepository = name;}, async open(id) {if (id !== 'github') return; await load();if(pendingRepository){const requested=pendingRepository;pendingRepository='';const requestedOwner=requested.split('/')[0];if(owner!==requestedOwner){owner=requestedOwner;$('#github-owner').value=owner;await loadOwner()}repository=requested;tab='overview';await renderContent()}}};
+    if (ui && root.getClientRects().length&&!window.WorkspaceRealtime?.connected()) loadApprovals().catch(() => {});}, 10000);
+  window.WorkspaceGithub = {async refresh(){if(!ui||!owner||!$('#github-login').hidden)return;await Promise.all([loadApprovals(),renderContent({quiet:true})]);},init(runtime) {ui = runtime;}, queueRepository(name) {pendingRepository = name;}, async open(id) {if (id !== 'github') return; await load();if(pendingRepository){const requested=pendingRepository;pendingRepository='';const requestedOwner=requested.split('/')[0];if(owner!==requestedOwner){owner=requestedOwner;$('#github-owner').value=owner;await loadOwner()}repository=requested;tab='overview';await renderContent()}}};
 })();

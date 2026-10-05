@@ -1,5 +1,9 @@
 # 아키텍처
 
+장비 Codex는 `DeviceCodexController → StudioService → StudioAdapter → 검증된 SSH → remote.py/Codex App Server` 경계를 따른다. 공통 job 수명·승인·취소를 재사용하되 로그인 세션+장비 ID로 조회 범위를 제한한다. 장비 관리 플래그는 서버 전용 adapter가 지정하며 public args에서 받지 않는다. 별도 원격 CODEX_HOME으로 AI 비서/IDE와 인증·대화를 분리한다. DB schema 변경은 없다. [장비 Codex](../device-codex.md).
+
+기간별 운영 로그는 REST/MCP → `ServiceLogService` → `ServiceLogAdapter` → 기존 `CommandAdapter`/검증된 SSH 경계를 공유한다. 원격 명령은 고정 Python reader의 인수만 사용하며 연결 ID·기간·필터는 서비스에서 검증한다. 출력·스캔 한계와 보존 한계를 DTO에 명시하고 로그 본문은 DB에 저장하지 않는다.
+
 Workspace Memory: Assistant REST/MCP → `WorkspaceMemoryService` → SQLite repository. Codex bridge는 기존 비공개 MCP로 현재 질문의 제한된 관련 기억만 읽어 turn 입력에 넣는다. `PlannerService`·`NoteService`를 통한 승인 후 승격과 매일 결정적 수명 관리가 같은 service 계층에 있다. [정책](../workspace-memory.md).
 
 Java 21 / Spring Boot 3.5.16 / Thymeleaf / SQLite 단일 웹 애플리케이션이다.
@@ -93,3 +97,10 @@ NAS는 Compose의 Samba 컨테이너가 dashboard와 network namespace를 공유
 
 ## 메모장
 notes/controller → notes/service → notes/repository → SQLite. 기존 계정·CSRF·DB를 재사용하며 문서/이미지는 대시보드 안에 저장한다. notes.js가 탐색과 API 흐름을 담당하고 React/BlockNote 번들은 에디터 영역에만 마운트한다. 런타임 외부 에디터 서비스·CDN 연동은 없다. [사용법](../notes.md).
+## 화면 실시간 동기화
+
+`WorkspaceChangeFilter → WorkspaceEvents → WorkspaceSocketHandler → realtime.js → 기존 REST 조회 → live-dom.js`로 화면을 동기화한다. StudioService도 소유 세션별 작업 변경을 WorkspaceEvents에 알린다. 비즈니스 로직과 데이터 권한 검사는 기존 service 경계를 유지하며, UI는 알림만으로 도메인 상태를 확정하지 않는다. 외부 장비 상태는 heartbeat에 따른 기존 adapter 조회를 사용한다. [상세](../realtime-ui.md).
+
+## 병역 캘린더
+
+`MilitaryController → MilitaryService → MilitaryRepository → SQLite`에 개인 복무와 일정을 저장한다. 순수 날짜 규칙은 MilitaryDates에 두며 응답은 MilitaryDto로 변환한다. 기존 PlannerService가 MilitaryService의 읽기 투영을 합쳐 일반 캘린더·위젯·MCP에 같은 병역 일정을 제공한다. 투영을 일반 일정으로 복제하지 않으며 원본 쓰기는 MilitaryService만 수행한다. OWNER/CSRF를 재사용하고 외부 앱 계정 연동은 추가하지 않는다. [계산·사용법](../military-calendar.md).

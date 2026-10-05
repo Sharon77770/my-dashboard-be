@@ -37,6 +37,8 @@ public class DatabaseInitialization implements InitializingBean {
         .execute(dataSource);
     new ResourceDatabasePopulator(new ClassPathResource("db/migrations/V9__workspace_memory.sql"))
         .execute(dataSource);
+    new ResourceDatabasePopulator(new ClassPathResource("db/migrations/V10__military_calendar.sql"))
+        .execute(dataSource);
     if (jdbc.queryForList("PRAGMA table_info(database_connections)").stream()
         .noneMatch(column -> "metadata".equals(column.get("name"))))
       jdbc.execute(

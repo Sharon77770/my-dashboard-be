@@ -7,20 +7,21 @@ window.WorkspaceNotes=(()=>{
  const tell=(message,error=false)=>{const status=$('[data-notes-status]');status.textContent=message;status.classList.toggle('form-error',error);};
  const pathOf=entry=>{const names=[],seen=new Set();while(entry&&!seen.has(entry.id)){seen.add(entry.id);names.unshift(entry.title);entry=entries.find(item=>item.id===entry.parentId);}return names.join(' / ');};
  const setEntry=entry=>{entries=entries.map(item=>item.id===entry.id?entry:item);if(current?.id===entry.id)current=entry;drawTree();};
+ const paint=(target,html)=>window.WorkspaceLiveDOM?window.WorkspaceLiveDOM.patch(target,html):target.innerHTML=html;
  function drawTree(){
   const query=$('[data-notes-search]').value.trim().toLowerCase();
   const branch=(parent,depth)=>entries.filter(item=>item.parentId===parent).map(item=>{
    const isFolder=item.kind==='FOLDER',open=expanded.has(item.id),active=current?.id===item.id||(!current&&folder===item.id);
-   return `<div class="notes-tree-row ${active?'active':''}" style="--notes-depth:${depth}"><button class="notes-toggle" data-note-toggle="${item.id}" aria-label="${esc(item.title)} ${open?'접기':'펼치기'}" ${isFolder?'aria-expanded="'+open+'"':'disabled'}>${isFolder?(open?'▾':'▸'):''}</button><button class="notes-tree-open" data-note-open="${item.id}" ${active?'aria-current="page"':''}><span aria-hidden="true">${esc(item.icon||(isFolder?'📁':'📄'))}</span><span>${esc(item.title)}</span></button><button class="notes-tree-menu" data-note-menu="${item.id}" aria-label="${esc(item.title)} 설정">⋯</button></div>${isFolder&&open?branch(item.id,depth+1):''}`;
+   return `<div data-live-key="${item.id}" class="notes-tree-row ${active?'active':''}" style="--notes-depth:${depth}"><button class="notes-toggle" data-note-toggle="${item.id}" aria-label="${esc(item.title)} ${open?'접기':'펼치기'}" ${isFolder?'aria-expanded="'+open+'"':'disabled'}>${isFolder?(open?'▾':'▸'):''}</button><button class="notes-tree-open" data-note-open="${item.id}" ${active?'aria-current="page"':''}><span aria-hidden="true">${esc(item.icon||(isFolder?'📁':'📄'))}</span><span>${esc(item.title)}</span></button><button class="notes-tree-menu" data-note-menu="${item.id}" aria-label="${esc(item.title)} 설정">⋯</button></div>${isFolder&&open?branch(item.id,depth+1):''}`;
   }).join('');
-  $('[data-notes-tree]').innerHTML=query?entries.filter(item=>pathOf(item).toLowerCase().includes(query)).map(item=>`<div class="notes-tree-row"><button class="notes-tree-open" data-note-open="${item.id}"><span>${esc(item.icon||'📄')}</span><span>${esc(pathOf(item))}</span></button><button class="notes-tree-menu" data-note-menu="${item.id}" aria-label="${esc(item.title)} 설정">⋯</button></div>`).join('')||window.WorkspaceUI.emptyState('검색 결과가 없습니다','','search'):branch(null,0)||window.WorkspaceUI.emptyState('메모가 없습니다','새 문서나 폴더를 추가하세요.','notes');
+  paint($('[data-notes-tree]'),query?entries.filter(item=>pathOf(item).toLowerCase().includes(query)).map(item=>`<div data-live-key="${item.id}" class="notes-tree-row"><button class="notes-tree-open" data-note-open="${item.id}"><span>${esc(item.icon||'📄')}</span><span>${esc(pathOf(item))}</span></button><button class="notes-tree-menu" data-note-menu="${item.id}" aria-label="${esc(item.title)} 설정">⋯</button></div>`).join('')||window.WorkspaceUI.emptyState('검색 결과가 없습니다','','search'):branch(null,0)||window.WorkspaceUI.emptyState('메모가 없습니다','새 문서나 폴더를 추가하세요.','notes'));
  }
  async function refreshTree(){entries=await ui.api('/notes');drawTree();}
- function markDirty(){version++;tell('저장하지 않은 변경');clearTimeout(timer);timer=setTimeout(()=>save().catch(()=>{}),1000);}
+ function markDirty(){version++;tell('저장하지 않은 변경');clearTimeout(timer);timer=setTimeout(()=>save({quiet:true}).catch(()=>{}),1000);}
  /** Serialize saves; edits made during a request stay dirty and are saved with the returned revision. */
- async function save(){
+ async function save(options={}){
   clearTimeout(timer);
-  if(saving){await saving;if(dirty())return save();return;}
+  if(saving){await saving;if(dirty())return save(options);return;}
   if(!current||!editor||!dirty())return;
   const snapshot=version,entry=current,title=$('[data-notes-title]').value.trim(),blocks=editor.blocks();
   if(!title){tell('문서 제목을 입력하세요.',true);throw new Error('문서 제목을 입력하세요.');}
@@ -28,14 +29,14 @@ window.WorkspaceNotes=(()=>{
   saving=(async()=>{
    try{
     let latest=entry;
-    if(title!==entry.title){latest=await ui.api('/notes/'+entry.id,'PUT',{parentId:entry.parentId,title,icon:entry.icon,revision:latest.revision});setEntry(latest);}
-    latest=await ui.api('/notes/'+entry.id+'/content','PUT',{blocks,revision:latest.revision});setEntry(latest);savedVersion=snapshot;
+    if(title!==entry.title){latest=await ui.api('/notes/'+entry.id,'PUT',{parentId:entry.parentId,title,icon:entry.icon,revision:latest.revision},options);setEntry(latest);}
+    latest=await ui.api('/notes/'+entry.id+'/content','PUT',{blocks,revision:latest.revision},options);setEntry(latest);savedVersion=snapshot;
     tell(dirty()?'변경 사항을 저장하는 중…':'모든 변경 사항 저장됨');
    }catch(error){tell(error.message+' · 편집 내용은 유지됩니다. Markdown으로 내려받아 보관할 수 있습니다.',true);throw error;}
    finally{saving=null;}
   })();
   await saving;
-  if(dirty())timer=setTimeout(()=>save().catch(()=>{}),500);
+  if(dirty())timer=setTimeout(()=>save({quiet:true}).catch(()=>{}),500);
  }
  function destroyEditor(){editor?.destroy();editor=null;current=null;version=0;savedVersion=0;clearTimeout(timer);}
  function showFolder(){
@@ -65,9 +66,12 @@ window.WorkspaceNotes=(()=>{
   if(file.size>10*1024*1024)throw new Error('이미지는 10 MiB 이하여야 합니다.');
   const form=new FormData();form.append('file',file);
   const headers={};headers[document.querySelector('meta[name=csrf-header]').content]=document.querySelector('meta[name=csrf-token]').content;
-  const response=await fetch('/api/v1/notes/'+id+'/images',{method:'POST',body:form,headers});
-  if(!response.ok){let message='이미지를 업로드하지 못했습니다.';try{message=(await response.json()).message||message;}catch{}throw new Error(message);}
-  return (await response.json()).url;
+  const finishTask=window.WorkspaceUI.beginTask?.('이미지를 업로드하는 중…')||(()=>{});
+  try{
+   const response=await fetch('/api/v1/notes/'+id+'/images',{method:'POST',body:form,headers});
+   if(!response.ok){let message='이미지를 업로드하지 못했습니다.';try{message=(await response.json()).message||message;}catch{}throw new Error(message);}
+   return (await response.json()).url;
+  }finally{finishTask();}
  }
  function folderOptions(selected,excluded){
   const allowed=item=>{let cursor=item;const seen=new Set();while(cursor&&!seen.has(cursor.id)){if(cursor.id===excluded)return false;seen.add(cursor.id);cursor=entries.find(entry=>entry.id===cursor.parentId);}return true;};
@@ -131,6 +135,7 @@ window.WorkspaceNotes=(()=>{
    window.addEventListener('beforeunload',event=>{if(dirty()||saving){event.preventDefault();event.returnValue='';}});
    root.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'){event.preventDefault();save().catch(()=>{});}});
   },
+  async refresh(){if(!root||loading)return;const next=await ui.api('/notes','GET',undefined,{quiet:true});if(loading)return;entries=next;drawTree();if(!current){const list=$('.notes-folder-list');if(list)paint(list,entries.filter(item=>item.parentId===folder).map(item=>`<button data-note-open="${item.id}"><span>${esc(item.icon||'')}</span><b>${esc(item.title)}</b></button>`).join(''));}else if(!saving&&entries.find(item=>item.id===current.id)?.revision!==current.revision){tell('다른 곳에서 문서가 변경되거나 삭제되었습니다. 편집 내용은 유지됩니다. 최신 내용을 보려면 다른 문서로 이동한 뒤 다시 열어 주세요.',true);}},
   async open(view){if(!root||view!=='notes')return;await refreshTree();if(!current)showFolder();},
  };
 })();

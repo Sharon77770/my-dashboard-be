@@ -18,10 +18,24 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,25));
 const click=selector=>{const node=d.querySelector(selector);assert.ok(node,selector);node.click();};
 const load=()=>JSON.parse(w.localStorage.getItem(w.HomePersistence.key()));
 (async()=>{
-for(const file of ['ui.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js','workspace.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
+for(const file of ['ui.js','live-dom.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js','workspace.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
 await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,16);
+// A deferred response must block navigation until its body and render continuation complete.
+const originalFetch=w.fetch;let resolveResponse,resolveBody;
+w.fetch=async url=>url==='/api/v1/loading-check'?new Promise(resolve=>{resolveResponse=resolve;}):originalFetch(url);
+const foreground=w.WorkspaceAssistantRuntime.api('/loading-check');
+assert.equal(d.querySelector('#workspace-activity').open,true);
+click('#home-grid [data-view="calendar"]');assert.equal(d.body.dataset.home,'true');
+resolveResponse({ok:true,status:200,headers:{get:()=> 'application/json'},json:()=>new Promise(resolve=>{resolveBody=resolve;})});
+await tick();assert.equal(d.querySelector('#workspace-activity').open,true);
+resolveBody({ok:true});await foreground;await tick();assert.equal(d.querySelector('#workspace-activity').open,false);
+w.fetch=async()=>{throw Error('offline');};
+await assert.rejects(w.WorkspaceAssistantRuntime.api('/loading-check'),/offline/);await tick();assert.equal(d.querySelector('#workspace-activity').open,false);
+let finishPolling;w.fetch=async()=>new Promise(resolve=>{finishPolling=resolve;});
+const polling=w.WorkspaceAssistantRuntime.api('/assistant/jobs/polling-check');assert.equal(d.querySelector('#workspace-activity').open,false);
+finishPolling({ok:true,status:204});await polling;w.fetch=originalFetch;
 const homeItemBeforeRefresh=d.querySelector('.home-item');
-workspaceRefresh();await tick();
+w.dispatchEvent(new w.CustomEvent('workspace:invalidate',{detail:{topics:['workspace']}}));await new Promise(resolve=>setTimeout(resolve,250));
 assert.equal(d.querySelector('.home-item'),homeItemBeforeRefresh,'unchanged background refresh preserves Home DOM');
 for(const selector of ['.mobile-search-button','.workspace-mark','.home-command>span:first-child','.os-navigation [data-view="home"]>span:first-child','.os-navigation [data-action="palette"]>span:first-child','.os-navigation [data-launcher="drawer"]>span:first-child','.os-navigation [data-action="app-switcher"]>span:first-child','#devices [data-action="refresh-status"]','#apps [data-action="app-add"]'])assert.ok(d.querySelector(selector+' .ui-icon'),`${selector} uses a shared SVG icon`);
 assert.ok(d.querySelector('.os-navigation [data-action="app-switcher"] #os-app-count'),'recent app count survives icon hydration');
@@ -31,12 +45,12 @@ assert.equal(d.querySelectorAll('#home-widgets .home-widget-disclosure').length,
 assert.equal(d.querySelectorAll('#home-widgets .home-widget-disclosure[open]').length,0);
 assert.ok(d.querySelector('.overview-continue .overview-empty'));
 w.workspaceInitial={...w.workspaceInitial,activity:[{kind:'TERMINAL',targetId:'local',label:'최근 터미널',path:'/',occurredAt:Date.now()}]};
-workspaceRefresh();await tick();
+workspaceRefresh();await new Promise(resolve=>setTimeout(resolve,250));
 assert.equal(d.querySelector('.home-item'),homeItemBeforeRefresh,'activity polling preserves Home shortcuts');
 assert.match(d.querySelector('.overview-continue').textContent,/최근 터미널/);
 assert.ok(d.querySelector('.home-command[data-action="palette"]'));
 assert.equal(d.querySelectorAll('#launcher-dock-apps').length,1);
-assert.equal(w.WorkspaceApps.all().length,23);assert.equal(d.querySelectorAll('#home-grid img').length,0);
+assert.equal(w.WorkspaceApps.all().length,25);assert.equal(d.querySelectorAll('#home-grid img').length,0);
 assert.ok(d.querySelector('#home-grid [data-view="assistant"]'));
 assert.equal(w.WorkspaceApps.get('assistant').name,'AI 비서');
 assert.ok(d.querySelector('#launcher-dock-apps [data-view="assistant"]'));
@@ -57,6 +71,7 @@ const savedWidget=d.querySelector('#home-widgets .home-widget-disclosure');saved
 assert.ok(savedWidget.querySelector('.widget-body'),'saved widgets remain available on demand');
 savedWidget.dispatchEvent(new w.Event('toggle'));
 await w.WorkspaceLauncher.refreshWidgets();
+await tick(); // Foreground loading stays locked until the rendered response has settled.
 assert.ok(d.querySelector('#home-widgets .home-widget-disclosure[open]'),'refresh preserves an expanded widget');
 // Swiping a drawer icon must leave the drawer open and must not mutate the home layout.
 const touchPointer=(type,node,x,y)=>{const event=new w.MouseEvent(type,{bubbles:true,cancelable:true,clientX:x,clientY:y,button:0});Object.defineProperties(event,{pointerId:{value:2},pointerType:{value:'touch'}});node.dispatchEvent(event);return event;};
@@ -109,7 +124,7 @@ const key=w.HomePersistence.key();d.body.dataset.account='another';assert.notEqu
 const clean=grid.sanitize({version:1,pages:2,dock:['missing','terminal'],items:[{id:'x',type:'folder',apps:[],page:0,x:0,y:0},{id:'y',type:'app',appId:'missing'}]},w.WorkspaceApps,w.WorkspaceWidgets);assert.equal(clean.items.length,0);assert.equal(clean.dock.length,1);
 // Mobile runtime tools keep file navigation and actions reachable without overlapping columns.
 w.workspaceInitial={...w.workspaceInitial,devices:[...w.workspaceInitial.devices,{id:'device-1',name:'Spark',host:'localhost',remoteProtocol:'NONE'}],bookmarks:[...w.workspaceInitial.bookmarks,{id:'bookmark-1',deviceId:'device-1',path:'/saved'}]};
-workspaceRefresh();await tick();
+workspaceRefresh();await new Promise(resolve=>setTimeout(resolve,250));
 const deviceCard=d.querySelector('#device-grid .device-card');
 deviceCard.querySelector('details').open=true;
 deviceCard.querySelector('[data-action="status"]').click();await tick();

@@ -20,13 +20,15 @@ const click=s=>{assert.ok(d.querySelector(s),s);d.querySelector(s).click();};
 const set=(name,value)=>{const input=d.querySelector('#editor-form [name='+name+']');assert.ok(input,name);input.value=value;};
 const submit=async()=>{d.querySelector('#editor-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();};
 (async()=>{
-for(const file of ['ui.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
+for(const file of ['ui.js','live-dom.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
 w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js/workspace.js'),'utf8'));
+await tick(); // Initial foreground loading blocks navigation until the response is rendered.
 const initialCalendarReads=calls.filter(c=>c.url.includes('/calendar/events?')).length;click('[data-view=calendar]');await tick();assert.equal(d.querySelectorAll('.calendar-day').length,42);
 click('[data-plan=month-next]');await tick();assert.equal(calls.filter(c=>c.url.includes('/calendar/events?')).length,initialCalendarReads+2);
 click('[data-plan=event-new]');set('title','과제 <img src=x>');const check=d.querySelector('[name=allDay]');check.checked=true;check.dispatchEvent(new w.Event('change'));
 assert.equal(d.querySelector('[name=start]').type,'date');set('start','2026-10-01');set('end','2026-10-03');await submit();
 const saved=calls.find(c=>c.method==='POST'&&c.url.includes('/calendar/events')).body;assert.equal(saved.end,'2026-10-04T00:00');assert.equal(saved.start,'2026-10-01T00:00');assert.equal(d.querySelectorAll('#calendar img').length,0);
+const agenda=d.querySelector('.day-agenda'),monthInput=d.querySelector('[data-month]');monthInput.focus();await w.WorkspacePlanner.refresh('calendar');assert.equal(d.querySelector('.day-agenda'),agenda);assert.equal(d.activeElement,monthInput);assert.equal(d.querySelector('#workspace-activity').open,false);
 click('[data-plan=event-edit]');assert.equal(d.querySelector('[name=end]').value,'2026-10-03');click('#editor-dialog [data-action=dialog-close]');
 click('[data-view=timetable]');await tick();assert.ok(d.querySelector('.planner-welcome'));
 click('[data-plan=term-new]');await submit();assert.equal(d.querySelectorAll('.weekday-column').length,7);

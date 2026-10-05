@@ -1,5 +1,11 @@
 # 컴포넌트와 모듈
 
+`WorkspaceUI.beginTask`는 foreground 요청의 공통 로딩 모달·입력 잠금·동시 요청 수명·포커스 복원을 소유한다. 각 API wrapper는 finally에서 반환된 finish를 호출한다. 스타일은 `shell.css`와 `tools/ui/workspace.css`의 backdrop 규칙을 통해 생성 bundle에 포함한다. 자동 조회·실시간 작업 상태는 quiet로 구분한다.
+
+`DeviceCodexController`는 장비 route와 `DeviceCodexDto.Request`를 서비스 입력으로 변환한다. `StudioService`가 장비 대상/action/root·작업 소유권과 수명을 검증하고 `StudioAdapter.executeDeviceCodex`가 SSH 실행에 서버 전용 scope를 전달한다. `WorkspaceDeviceCodex`는 연결·설치·로그인 화면을 맡으며 공통 `StudioCodex`는 host의 jobsPath/storagePrefix/idPrefix를 통해 독립 대화·DOM을 제공한다. 기존 IDE 기본 경로는 유지한다.
+
+`ServiceLogService`는 등록된 Service의 컨테이너 연결과 ISO 시간 구간을 검증하고 `LogHistory` DTO를 조합한다. `ServiceLogAdapter`는 고정 Python reader를 기존 `CommandAdapter`로 실행하며 인증된 SSH 연결을 재사용한다. REST와 MCP는 같은 서비스를 호출하고 자체 로그 수집 로직을 갖지 않는다. Codex bridge는 외부 App Server의 nullable 실행 출력을 정규화하며 이메일·계정 종류만 공개 DTO로 투영한다.
+
 Service Onboarding은 `ServiceDiscoveryService`가 기존 리소스 서비스에서 credential 없는 후보만 추출하고, `ServiceOnboardingService`가 대화별 임시 Draft와 승인 상태를 소유한다. `ServiceOnboardingController`는 채팅 승인 요청의 OWNER/CSRF 경계이며, 실제 카탈로그 쓰기는 `ServiceCatalogService.applyAssistantDraft`가 담당한다. AI 비서는 자연어로 후보 선택과 초안 수정을 처리하고 브라우저는 현재 초안의 미리보기와 명시적인 승인 입력을 관리한다.
 
 Database Studio의 `DatabaseStudioService`는 연결 입력, READ_ONLY, 위험 SQL 확인, 실행 worker·취소, 이력을 소유한다. `DatabaseRepository`는 Workspace 내부 SQLite 연결 메타데이터·이력·즐겨찾기만 저장한다. `DatabaseAdapter`는 PostgreSQL/MySQL/SQLite JDBC URL과 연결 수명, schema metadata, 제한된 결과 변환을 소유한다. `DatabaseDto.ConnectionView`와 Service Context에는 암호문을 넣지 않는다. `databases.js`는 기존 Workspace 라우트의 여러 editor 탭과 탐색 표현 상태를 보유한다.
@@ -51,3 +57,8 @@ CloudStorage는 파일 경로·특수 파일 방어와 IO를 전담한다. Cloud
 DesktopSetupService는 기존 CatalogService 프로필과 RemoteAdapter 연결 검증을 조합한다. DesktopSetupAdapter의 내부 Managed 모델은 암호화된 비밀번호와 장비 식별 해시를 보존하며 HTTP DTO와 분리한다. [경계](../remote-desktop.md).
 
 메모장은 NoteController → NoteService → NoteRepository 경계를 따른다. NoteRecord는 저장용이며 HTTP에는 NoteDto.Entry/Document만 반환한다. NoteContentValidator는 블록/링크/크기 검증을 맡는다. NoteMarkdownConverter는 MCP 입력과 이전 MCP 문단의 Markdown을 편집 가능한 블록으로 변환하며, NoteService가 조회 시 조건부 저장한다. notes.js는 폴더 탐색·폼·저장 버전·오류를 관리하고 BlockNote 브리지는 편집·브라우저 Markdown 변환·이미지 업로드 콜백만 맡는다. 템플릿은 notes-templates.js의 독립 블록 복사본이다.
+## 실시간 UI 구성
+
+WorkspaceEvents는 도메인 리소스를 읽지 않는 공통 알림 서비스다. HTTP filter는 변경 영역만 전달하고 WebSocket handler는 세션 검증·전송·연결 정리만 수행한다. 각 화면의 `refresh()`는 해당 화면의 상태 소유권을 지키면서 조용한 조회와 부분 반영을 담당한다. 공통 DOM 조정기는 form/editor의 사용자 소유 상태를 덮어쓰지 않는다. [상세](../realtime-ui.md).
+
+병역 전용 MilitaryService는 복무기간·진급 순서·휴가 중복·revision과 집계를 소유한다. MilitaryRecords는 저장 모델, MilitaryDto는 HTTP 모델, MilitaryDates.Progress는 계산 모델로 구분한다. PlannerService에는 Calendar EventView 읽기 투영만 제공한다. military.js는 공통 editor/confirmAction/API/LiveDOM을 조합하고 서버가 반환한 시간 구간 사이의 초 단위 표시만 보간한다. 공통 live coordinator의 `military` 영역으로 갱신하며 별도 WebSocket을 만들지 않는다.

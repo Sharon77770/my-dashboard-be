@@ -13,7 +13,7 @@ const connected = { name: 'personal-dashboard', status: 'bearerToken', runtimeSt
     'github.update_repository', 'github.update_release', 'github.delete_repository',
     'github.delete_release', 'discover_service_resources', 'create_service_draft',
     'update_service_draft', 'get_service_draft', 'cancel_service_draft', 'commit_service_draft',
-    'search_memories', 'get_memory', 'create_memory', 'compose_memory_context'], error: '' };
+    'search_memories', 'get_memory', 'create_memory', 'compose_memory_context', 'get_service_runtime', 'get_service_logs'], error: '' };
 const availableModels = [
   { id: 'model-a', name: 'Model A', defaultModel: true, defaultEffort: 'medium',
     efforts: [{ reasoningEffort: 'low' }, { reasoningEffort: 'medium' }] },
@@ -79,7 +79,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       { assistant: { kind: 'item', item: { id: 'notice', type: 'agentMessage', text: '등록된 앱을 조회하는 기능을 사용하겠습니다.' } } },
       { assistant: { kind: 'item', item: { id: 'tool', type: 'mcpToolCall', server: 'personal-dashboard', tool: 'list_apps', status: 'completed' } } }
     ] };
-    const result = body.action === 'codex-account' ? { assistant: { authenticated: state.authenticated } }
+    const result = body.action === 'codex-account' ? { assistant: { authenticated: state.authenticated, email: state.authenticated ? 'server@example.com' : null, accountType: 'chatgpt', plan: 'plus' } }
       : body.action === 'codex-rate-limits' ? { assistant: { rateLimits: [{ name: 'Codex', windowDurationMins: 300, usedPercent: 25, resetsAt: 1730947200 }] } }
       : body.action === 'codex-connections' ? { assistant: { connections: state.connection ? [state.connection] : [] } }
       : body.action === 'codex-models' ? { assistant: { models: availableModels } }
@@ -111,6 +111,8 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     const f = await fixture({ ...connected, runtimeStatus });
     try {
       assert.match(f.d.querySelector('#assistant-account-status').textContent, /연결됨/);
+      assert.match(f.d.querySelector('#assistant-sidebar-account').textContent, /server@example.com/);
+      assert.match(f.d.querySelector('#assistant-settings-account').textContent, /server@example.com/);
       assert.match(f.d.querySelector('#assistant-limits-text').textContent, /5시간/);
       assert.match(f.d.querySelector('#assistant-limits-text').textContent, /75%/);
       assert.equal(f.d.querySelector('#assistant-limits-text [role="progressbar"]').getAttribute('aria-valuenow'), '75');
@@ -436,6 +438,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     history.d.querySelector('#assistant-settings-logout').click();
     await tick();
     assert.ok(history.calls.includes('codex-logout'));
+    assert.doesNotMatch(history.d.querySelector('#assistant-sidebar-account').textContent, /server@example.com/);
     assert.equal(history.d.querySelector('#assistant-settings-login').hidden, false);
     assert.equal(history.d.querySelector('#assistant-messages .assistant-welcome') !== null, true);
   } finally { history.dom.window.close(); }

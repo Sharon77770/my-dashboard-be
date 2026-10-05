@@ -1,6 +1,7 @@
 const {JSDOM}=require('jsdom'),fs=require('fs'),assert=require('node:assert/strict');
 const dom=new JSDOM('<meta name="csrf-header" content="X-CSRF-TOKEN"><meta name="csrf-token" content="fixture"><div id="notes" class="view active"></div><dialog id="editor-dialog"><form id="fields"></form></dialog>',{runScripts:'outside-only',url:'http://localhost'});
 const w=dom.window,d=w.document,entries=[{id:'org',parentId:null,kind:'FOLDER',title:'조직',icon:'📁',revision:0},{id:'project',parentId:'org',kind:'FOLDER',title:'프로젝트',icon:'📁',revision:0},{id:'page',parentId:'project',kind:'DOCUMENT',title:'<img src=x>',icon:'📄',revision:0}],documents={page:[{type:'paragraph',content:'처음'}]},calls=[];
+w.eval(fs.readFileSync('src/main/resources/static/js/live-dom.js','utf8'));
 w.eval(fs.readFileSync('src/main/resources/static/js/ui.js','utf8'));
 let submit,change,buffer,failSave=false,holdSave=null,saveStarted=null,migrateOnRead=true;
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -40,5 +41,6 @@ const click=selector=>{const target=d.querySelector(selector);assert.ok(target,s
  const form=new w.FormData();form.set('title','9월 가계부');form.set('parentId','project');form.set('template','ledger');await submit(form);await tick();assert.equal(d.querySelector('[data-notes-title]').value,'9월 가계부');assert.ok(buffer.some(block=>block.type==='table'));
  assert.equal(calls.findLast(call=>call.method==='POST').body.parentId,'project');
  d.querySelector('[data-notes-search]').value='9월';d.querySelector('[data-notes-search]').dispatchEvent(new w.Event('input'));assert.match(d.querySelector('[data-notes-tree]').textContent,/9월 가계부/);
+ const existingTitle=d.querySelector('[data-notes-title]'),existingEditor=d.querySelector('[data-notes-editor]');existingTitle.focus();await w.WorkspaceNotes.refresh();assert.equal(d.querySelector('[data-notes-title]'),existingTitle);assert.equal(d.querySelector('[data-notes-editor]'),existingEditor);assert.equal(d.activeElement,existingTitle);
  console.log('PASS notebook UI: nested navigation, escaped names, template creation, revision chaining, failed-save protection, in-flight edits, search');dom.window.close();
 })().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});

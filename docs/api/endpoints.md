@@ -1,5 +1,18 @@
 # HTTP 엔드포인트 목록
 
+| Method | URL | Auth | 설명 |
+| --- | --- | --- | --- |
+| GET (WebSocket Upgrade) | `/ws/workspace` | OWNER 로그인 세션 + same-origin | 화면 변경 영역·소유 작업 알림 |
+
+## 장비 Codex
+
+| Method | URL | Auth | 설명 |
+| --- | --- | --- | --- |
+| POST | `/api/v1/devices/{deviceId}/codex/jobs` | OWNER + CSRF | SSH 장비 Codex 작업 시작 |
+| GET | `/api/v1/devices/{deviceId}/codex/jobs/{id}` | OWNER + 동일 세션 | 장비 작업 상태·이벤트 조회 |
+| POST | `/api/v1/devices/{deviceId}/codex/jobs/{id}/inputs` | OWNER + 동일 세션 + CSRF | 승인·추가 지시·중지 입력 |
+| DELETE | `/api/v1/devices/{deviceId}/codex/jobs/{id}` | OWNER + 동일 세션 + CSRF | 장비 작업 취소 |
+
 ## AI 비서 Workspace Memory
 
 `GET/POST /api/v1/assistant/memories`, `GET/PUT/DELETE /api/v1/assistant/memories/{id}`, `POST /{id}/archive|restore|pin|supersede|promote/calendar|promote/note`, `DELETE /{id}/pin`, `POST /api/v1/assistant/memories/promotions/note`, `GET/PUT /api/v1/assistant/memories/preferences`. 모든 경로는 OWNER 전용이며 변경 요청에는 CSRF가 필요하다. 요청·응답과 오류는 [계약](specification.md#workspace-memory-api)을 따른다.
@@ -214,6 +227,7 @@ POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로
 | GET | /api/v1/services/{id}/activity | OWNER | 서비스 활동 |
 | GET | /api/v1/services/{id}/runtime | OWNER | 연결된 장비·컨테이너의 실시간 상태 |
 | GET | /api/v1/services/{id}/resources/{resourceId}/logs | OWNER | 연결된 컨테이너의 최근 로그 |
+| GET | /api/v1/services/{id}/resources/{resourceId}/log-history | OWNER | 기간별 컨테이너 로그와 오류 후보·조회 범위 |
 | POST | /api/v1/services/{id}/resources/{resourceId}/actions | OWNER + CSRF | 연결된 컨테이너 시작·중지·재시작 |
 
 ## 메모장
@@ -228,3 +242,14 @@ POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로
 | DELETE | /api/v1/notes/{id} | OWNER + CSRF | 문서 또는 빈 폴더 영구 삭제 |
 | POST | /api/v1/notes/{id}/images | OWNER + CSRF | 문서 이미지 첨부 |
 | GET | /api/v1/notes/images/{id} | OWNER | 첨부 이미지 읽기 |
+
+## 병역 캘린더
+
+| Method | URL | Auth | 설명 |
+| --- | --- | --- | --- |
+| GET | /api/v1/military | OWNER | 복무 현황·일정·집계 조회 |
+| PUT | /api/v1/military/profile | OWNER + CSRF | 개인 복무 정보 생성·전체 수정 |
+| DELETE | /api/v1/military/profile | OWNER + CSRF | 복무 정보와 병역 일정 삭제 |
+| POST | /api/v1/military/events | OWNER + CSRF | 병역 일정 생성 |
+| PUT | /api/v1/military/events/{id} | OWNER + CSRF | 병역 일정 전체 수정 |
+| DELETE | /api/v1/military/events/{id} | OWNER + CSRF | 병역 일정 삭제 |

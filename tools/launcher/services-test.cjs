@@ -34,6 +34,7 @@ window.fetch = async (url, options = {}) => {
   else throw new Error(`Unexpected API call: ${path}`);
   return { ok: true, status: 200, json: async () => result };
 };
+window.eval(fs.readFileSync('src/main/resources/static/js/live-dom.js','utf8'));
 window.eval(fs.readFileSync('src/main/resources/static/js/services.js', 'utf8'));
 const tick = () => new Promise(resolve => setTimeout(resolve, 20));
 const submit = form => form.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }));
@@ -62,6 +63,7 @@ const submit = form => form.dispatchEvent(new window.Event('submit', { bubbles: 
   environmentFilter.dispatchEvent(new window.Event('change', { bubbles: true }));
   assert.deepEqual([...document.querySelectorAll('.service-tile b')].map(node => node.textContent), ['Example']);
 
+  const tile=document.querySelector('.service-tile');listSearch.focus();await window.WorkspaceServices.refresh();assert.equal(document.querySelector('.service-tile'),tile);assert.equal(document.activeElement,listSearch);assert.equal(environmentFilter.value,'Production');
   const createDialog = document.querySelector('#service-create-dialog');
   createDialog.showModal = function () { this.open = true; };
   createDialog.close = function () { this.open = false; this.dispatchEvent(new window.Event('close')); };

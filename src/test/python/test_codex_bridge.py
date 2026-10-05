@@ -19,16 +19,23 @@ thread_checked=False
 for line in sys.stdin:
  f=json.loads(line);m=f.get('method');p=f.get('params',{});result={}
  if m=='initialize': result={}
+ elif m=='account/read': result={'account':dict(type='chatgpt',email='ssh-fixture@example.com',planType='plus',accessToken='never-project')}
  elif m=='account/rateLimits/read': result={'rateLimitsByLimitId': {'codex': dict(limitId='codex',limitName=None,primary=dict(usedPercent=25,windowDurationMins=300,resetsAt=1730947200),secondary=dict(usedPercent=40,windowDurationMins=10080,resetsAt=1731552000))}}
  elif m=='model/list': result={'data':[dict(model='fixture',displayName='Fixture',isDefault=True,defaultReasoningEffort='medium',supportedReasoningEfforts=[dict(reasoningEffort='medium',description='Balanced')])]}
  elif m=='mcpServerStatus/list':
   assert p['detail']=='toolsAndAuthOnly'
   if p.get('threadId'):thread_checked=True
   failed=p.get('threadId') and os.path.exists('fail-thread-mcp')
-  required=['list_apps','list_calendar_events','create_calendar_event','update_calendar_event','delete_calendar_event','list_notes','read_note','create_note','append_note','update_note_metadata','replace_note_text','delete_note','github.get_repository','github.update_repository','github.update_release','github.delete_repository','github.delete_release','discover_service_resources','create_service_draft','update_service_draft','get_service_draft','cancel_service_draft','commit_service_draft','search_memories','get_memory','create_memory','compose_memory_context']
+  required=['list_apps','list_calendar_events','create_calendar_event','update_calendar_event','delete_calendar_event','list_notes','read_note','create_note','append_note','update_note_metadata','replace_note_text','delete_note','github.get_repository','github.update_repository','github.update_release','github.delete_repository','github.delete_release','discover_service_resources','create_service_draft','update_service_draft','get_service_draft','cancel_service_draft','commit_service_draft','search_memories','get_memory','create_memory','compose_memory_context', 'get_service_runtime', 'get_service_logs']
   result={'data':[], 'nextCursor':'next'} if not p.get('cursor') else {'data':[dict(name='personal-dashboard',authStatus='bearerToken',runtimeStatus='failed' if failed else None,tools={} if failed else {name:{} for name in required},toolsError=None)]}
  elif m=='thread/start' or m=='thread/resume':
-  dashboard='developerInstructions' in p
+  dashboard=p.get('config',{}).get('mcp_servers.personal-dashboard.enabled') is True
+  if p.get('config',{}).get('mcp_servers.personal-dashboard.enabled') is False:
+   assert 'SSH device' in p['developerInstructions']
+   assert p['approvalPolicy']=='on-request'
+   assert 'device-codex' in os.environ['CODEX_HOME']
+   assert 'DASHBOARD_MCP_TOKEN' not in os.environ
+   open('device-codex-proof','w').write(os.environ['CODEX_HOME'])
   if dashboard:
    assert 'list_apps' in p['developerInstructions'] and 'MCP discovery inventory' in p['developerInstructions']
    assert p['config']['mcp_servers.personal-dashboard.enabled'] is True
@@ -56,6 +63,8 @@ for line in sys.stdin:
     turn['error']=dict(codexErrorInfo='unauthorized' if os.path.exists('fail-auth') else 'other',message='private-upstream-detail')
    send(method='turn/completed',params={'turn':turn})
    continue
+  send(method='item/started',params={'item':dict(id='cmd',type='commandExecution',command='echo safe',aggregatedOutput=None,status='inProgress')})
+  send(method='item/commandExecution/outputDelta',params=dict(itemId='cmd',delta='streamed output'))
   send(id=900,method='item/commandExecution/requestApproval',params=dict(threadId=thread['id'],turnId=turn['id'],itemId='cmd',command='echo safe',reason='Run command?'))
   continue
  elif f.get('id')==900 and not m:
@@ -86,6 +95,17 @@ class CodexBridgeTest(unittest.TestCase):
         result = remote.codex_action(self.root, 'codex-models', {})
         self.assertEqual(result['assistant']['models'][0]['id'], 'fixture')
         self.assertEqual(result['assistant']['models'][0]['efforts'][0]['reasoningEffort'], 'medium')
+
+    def test_account_projects_email_and_type_without_credentials(self):
+        account = remote.codex_action(self.root, 'codex-account', {})['assistant']
+        self.assertEqual(account['email'], 'ssh-fixture@example.com')
+        self.assertEqual(account['accountType'], 'chatgpt')
+        self.assertNotIn('never-project', json.dumps(account))
+
+    def test_nullable_started_items_do_not_abort_analysis(self):
+        item = remote.assistant_item(dict(id='cmd', type='commandExecution', command='ss -lnt', aggregatedOutput=None))
+        self.assertEqual(item['output'], '')
+        self.assertEqual(remote.assistant_item(dict(id='search', type='webSearch', query=None))['text'], '')
 
     def test_thread_delete_checks_folder_and_calls_app_server(self):
         with patch.dict(remote.env, DASHBOARD_MCP_URL='http://127.0.0.1:8080/api/v1/mcp', DASHBOARD_MCP_TOKEN='f' * 32):

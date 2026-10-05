@@ -1,23 +1,36 @@
 'use strict';
 (() => {
   window.StudioCodex = (panel, host) => {
-    const $ = selector => panel.querySelector(selector), esc = host.escape;
+    const selectorFor = selector => selector.replace(/#([\w-]+)/g, '[data-cx-id="$1"]');
+    const $ = selector => panel.querySelector(selectorFor(selector)), esc = host.escape;
+    const jobsPath = () => host.jobsPath?.() || '/studio/jobs';
+    const storageKey = () => (host.storagePrefix || 'studio-codex:') + JSON.stringify(host.project());
     let thread=null, models=[], contexts=[], running=null, sequence=0, loaded=false, cursor=null, archived=false;
     const items=new Map();
     panel.innerHTML=`<div class="studio-toolbar"><div class="cx-panel-title"><strong>Codex</strong><span id="cx-title">새 세션</span><small id="cx-thread-id" hidden></small></div><button data-cx="history" title="세션 목록" aria-label="세션 목록">◷</button><button data-cx="new" title="새 세션" aria-label="새 세션">＋</button><details class="ui-menu"><summary aria-label="세션 메뉴">⋯</summary><div class="ui-menu-content"><span id="studio-auth" class="badge">인증 확인 전</span><button data-cx="rename">이름 변경</button><button data-cx="fork">세션 분기</button><button data-cx="compact">컨텍스트 압축</button><button data-cx="rollback">마지막 대화 되돌리기</button><button data-cx="archive">세션 보관</button><button data-cx="review">변경 사항 리뷰</button><button data-cx="skills">스킬 첨부</button><button data-cx="connections">MCP 연결 상태</button><button data-cx="refresh">모델·인증 새로고침</button><button data-studio="codex-login">기기 코드 로그인</button><button data-studio="codex-logout" hidden>로그아웃</button></div></details></div>
+      <div id="cx-account" role="status">SSH Codex · 계정 확인 전</div>
       <div id="studio-auth-cta" hidden><p>선택한 서버에서 로그인해 주세요.</p><button data-studio="codex-login">기기 코드 로그인</button></div>
       <section id="cx-history" hidden aria-label="세션 목록"><form id="cx-search"><input name="query" aria-label="세션 검색" placeholder="세션 검색"><button>검색</button></form><label><input id="cx-archived" type="checkbox"> 보관된 세션</label><div id="cx-sessions"></div><button data-cx="more" hidden>더 보기</button><button data-cx="history-close">대화로 돌아가기</button></section>
       <div id="studio-conversation" role="log" aria-label="Codex 대화"></div><div id="cx-interactions" aria-live="polite"></div><p id="cx-status" role="status"></p>
       <form id="studio-prompt-form"><div class="composer-context"><span id="studio-context">작업 폴더</span><span id="studio-mode-label">읽기 · 분석</span></div><div id="cx-contexts"></div><textarea id="studio-prompt" placeholder="작업을 요청하세요. / 로 명령 보기" aria-label="Codex 작업 요청" rows="3" maxlength="32000" required></textarea>
       <footer class="cx-composer-toolbar"><details class="ui-menu cx-attachments"><summary title="컨텍스트 추가" aria-label="컨텍스트 추가">＋</summary><div class="ui-menu-content"><button type="button" data-cx="file">현재 파일 첨부</button><button type="button" data-cx="selection">선택 영역 첨부</button><button type="button" data-cx="path">파일 경로 입력</button><button type="button" data-cx="image">이미지 첨부</button><button type="button" data-cx="skills">스킬 첨부</button></div></details><input id="cx-image" type="file" accept="image/png,image/jpeg,image/webp" hidden><div class="cx-settings"><label><span class="studio-sr-only">모델</span><select id="studio-codex-model" title="모델"><option value="">기본 모델</option></select></label><label><span class="studio-sr-only">추론 강도</span><select id="cx-effort" title="추론 강도"><option value="">기본</option></select></label></div><button type="button" data-cx="stop" aria-label="Codex 중지" hidden>■</button><button type="submit" class="primary" id="cx-send" aria-label="Codex 전송">↑</button></footer>
       <div class="cx-composer-meta"><label><span class="studio-sr-only">작업 권한</span><select id="studio-codex-mode" title="작업 권한"><option value="read-only">읽기 · 분석</option><option value="workspace-write">파일 수정 허용</option></select></label><small id="cx-usage" title="토큰 사용량">컨텍스트 사용량 대기</small></div></form>`;
+    panel.querySelectorAll('[id]').forEach(element=>{element.dataset.cxId=element.id;if(host.idPrefix)element.id=host.idPrefix+element.id;});
     function status(text){$('#cx-status').textContent=text;}
-    function reset(){thread=null;contexts=[];loaded=false;models=[];items.clear();$('#cx-usage').textContent='컨텍스트 사용량 대기';renderThread();renderContexts();$('#studio-context').textContent=host.project()?.root||'작업 폴더';}
+    function reset(){thread=null;contexts=[];loaded=false;models=[];items.clear();account(null);$('#cx-usage').textContent='컨텍스트 사용량 대기';renderThread();renderContexts();$('#studio-context').textContent=host.project()?.root||'작업 폴더';}
+    function account(value){
+      const authenticated=value?.authenticated;
+      const identity=!value?'계정 확인 전':!authenticated?'로그인 필요':value.email||(value.accountType==='apiKey'?'API 키 인증 · 이메일 미제공':'로그인됨 · 이메일 미제공');
+      const label='SSH Codex · '+identity+(authenticated&&value.plan?' · '+value.plan:'');
+      $('#cx-account').textContent=label;$('#cx-account').title=label;
+      host.auth(authenticated??null);
+      $('#studio-auth').textContent=label;
+    }
     function renderThread(){
       items.clear();$('#studio-conversation').replaceChildren();
       $('#cx-title').textContent=thread?.name||thread?.preview||'새 세션';$('#cx-thread-id').textContent=thread?.id?.slice(0,8)||'';
       for(const turn of thread?.turns||[]){for(const item of turn.items||[])renderItem(item);if(turn.error)renderItem({id:turn.id+'-error',type:'오류',text:turn.error});}
-      if(!items.size)$('#studio-conversation').innerHTML='<div class="assistant-welcome"><span>✦</span><h3>무엇을 만들까요?</h3><p>파일을 첨부하거나 프로젝트에 관해 질문하세요.</p><small>대화는 선택한 서버에 저장됩니다.</small></div>';
+      if(!items.size)$('#studio-conversation').innerHTML='<div class="assistant-welcome"><span>✦</span><h3>'+esc(host.welcomeTitle||'무엇을 만들까요?')+'</h3><p>'+esc(host.welcomeText||'파일을 첨부하거나 프로젝트에 관해 질문하세요.')+'</p><small>대화는 선택한 서버에 저장됩니다.</small></div>';
     }
     function renderItem(item){
       $('#studio-conversation .assistant-welcome')?.remove();
@@ -32,6 +45,7 @@
       const log=$('#studio-conversation');if(log.scrollHeight-log.scrollTop-log.clientHeight<300)log.scrollTop=log.scrollHeight;
     }
     function markdown(target,source){
+      if(window.AssistantMarkdown){window.AssistantMarkdown.render(target,source);return;}
       // Code fences are DOM text nodes; model output never becomes executable HTML.
       const expression=/```([^\n]*)\n([\s\S]*?)```/g;let offset=0,match;
       const prose=value=>{const block=document.createElement('div');block.textContent=value;target.append(block);};
@@ -44,13 +58,13 @@
       if(!host.project())throw Error('먼저 작업 폴더를 열어 주세요.');
       host.setBusy(true);sequence=0;status('연결 중…');
       try{
-        let job=await host.api('/studio/jobs','POST',{...host.project(),action,args});running=job.id;host.job?.(job.id);
+        let job=await host.api(jobsPath(),'POST',{...host.project(),action,args});running=job.id;host.job?.(job.id);
         const interactive=['codex-run','codex-review','codex-thread-compact'].includes(action);
-        if(interactive){panel.querySelectorAll('#studio-prompt, #cx-send, [data-cx="stop"]').forEach(x=>x.disabled=false);$('[data-cx="stop"]').hidden=false;$('#cx-send').textContent='↑';$('#cx-send').setAttribute('aria-label','추가 지시 보내기');host.publish({codex:'실행 중'});}
+        if(interactive){panel.querySelectorAll(selectorFor('#studio-prompt, #cx-send, [data-cx="stop"]')).forEach(x=>x.disabled=false);$('[data-cx="stop"]').hidden=false;$('#cx-send').textContent='↑';$('#cx-send').setAttribute('aria-label','추가 지시 보내기');host.publish({codex:'실행 중'});}
         for(;;){
           for(const event of job.events||[])if(event.assistant&&event.assistant.sequence>sequence){sequence=event.assistant.sequence;receive(event.assistant);}
           if(job.state!=='RUNNING')break;
-          await new Promise(resolve=>setTimeout(resolve,400));job=await host.api('/studio/jobs/'+job.id);
+          await (window.WorkspaceRealtime?.waitForJob(job.id,400)||new Promise(resolve=>setTimeout(resolve,400)));job=await host.api(jobsPath()+'/'+job.id);
         }
         if(job.state!=='SUCCEEDED')throw Error(job.error||'작업이 중지되었습니다.');
         const result=job.result?.assistant||{};
@@ -59,8 +73,8 @@
         return result;
       }finally{running=null;host.job?.(null);host.setBusy(false);$('[data-cx="stop"]').hidden=true;$('#cx-send').textContent='↑';$('#cx-send').setAttribute('aria-label','Codex 전송');$('#cx-interactions').replaceChildren();}
     }
-    function remember(){try{sessionStorage.setItem('studio-codex:'+JSON.stringify(host.project()),thread?.id||'');}catch{}}
-    async function control(value){if(!running)throw Error('진행 중인 요청이 없습니다.');await host.api('/studio/jobs/'+running+'/inputs','POST',value);}
+    function remember(){try{sessionStorage.setItem(storageKey(),thread?.id||'');}catch{}}
+    async function control(value){if(!running)throw Error('진행 중인 요청이 없습니다.');await host.api(jobsPath()+'/'+running+'/inputs','POST',value);}
     function receive(event){
       if(event.threadId&&!thread?.id){thread={id:event.threadId,turns:[]};remember();}
       if(event.kind==='item')renderItem(event.item);
@@ -81,7 +95,7 @@
         $('#cx-interactions').append(box);status('입력을 기다리고 있습니다.');
       }
     }
-    async function load(force=false){if((loaded&&!force)||host.busy()||!host.project())return;const selectedModel=$('#studio-codex-model').value,selectedEffort=$('#cx-effort').value;await host.prepare?.();const result=await run('codex-models');models=result.models||[];const model=models.find(m=>m.id===selectedModel)||models.find(m=>m.defaultModel);$('#studio-codex-model').innerHTML=models.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('')||'<option value="">CLI 기본 모델</option>';if(model)$('#studio-codex-model').value=model.id;effort();if([...$('#cx-effort').options].some(option=>option.value===selectedEffort))$('#cx-effort').value=selectedEffort;const auth=await run('codex-account');host.auth(auth.authenticated);loaded=true;let saved;try{saved=sessionStorage.getItem('studio-codex:'+JSON.stringify(host.project()));}catch{}if(saved&&!thread)try{await run('codex-thread-read',{threadId:saved});}catch{status('이전 세션을 불러오지 못했습니다. 목록에서 다시 선택하세요.');}}
+    async function load(force=false){if((loaded&&!force)||host.busy()||!host.project())return;const selectedModel=$('#studio-codex-model').value,selectedEffort=$('#cx-effort').value;await host.prepare?.();const result=await run('codex-models');models=result.models||[];const model=models.find(m=>m.id===selectedModel)||models.find(m=>m.defaultModel);$('#studio-codex-model').innerHTML=models.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}</option>`).join('')||'<option value="">CLI 기본 모델</option>';if(model)$('#studio-codex-model').value=model.id;effort();if([...$('#cx-effort').options].some(option=>option.value===selectedEffort))$('#cx-effort').value=selectedEffort;const auth=await run('codex-account');account(auth);loaded=true;let saved;try{saved=sessionStorage.getItem(storageKey());}catch{}if(saved&&!thread)try{await run('codex-thread-read',{threadId:saved});}catch{status('이전 세션을 불러오지 못했습니다. 목록에서 다시 선택하세요.');}}
     async function history(more=false){$('#cx-history').hidden=false;const result=await run('codex-threads',{query:$('#cx-search input').value,archived,cursor:more?cursor:null});if(!more)$('#cx-sessions').replaceChildren();for(const t of result.threads||[]){const row=document.createElement('button');row.className='cx-session';row.textContent=(t.name||t.preview||'제목 없는 세션')+' · '+new Date(t.updatedAt*1000).toLocaleDateString();row.onclick=()=>guard(async()=>{if(archived)await run('codex-thread-unarchive',{threadId:t.id});await run('codex-thread-read',{threadId:t.id});$('#cx-history').hidden=true;});$('#cx-sessions').append(row);}cursor=result.nextCursor;$('[data-cx="more"]').hidden=!cursor;if(!$('#cx-sessions').children.length)$('#cx-sessions').textContent='저장된 세션이 없습니다.';}
     async function send(){
       const prompt=$('#studio-prompt').value.trim();if(!prompt)return;
@@ -91,6 +105,7 @@
       if(prompt==='/history'){await history();return;}
       if(prompt==='/help'){status('/new 새 세션 · /history 세션 목록 · /compact 컨텍스트 압축. 모델과 권한은 입력창 아래에서 선택하세요.');return;}
       if(host.dirty())throw Error('서버 파일과 일치하도록 편집 내용을 먼저 저장해 주세요.');
+      await host.prepare?.();
       const args={threadId:thread?.id,prompt,model:$('#studio-codex-model').value,effort:$('#cx-effort').value,mode:$('#studio-codex-mode').value,context:[...contexts]};
       $('#studio-prompt').value='';renderItem({id:'pending-'+Date.now(),type:'userMessage',text:prompt});
       try{await run('codex-run',args);contexts=[];renderContexts();}catch(error){$('#studio-prompt').value=prompt;throw error;}
@@ -117,11 +132,11 @@
     }
     async function guard(work){try{await work();}catch(error){status(error.message);host.toast(error.message);}}
     panel.addEventListener('click',event=>{const button=event.target.closest('[data-cx]');if(button){event.stopPropagation();button.closest('details')?.removeAttribute('open');guard(()=>action(button.dataset.cx,button));}});
-    panel.addEventListener('submit',event=>{event.preventDefault();event.stopPropagation();if(event.target.id==='studio-prompt-form')guard(send);if(event.target.id==='cx-search')guard(()=>history());});
+    panel.addEventListener('submit',event=>{event.preventDefault();event.stopPropagation();if(event.target.dataset.cxId==='studio-prompt-form')guard(send);if(event.target.dataset.cxId==='cx-search')guard(()=>history());});
     $('#studio-prompt').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();guard(send);}});
     $('#studio-codex-model').addEventListener('change',effort);$('#cx-archived').onchange=()=>{archived=$('#cx-archived').checked;guard(()=>history());};
     $('#studio-codex-mode').onchange=()=>{$('#studio-mode-label').textContent=$('#studio-codex-mode').selectedOptions[0].textContent;};
     $('#cx-image').onchange=()=>guard(async()=>{const file=$('#cx-image').files[0];if(!file)return;if(file.size>2000000||!['image/png','image/jpeg','image/webp'].includes(file.type))throw Error('2 MB 이하의 PNG, JPEG, WebP를 선택하세요.');const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});contexts.push({kind:'image',name:file.name,dataUrl});renderContexts();$('#cx-image').value='';});
-    reset();return {reset,load:force=>guard(()=>load(force))};
+    reset();return {reset,account,refreshAccount:async()=>account(await run('codex-account')),load:force=>guard(()=>load(force))};
   };
 })();

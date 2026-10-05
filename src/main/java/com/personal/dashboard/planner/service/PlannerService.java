@@ -1,6 +1,7 @@
 package com.personal.dashboard.planner.service;
 
 import com.personal.dashboard.global.WorkspaceException;
+import com.personal.dashboard.military.service.MilitaryService;
 import com.personal.dashboard.planner.dto.PlannerDto.*;
 import com.personal.dashboard.planner.entity.PlannerRecords.*;
 import com.personal.dashboard.planner.repository.PlannerRepository;
@@ -16,9 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 @PreAuthorize("hasRole('OWNER')")
 public class PlannerService {
   private final PlannerRepository repository;
+  private final MilitaryService military;
 
-  public PlannerService(PlannerRepository repository) {
+  public PlannerService(PlannerRepository repository, MilitaryService military) {
     this.repository = repository;
+    this.military = military;
   }
 
   private String text(String value) {
@@ -35,13 +38,16 @@ public class PlannerService {
 
   public List<EventView> events(LocalDate from, LocalDate to) {
     require(to.isAfter(from) && ChronoUnit.DAYS.between(from, to) <= 366, "조회 기간은 1~366일이어야 합니다.");
-    return repository.events(from.atStartOfDay(), to.atStartOfDay()).stream()
-        .map(this::view)
+    return java.util.stream.Stream.concat(
+            repository.events(from.atStartOfDay(), to.atStartOfDay()).stream().map(this::view),
+            military.calendarEvents(from, to).stream())
+        .sorted(Comparator.comparing(EventView::start).thenComparing(EventView::id))
         .toList();
   }
 
   @Transactional
   public EventView saveEvent(String id, EventRequest input) {
+    militaryEventGuard(id);
     if (id != null) found(repository.eventExists(id));
     require(input.end().isAfter(input.start()), "종료는 시작 이후여야 합니다.");
     require(
@@ -81,7 +87,9 @@ public class PlannerService {
         event.allDay(),
         event.location(),
         event.notes(),
-        event.color());
+        event.color(),
+        "CALENDAR",
+        null);
   }
 
   public List<TermView> terms() {
@@ -189,7 +197,13 @@ public class PlannerService {
 
   @Transactional
   public void deleteEvent(String id) {
+    militaryEventGuard(id);
     found(repository.deleteEvent(id) > 0);
+  }
+
+  private void militaryEventGuard(String id) {
+    if (id != null && id.startsWith("military:"))
+      throw new WorkspaceException(409, "병역 일정은 병역 캘린더에서 수정·삭제해 주세요.");
   }
 
   @Transactional

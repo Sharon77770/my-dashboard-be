@@ -1,6 +1,7 @@
 ﻿'use strict';
 /** Launcher presentation/state orchestration. Grid math, registries and storage have separate owners. */
 window.WorkspaceLauncher = (() => {
+  const paint=(target,html)=>window.WorkspaceLiveDOM?window.WorkspaceLiveDOM.patch(target,html):target.innerHTML=html;
   const apps=window.WorkspaceApps,grid=window.HomeGrid,widgets=window.WorkspaceWidgets;
   const {escape:e,icon}=window.WorkspaceUI;
   let helpers,state,statuses=new Map(),layout,page=0,editing=false,projection=[],folderId=null,expandedWidgets=new Set();
@@ -17,7 +18,7 @@ window.WorkspaceLauncher = (() => {
   function renderOverview(){
     const module=(title,appId,widgetId)=>`<section class="overview-module"><header><h2>${title}</h2><button data-view="${appId}" aria-label="${title} 열기">${icon('arrowRight')}</button></header><div>${widgets.render({widgetId,h:2},state,statuses)}</div></section>`;
     $('#home-date').textContent=new Date().toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'});
-    $('#home-overview').innerHTML=`<section class="overview-module overview-continue"><header><h2>이어하기</h2><button data-action="app-switcher" aria-label="최근 작업 모두 보기">${icon('arrowRight')}</button></header><div>${recentActivity()}</div></section>${module('서비스','services','services-status')}${module('오늘','calendar','today')}${module('인프라','devices','device-status')}`;
+    paint($('#home-overview'),`<section class="overview-module overview-continue"><header><h2>이어하기</h2><button data-action="app-switcher" aria-label="최근 작업 모두 보기">${icon('arrowRight')}</button></header><div>${recentActivity()}</div></section>${module('서비스','services','services-status')}${module('오늘','calendar','today')}${module('인프라','devices','device-status')}`);
   }
   function render(){
     if(!layout)return;
@@ -38,16 +39,16 @@ window.WorkspaceLauncher = (() => {
       }
       return `<div class="home-item ${item.type}" data-home-item="${e(item.id)}" data-widget="${e(item.widgetId||'')}" style="grid-column:${item.x+1}/span ${item.w};grid-row:${item.y+1}/span ${item.h}" tabindex="${editing?'0':'-1'}" aria-label="${e(item.type==='folder'?item.name:item.type==='widget'?widgets.get(item.widgetId).name:apps.get(item.appId)?.name)}${editing?' · 방향키 이동, Enter 메뉴':''}">${content}${editing?`<button class="item-edit" data-launcher="context" data-item="${e(item.id)}" aria-label="항목 편집">${icon('more')}</button>${item.type==='widget'?`<button class="widget-resize" data-widget-resize data-launcher="place" data-item="${e(item.id)}" aria-label="위젯 크기 조절">↘</button>`:''}`:''}</div>`;
     });
-    host.innerHTML=rendered.filter((_,index)=>editing||visible[index].type!=='widget').join('');
-    $('#home-widgets').innerHTML=editing?'':rendered.filter((_,index)=>visible[index].type==='widget').join('');
+    paint(host,rendered.filter((_,index)=>editing||visible[index].type!=='widget').join(''));
+    paint($('#home-widgets'),editing?'':rendered.filter((_,index)=>visible[index].type==='widget').join(''));
     $('#home-saved-widgets').hidden=editing||!visible.some(item=>item.type==='widget');
     renderOverview();
-    $('#home-pages').innerHTML=Array.from({length:layout.pages},(_,index)=>`<button data-page="${index}" class="page-dot ${index===page?'active':''}" aria-label="홈 ${index+1}페이지" aria-current="${index===page?'page':'false'}">${index+1}</button>`).join('');
+    paint($('#home-pages'),Array.from({length:layout.pages},(_,index)=>`<button data-page="${index}" class="page-dot ${index===page?'active':''}" aria-label="홈 ${index+1}페이지" aria-current="${index===page?'page':'false'}">${index+1}</button>`).join(''));
     $('#home-page-label').textContent=`${page+1} / ${layout.pages}`;
     $('#home-edit-tools').hidden=!editing;
     const editLabel=editing?'편집 완료':'홈 편집';$('#home-edit').innerHTML=`${icon('edit')}<span>${editLabel}</span>`;$('#home-edit').dataset.tooltip=editLabel;$('#home-edit').setAttribute('aria-pressed',String(editing));
     $('#home-lock').textContent=layout.locked?'잠금 해제':'레이아웃 잠금';$('#home-lock').setAttribute('aria-pressed',String(layout.locked));
-    $('#launcher-dock-apps').innerHTML=layout.dock.filter(appId=>apps.get(appId)).map(appId=>iconLabel(apps.get(appId),`${apps.attributes(apps.get(appId))} data-dock-app="${e(appId)}"`)).join('');
+    paint($('#launcher-dock-apps'),layout.dock.filter(appId=>apps.get(appId)).map(appId=>iconLabel(apps.get(appId),`${apps.attributes(apps.get(appId))} data-dock-app="${e(appId)}"`)).join(''));
     document.body.dataset.home=$('#home').classList.contains('active');document.body.dataset.homeEditing=String(editing);
   }
   function setPage(next){page=Math.max(0,Math.min(layout.pages-1,next));render();}
@@ -117,7 +118,20 @@ window.WorkspaceLauncher = (() => {
       if(action==='refresh-widgets')await refreshWidgets();
     }catch(error){helpers.toast(error.message);}
   }
-  async function refreshWidgets(){await widgets.refresh(helpers.api);render();}
+  let refreshingWidgets=null;
+  function paintWidgets(){
+    renderOverview();
+    document.querySelectorAll('[data-home-item] .widget-body').forEach(body=>{
+      const item=layout?.items.find(entry=>entry.id===body.closest('[data-home-item]').dataset.homeItem);
+      if(item)paint(body,widgets.render(item,state,statuses));
+    });
+  }
+  async function refreshWidgets(options={}){
+    if(refreshingWidgets)return refreshingWidgets;
+    const api=options.quiet?(path,method='GET',body)=>helpers.api(path,method,body,{quiet:true}):helpers.api;
+    refreshingWidgets=widgets.refresh(api,options).then(result=>{paintWidgets();if(options.quiet&&result?.stale)throw new Error('Widget refresh failed');}).finally(()=>{refreshingWidgets=null;});
+    return refreshingWidgets;
+  }
   return {
     init(shared){helpers=shared;state=helpers.state();apps.sync(state);try{const saved=window.HomePersistence.load();layout=saved?grid.sanitize(saved,apps,widgets):defaults();}catch{layout=defaults();helpers.toast('저장된 홈을 읽지 못해 기본 배치를 표시합니다. 편집 후 새 배치가 저장됩니다.');}
       document.body.addEventListener('click',click);$('#drawer-search').addEventListener('input',renderDrawer);
@@ -127,17 +141,17 @@ window.WorkspaceLauncher = (() => {
       $('#home-grid').addEventListener('keydown',event=>{if(!editing)return;const target=event.target.closest('[data-home-item]');if(!target)return;if(event.key==='Enter'){event.preventDefault();context(target);return;}const offsets={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};if(!offsets[event.key])return;event.preventDefault();const item=projection.find(item=>item.id===target.dataset.homeItem);transaction(next=>{next.items=grid.move(projection,item.id,{x:item.x+offsets[event.key][0],y:item.y+offsets[event.key][1]},columns());});$(`[data-home-item="${item.id}"]`)?.focus();});
       window.matchMedia('(max-width:700px)').addEventListener('change',render);
       window.addEventListener('storage',event=>{if(event.key!==window.HomePersistence.key()||!event.newValue)return;try{layout=grid.sanitize(JSON.parse(event.newValue),apps,widgets);page=Math.min(page,layout.pages-1);editing=false;render();}catch{helpers.toast('다른 창의 홈 배치를 읽지 못했습니다.');}});
-      window.addEventListener('studio-state',event=>{widgets.updateStudio(event.detail);render();});render();refreshWidgets();
+      window.addEventListener('studio-state',event=>{widgets.updateStudio(event.detail);paintWidgets();});render();refreshWidgets();
     },
     sync(nextState,nextStatuses){state=nextState;statuses=nextStatuses;apps.sync(state);if(layout){layout=grid.sanitize(layout,apps,widgets);render();}},
-    updateActivity(nextState){state=nextState;const list=$('#home-overview .overview-continue>div');if(list)list.innerHTML=recentActivity();},
+    updateActivity(nextState){state=nextState;const list=$('#home-overview .overview-continue>div');if(list)paint(list,recentActivity());},
     updateStatuses(nextStatuses){
       statuses=nextStatuses;
       const overview=$('#home-overview .overview-module:last-child>div');
-      if(overview)overview.innerHTML=widgets.render({widgetId:'device-status',h:2},state,statuses);
+      if(overview)paint(overview,widgets.render({widgetId:'device-status',h:2},state,statuses));
       document.querySelectorAll('#home-widgets [data-widget="device-status"] .widget-body,#home-grid [data-widget="device-status"] .widget-body').forEach(body=>{
         const item=layout?.items.find(entry=>entry.id===body.closest('[data-home-item]')?.dataset.homeItem);
-        if(item)body.innerHTML=widgets.render(item,state,statuses);
+        if(item)paint(body,widgets.render(item,state,statuses));
       });
     },
     opened(){document.body.dataset.home=$('#home').classList.contains('active');if(document.body.dataset.home==='true')refreshWidgets();},

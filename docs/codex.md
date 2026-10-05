@@ -1,5 +1,11 @@
 # IDE Codex 패널
 
+장비 자체 관리에는 별도 [장비 Codex](device-codex.md)를 사용한다. SSH 장비별 CLI 준비, 분리된 로그인·대화, 작업 폴더와 승인 흐름을 제공한다.
+
+패널 상단의 `SSH Codex`에 선택한 SSH 환경의 로그인 이메일과 요금제를 표시한다. 서버 AI 비서는 사이드바와 설정의 `서버 Codex`에 별도 계정을 표시한다. `account/read` 공개 정보만 사용하며 API 키 인증/이메일 없는 계정은 이메일 미제공으로 표시한다. 로그인 후 재조회하고 로그아웃·폴더 변경 시 이전 표시를 지운다. 이메일은 브라우저 저장소에 저장하지 않는다. 계약: [공식 App Server](https://learn.chatgpt.com/docs/app-server).
+
+명령 시작 이벤트의 `aggregatedOutput=null`은 아직 출력이 없는 정상 상태다. 브리지는 빈 출력으로 변환하고 `item/commandExecution/outputDelta`를 스트리밍한다. 명령 승인과 최종 thread 복원이 계속 진행된다. 실패 turn은 IDE와 서버 비서 모두 FAILED job이며 인증 만료(401), 샌드박스 오류(502), 기타 모델 실패(502)를 구분한다.
+
 대시보드 AI 비서의 Workspace Memory는 비공개 MCP 검색·조회 기능을 제공한다. 서버 비서는 turn 시작 전에 관련 항목만 제한된 크기로 검색한다. IDE Codex의 별도 job·인증 경계는 유지한다. [Workspace Memory](workspace-memory.md).
 
 프로젝트 작업은 IDE에서 SSH 장비의 폴더를 열고 **Codex** 탭을 사용한다. 프로젝트 Codex CLI, 인증, 세션은 선택한 원격 SSH 계정에서 관리한다. 서버 전역 assistant는 홈·Dock·모든 앱·검색의 **AI 비서** 내장 앱으로 열고 Linux 대시보드 서버의 Codex CLI와 인증을 사용한다. 두 기능은 job 경로와 MCP 권한이 분리되어 있다. 로그인은 기기 코드 로그인을 이용한다.

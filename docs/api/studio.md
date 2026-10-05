@@ -55,7 +55,7 @@ HTTP 오류: 익명401, 권한/CSRF403, 미존재/다른 세션 작업404, 잘�
 | codex-thread-rollback | threadId | thread. 마지막 1 turn 기록 제거, 파일 복구 없음 |
 | codex-run | prompt, threadId?, model?, effort?, mode?, context? | thread, status, turnId |
 | codex-review | threadId?, model?, mode? | 미커밋 변경 리뷰 후 thread/status/turnId |
-| codex-account | 없음 | authenticated, plan (계정 주소/토큰 제외) |
+| codex-account | 없음 | authenticated, email?, accountType?, plan? (공개 계정 정보만, 토큰 제외) |
 | codex-rate-limits | 없음 | rateLimits: name, windowDurationMins, usedPercent, resetsAt (계정별 기간 사용률, 잔여 비율은 UI에서 계산) |
 | codex-skills | 없음 | skills: name/description/path/enabled |
 | codex-connections | 없음 | connections: name/status (인증 방식), runtimeStatus (선택/null 가능), tools (도구 이름 배열), error (안전한 오류 안내, 정상 시 빈 문자열) |

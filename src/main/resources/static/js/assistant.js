@@ -144,6 +144,7 @@
       get_service_draft: '서비스 초안 확인', cancel_service_draft: '서비스 초안 취소',
       commit_service_draft: '서비스 등록',
       list_services: '서비스 목록 조회', get_service: '서비스 정보 조회',
+      get_service_logs: '서비스 운영 로그 조회', get_service_runtime: '서비스 실행 상태 조회',
       get_service_context: '서비스 연결 현황 조회', get_service_health: '서비스 상태 조회',
       list_database_connections: '데이터베이스 연결 조회', get_database_metadata: '데이터베이스 정보 조회',
       list_database_tables: '데이터베이스 테이블 조회', describe_database_table: '테이블 구조 조회',
@@ -665,7 +666,7 @@
       };
       while (job.state === 'RUNNING') {
         deliverEvents(job.events);
-        await new Promise(resolve => setTimeout(resolve, 450));
+        await (window.WorkspaceRealtime?.waitForJob(jobId,450)||new Promise(resolve => setTimeout(resolve, 450)));
         job = await runtime.api('/assistant/jobs/' + encodeURIComponent(jobId));
       }
       deliverEvents(job.events);
@@ -834,10 +835,14 @@
         needsMcpRepair = false;
         limitsRefresh.disabled = true;
         limitsText.textContent = '잔여 사용량 확인 전';
+        settingsAccount.textContent = '서버 Codex 계정 확인 중';
+        document.querySelector('#assistant-sidebar-account').textContent = settingsAccount.textContent;
         await prepareServerCodex();
         const accountResult = await runJob('codex-account');
         const authenticated = Boolean(accountResult.assistant?.authenticated);
-        settingsAccount.textContent = authenticated ? '서버 Codex 계정에 로그인됨' : '서버 Codex 로그인이 필요합니다.';
+        const account = accountResult.assistant || {};
+        const identity = account.email || (account.accountType === 'apiKey' ? 'API 키 인증 · 이메일 미제공' : '로그인됨 · 이메일 미제공');
+        settingsAccount.textContent = authenticated ? '서버 Codex · ' + identity + (account.plan ? ' · ' + account.plan : '') : '서버 Codex 로그인이 필요합니다.';
         document.querySelector('#assistant-sidebar-account').textContent = settingsAccount.textContent;
         settingsLogin.hidden = authenticated;
         settingsLogout.hidden = !authenticated;
@@ -865,7 +870,7 @@
           'github.get_repository', 'github.update_repository', 'github.update_release',
           'github.delete_repository', 'github.delete_release', 'discover_service_resources',
           'create_service_draft', 'update_service_draft', 'get_service_draft', 'commit_service_draft',
-          'search_memories', 'get_memory', 'create_memory', 'compose_memory_context'];
+          'search_memories', 'get_memory', 'create_memory', 'compose_memory_context', 'get_service_runtime', 'get_service_logs'];
         if (!dashboardMcp || dashboardMcp.error
             || (dashboardMcp.runtimeStatus != null && dashboardMcp.runtimeStatus !== 'connected')
             || !requiredTools.every(name => dashboardMcp.tools?.includes(name))) {
@@ -1345,7 +1350,9 @@
 
   let eventCursor = 0;
   try { eventCursor = Number(sessionStorage.getItem('assistant-event-cursor') || 0) || 0; } catch {}
+  let pollingEvents=false;
   async function pollEvents() {
+    if(pollingEvents)return;pollingEvents=true;
     try {
       const events = await runtime.api('/assistant/events?after=' + eventCursor);
       for (const event of events) {
@@ -1353,8 +1360,10 @@
         try { sessionStorage.setItem('assistant-event-cursor', String(eventCursor)); } catch {}
         window.dispatchEvent(new CustomEvent('assistant:navigate', { detail: { route: event.route, applicationId: event.applicationId } }));
       }
-    } catch {}
+    } catch {} finally {pollingEvents=false;}
   }
-  setInterval(() => { if (!document.hidden) pollEvents(); }, 1000);
+  let lastEventPoll=0;
+  setInterval(() => { if (!document.hidden&&(!window.WorkspaceRealtime?.connected()||Date.now()-lastEventPoll>10000)){lastEventPoll=Date.now();pollEvents();} }, 1000);
+  window.addEventListener('workspace:invalidate',event=>{if(event.detail.topics.some(topic=>['all','workspace','assistant'].includes(topic)))pollEvents();});
   pollEvents();
 })();

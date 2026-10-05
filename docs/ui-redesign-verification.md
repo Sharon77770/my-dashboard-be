@@ -1,5 +1,16 @@
 # UI redesign 검증 현황
 
+## 2026-10-05 실시간 UI 추가 검증
+
+- Docker `mvn -B spotless:apply verify`: BUILD SUCCESS, 176 tests / 168 passed / 8 skipped. 실제 HTTP 로그인·WebSocket Upgrade·REST 변경 수신·로그아웃 종료·Origin/익명 거부·세션별 작업 분리 검증 포함.
+- `npm run build --prefix tools/ui`: 성공.
+- `realtime-test.cjs`, `telemetry-live-test.cjs`: DOM/편집 상태 유지와 연결 수명, 재접속, 첫 수신 전환, 지연 응답 보호 통과.
+- launcher/loading/planner/services/notes/cloud/GitHub/database-poll/assistant/logs/responsive/theme 회귀 검사 통과. 변경된 feature 테스트는 공통 live DOM 모듈을 실제로 로드한다.
+- 현재 Browser runtime의 `browsers.list()`는 빈 목록이다. 실제 렌더링·터치·운영 reverse proxy 경유 WebSocket 검증은 수행하지 않았다. 아래 이전 검증 기록과 분리한다.
+- 적용 범위와 예외: [실시간 UI](realtime-ui.md).
+
+2026-10-05 공통 로딩 변경: 중앙 모달·3px 배경 blur·입력 잠금과 동시 요청/오류 해제/포커스 복원을 적용했다. `loading-test.cjs`와 Launcher의 실제 API wrapper 검사에서 응답 본문 수신 완료 전 잠금, 탐색 차단, 실패 해제 및 AI 비서 폴링 제외를 확인했다. Launcher, Database polling, Services, Notes, Planner, GitHub, Assistant, responsive/theme 검사와 CSS build 및 Maven verify(171개, 실패 0, 조건부 제외 8)가 통과했다. 실제 브라우저 blur·top-layer·터치 렌더링 검증은 수행하지 않았다.
+
 2026-09-30 작업 트리 기준. 이 문서는 전체 리디자인의 완료 선언이 아니다. 소스와 자동 검사에서 확인한 내용과 실제 렌더링 검증을 구분한다.
 
 ## Goal 요구사항 대조
@@ -59,3 +70,10 @@ jsdom 검사는 layout engine, 실제 터치, virtual keyboard 또는 screenshot
 | Login / Error | 작은 화면, autofill, 잘못된 로그인, 확대와 keyboard |
 
 이 목록을 실제로 확인하고 발견된 문제를 수정하기 전에는 Goal을 완료 처리하지 않는다.
+
+## 2026-10-05 병역 캘린더 추가 검증
+
+- Docker Java 21/Maven `spotless:apply verify`: BUILD SUCCESS, 185건 중 177건 통과·8건 건너뜀, 실패·오류 0. 병역 날짜 경계·통합 검사와 두 캘린더 변경 알림 포함.
+- `tools/launcher/military-test.cjs`: 신규 진입·실시간 수치·DOM 유지·편집 충돌 초안 보존·캘린더 왕복·지연 응답 방어 통과.
+- launcher/planner/workspace-apps, responsive 9개 너비, theme 및 `npm run build --prefix tools/ui` 통과.
+- 현재 제어 가능한 브라우저 목록이 비어 있어 실제 렌더링·모바일 터치·운영 배포 검증은 수행하지 않았다. 위 결과는 서버와 jsdom/CSS 검사 결과다.
