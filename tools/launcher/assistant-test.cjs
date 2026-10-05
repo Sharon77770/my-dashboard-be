@@ -175,14 +175,19 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     composerEffort.value = 'xhigh';
     composerEffort.dispatchEvent(new preferences.w.Event('change'));
     assert.equal(preferences.d.querySelector('#assistant-effort').value, 'xhigh');
+    const reviewer = preferences.d.querySelector('#assistant-reviewer');
+    reviewer.value = 'auto_review';
+    reviewer.dispatchEvent(new preferences.w.Event('change'));
     savedPreferences = preferences.w.localStorage.getItem('dashboard-assistant-model-preferences-v1');
-    assert.deepEqual(JSON.parse(savedPreferences), { model: 'model-b', effort: 'xhigh' });
+    assert.deepEqual(JSON.parse(savedPreferences), { model: 'model-b', effort: 'xhigh', reviewer: 'auto_review' });
     preferences.d.querySelector('#assistant-prompt').value = '선택한 모델로 답해줘';
     preferences.d.querySelector('#assistant-form').dispatchEvent(new preferences.w.Event('submit', { cancelable: true }));
     await tick();
     const run = preferences.requests.find(request => request.action === 'codex-run');
     assert.equal(run.args.model, 'model-b');
     assert.equal(run.args.effort, 'xhigh');
+    assert.equal(run.args.approval, 'on-request');
+    assert.equal(run.args.reviewer, 'auto_review');
     preferences.w.dispatchEvent(new preferences.w.CustomEvent('workspace:view', { detail: { id: 'assistant' } }));
     await tick();
     assert.equal(composerModel.value, 'model-b');
@@ -192,6 +197,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
   try {
     assert.equal(restoredPreferences.d.querySelector('#assistant-composer-model').value, 'model-b');
     assert.equal(restoredPreferences.d.querySelector('#assistant-composer-effort').value, 'xhigh');
+    assert.equal(restoredPreferences.d.querySelector('#assistant-reviewer').value, 'auto_review');
     const settingsModel = restoredPreferences.d.querySelector('#assistant-model');
     settingsModel.value = 'model-a';
     settingsModel.dispatchEvent(new restoredPreferences.w.Event('change'));

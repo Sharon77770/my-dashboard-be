@@ -8,9 +8,10 @@ w.matchMedia=()=>({matches:false,addEventListener(){}});
 w.ResizeObserver=class{observe(){}disconnect(){}};w.setInterval=()=>0;
 w.workspaceInitial={devices:[],applications:[],clips:[],bookmarks:[],activity:[],preferences:{theme:'dark',compact:true,terminalFont:13,clipMinutes:60},browserSettings:{mode:'CLIENT'},tabs:[]};
 let events=[],terms=[],courses=[];const calls=[];
+const serverEvent=(id,body)=>({id,...body,start:body.start.length===16?body.start+':00':body.start,end:body.end.length===16?body.end+':00':body.end});
 w.fetch=async(url,opt={})=>{const method=opt.method||'GET',body=opt.body?JSON.parse(opt.body):null;calls.push({url,method,body});let data=null,status=200;
 if(url==='/api/v1/workspace')data=w.workspaceInitial;
-else if(url.startsWith('/api/v1/calendar/events')){if(method==='GET')data=events;else if(method==='POST'){data={id:'event-1',...body};events=[data];}else if(method==='PUT'){data={id:'event-1',...body};events=[data];}else{events=[];status=204;}}
+else if(url.startsWith('/api/v1/calendar/events')){if(method==='GET')data=events;else if(method==='POST'){data=serverEvent('event-1',body);events=[data];}else if(method==='PUT'){data=serverEvent('event-1',body);events=[data];}else{events=[];status=204;}}
 else if(url==='/api/v1/timetables'){if(method==='POST'){data={id:'term-1',...body};terms=[data];}else data=terms;}
 else if(url.includes('/courses')){if(method==='POST'){data={id:'course-1',termId:'term-1',...body};courses=[data];}else if(method==='PUT'){data={id:'course-1',termId:'term-1',...body};courses=[data];}else{courses=[];status=204;}}
 else if(url.includes('/timetables/'))data={term:terms[0],courses,totalCredits:courses.reduce((sum,c)=>sum+c.credits,0)};
@@ -25,11 +26,28 @@ w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js/workspace.js
 await tick(); // Initial foreground loading blocks navigation until the response is rendered.
 const initialCalendarReads=calls.filter(c=>c.url.includes('/calendar/events?')).length;click('[data-view=calendar]');await tick();assert.equal(d.querySelectorAll('.calendar-day').length,42);
 click('[data-plan=month-next]');await tick();assert.equal(calls.filter(c=>c.url.includes('/calendar/events?')).length,initialCalendarReads+2);
-click('[data-plan=event-new]');set('title','과제 <img src=x>');const check=d.querySelector('[name=allDay]');check.checked=true;check.dispatchEvent(new w.Event('change'));
-assert.equal(d.querySelector('[name=start]').type,'date');set('start','2026-10-01');set('end','2026-10-03');await submit();
-const saved=calls.find(c=>c.method==='POST'&&c.url.includes('/calendar/events')).body;assert.equal(saved.end,'2026-10-04T00:00');assert.equal(saved.start,'2026-10-01T00:00');assert.equal(d.querySelectorAll('#calendar img').length,0);
+click('[data-plan=event-new]');set('title','과제 <img src=x>');assert.equal(d.querySelector('[name=allDay]').checked,true);
+assert.equal(d.querySelector('[name=start]').type,'date');assert.equal(d.querySelector('[name=end]').required,false);set('start','2026-10-01');await submit();
+const singleDay=calls.find(c=>c.method==='POST'&&c.url.includes('/calendar/events')).body;assert.equal(singleDay.start,'2026-10-01T00:00');assert.equal(singleDay.end,'2026-10-02T00:00');
+assert.equal(d.querySelectorAll('.event-chip[data-id="event-1"]').length,1);
+assert.equal(d.querySelector('.event-chip[data-id="event-1"]').style.getPropertyValue('--range-length'),'1');
+assert.equal(d.querySelector('.day-agenda .agenda-event small:last-child').textContent,'','one-day agenda has no repeated date range');
+click('.event-chip[data-id="event-1"]');assert.equal(d.querySelector('[name=end]').value,'');set('end','2026-10-03');await submit();
+const saved=calls.find(c=>c.method==='PUT'&&c.url.includes('/calendar/events')).body;assert.equal(saved.end,'2026-10-04T00:00');assert.equal(d.querySelectorAll('#calendar img').length,0);
+assert.equal(d.querySelector('.event-chip[data-id="event-1"]').style.getPropertyValue('--range-length'),'3','one bar spans the selected dates');
+click('.calendar-day[data-live-key="2026-10-04"] [data-plan=day]');assert.equal(d.querySelectorAll('.day-agenda .agenda-event').length,0);
+click('.calendar-day[data-live-key="2026-10-01"] [data-plan=day]');
 const agenda=d.querySelector('.day-agenda'),monthInput=d.querySelector('[data-month]');monthInput.focus();await w.WorkspacePlanner.refresh('calendar');assert.equal(d.querySelector('.day-agenda'),agenda);assert.equal(d.activeElement,monthInput);assert.equal(d.querySelector('#workspace-activity').hidden,true);
 click('[data-plan=event-edit]');assert.equal(d.querySelector('[name=end]').value,'2026-10-03');click('#editor-dialog [data-action=dialog-close]');
+events.push(serverEvent('timed-midnight',{title:'자정에 끝나는 일정',start:'2026-10-03T21:00',end:'2026-10-04T00:00',allDay:false,color:'#7597eb',location:'',notes:''}));
+events.push(serverEvent('across-weeks',{title:'여러 주 일정',start:'2026-10-05T00:00',end:'2026-10-13T00:00',allDay:true,color:'#7597eb',location:'',notes:''}));
+for(let index=1;index<=3;index++)events.push(serverEvent('overlap-'+index,{title:'겹친 일정 '+index,start:'2026-10-05T09:00',end:'2026-10-05T10:00',allDay:false,color:'#7597eb',location:'',notes:''}));
+await w.WorkspacePlanner.refresh('calendar');
+assert.equal(d.querySelectorAll('.event-chip[data-id="timed-midnight"]').length,1);
+assert.equal(d.querySelectorAll('.event-chip[data-id="across-weeks"]').length,2,'a range continues as one bar per calendar week');
+assert.equal([...d.querySelectorAll('.event-chip[data-id="across-weeks"]')].map(bar=>bar.style.getPropertyValue('--range-length')).join(','),'7,1');
+assert.equal(d.querySelector('.calendar-day[data-live-key="2026-10-05"] .more-events').textContent,'+1개 더 보기');
+click('.calendar-day[data-live-key="2026-10-04"] [data-plan=day]');assert.equal(d.querySelectorAll('.day-agenda .agenda-event').length,0,'timed midnight end also stays outside the next day');
 click('[data-view=timetable]');await tick();assert.ok(d.querySelector('.planner-welcome'));
 click('[data-plan=term-new]');await submit();assert.equal(d.querySelectorAll('.weekday-column').length,7);
 click('[data-plan=slot-new][data-day="7"]');set('title','일요일 세미나');click('#add-meeting');assert.equal(d.querySelectorAll('.meeting-row').length,2);await submit();
@@ -42,5 +60,5 @@ assert.equal(d.querySelector('[data-plan=weekday][data-day="7"]').getAttribute('
 assert.equal(calls.length,callsBeforeWeekday,'display selection must not write or refetch courses');
 assert.equal(JSON.stringify(courses),storedCourses);assert.equal(d.querySelectorAll('.weekday-column').length,7);
 click('[data-plan=course-edit]');click('#delete-planner-item');await submit();assert.equal(d.querySelectorAll('.course-block').length,0);
-console.log('PASS: calendar navigation, inclusive all-day form, escaped titles, semester creation, seven-day grid, multi-slot courses, credit summary and deletion');w.close();
+console.log('PASS: calendar single-day and spanning ranges, exclusive midnight, overlap overflow, navigation, escaped titles, and timetable flows');w.close();
 })().catch(e=>{console.error(e);w.close();process.exitCode=1;});

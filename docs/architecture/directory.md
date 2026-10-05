@@ -134,7 +134,7 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 - `tools/notes-editor/`: 고정 npm 의존성, 빌드 소스, 실제 편집기 DOM 테스트.
 - `static/vendor/notes-editor.js`, `.css`, `.LICENSE.txt`: 배포 번들과 라이선스 고지.
 
-- `tools/ui/`: Tailwind CSS 빌드 진입점과 잠금 파일. 생성물은 `static/vendor/workspace-ui.css`이며 홈·로그인·오류 템플릿에서 공통 사용한다.
+- `tools/ui/`: Tailwind CSS 빌드 진입점과 잠금 파일. 생성물 `static/vendor/workspace-ui.css`는 인증 후 홈에서 사용한다. 로그인·오류 템플릿은 공개 `static/css/design-system.css`와 `static/css/app.css`를 사용한다.
 - `static/js/drawers.js`: 모바일 모달 사이드바의 열기·닫기, 패널 상태와 포커스 복원 담당.
 - `telemetry/{controller,service,repository,dto}`: OWNER service management/analytics와 별도 service-key ingestion, SQLite raw/hourly aggregates.
 - `static/js/telemetry.js`, `static/css/telemetry.css`: Telemetry 앱과 Integration 화면, 반응형 분석 카드.

@@ -57,7 +57,14 @@ class WebsiteIntegrationTest {
     var document = org.jsoup.Jsoup.parse(html);
     assertThat(document.selectFirst("form[action=/login] input[name=_csrf]").val()).isNotBlank();
     assertThat(document.selectFirst("input[name=password]").hasAttr("value")).isFalse();
-    mvc.perform(get("/css/app.css")).andExpect(status().isOk());
+    assertThat(document.select("link[rel=stylesheet]").eachAttr("href"))
+        .containsExactly("/css/design-system.css", "/css/app.css");
+    mvc.perform(get("/css/design-system.css"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith("text/css"));
+    mvc.perform(get("/css/app.css"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith("text/css"));
     mvc.perform(get("/health"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("UP"));

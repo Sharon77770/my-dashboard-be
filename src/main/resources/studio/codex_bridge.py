@@ -174,13 +174,14 @@ def assistant_thread(thread):
 
 
 class CodexBridge:
-    def __init__(self, root, dashboard=False, device_codex=False):
+    def __init__(self, root, dashboard=False, device_codex=False, reviewer='user'):
         self.root, self.serial, self.sequence = root, 0, 0
         self.frames, self.replies, self.pending = queue.Queue(maxsize=512), {}, {}
         self.control_replies = set()
         self.thread_id, self.turn_id, self.finished = None, None, None
         self.items = {}
         command = ['codex', 'app-server']
+        command.extend(['-c', 'approvals_reviewer=' + json.dumps(reviewer)])
         if device_codex:
             # Even disabled MCP entries require a valid transport in CLI configuration.
             command.extend(['-c', 'mcp_servers.personal-dashboard.enabled=false',
@@ -355,16 +356,21 @@ def codex_input(root, args):
 def codex_action(root, action, args, dashboard=False, device_codex=False):
     mode = args.get('mode') or 'read-only'
     approval = args.get('approval') or 'on-request'
+    reviewer = args.get('reviewer') or 'user'
     if mode not in ('read-only', 'workspace-write', 'danger-full-access'):
         raise Failure('지원하지 않는 실행 권한입니다.')
     if approval not in ('on-request', 'never'):
         raise Failure('지원하지 않는 승인 정책입니다.')
+    if reviewer not in ('user', 'auto_review'):
+        raise Failure('지원하지 않는 승인 심사자입니다.')
+    if approval == 'never' and reviewer == 'auto_review':
+        raise Failure('자동 심사는 필요 시 승인 요청과 함께 사용하세요.')
     if dashboard and (mode != 'read-only' or approval != 'on-request'):
         raise Failure('AI 비서는 읽기 전용 및 필요 시 승인 정책을 사용합니다.')
     # Empty App Server threads are not persisted until their first turn.
     if action == 'codex-thread-new':
         return dict(assistant=dict(thread=assistant_thread(dict(id='', cwd=str(root), turns=[]))))
-    bridge = CodexBridge(root, dashboard, device_codex)
+    bridge = CodexBridge(root, dashboard, device_codex, reviewer)
     try:
         bridge.call('initialize', dict(clientInfo=dict(name='personal_workspace', version='1.0.0'), capabilities=dict(experimentalApi=True)))
         bridge.write(dict(method='initialized'))

@@ -80,7 +80,9 @@
 :is(#cx-contexts,[data-cx-id="cx-contexts"]) {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1)
+  gap: var(--space-1);
+  max-height: 64px;
+  overflow-y: auto
 }
 :is(#cx-contexts,[data-cx-id="cx-contexts"]) button {
   max-width: 100%;
@@ -242,19 +244,20 @@
   display: none
 }
 :is(#studio-prompt-form,[data-cx-id="studio-prompt-form"]) {
-  margin: 4px 10px 10px;
-  padding: 10px;
+  margin: 4px 8px 8px;
+  padding: 8px;
   background: var(--bg-surface);
   border-radius: var(--radius-panel);
   border: 1px solid var(--border-default);
   box-shadow: var(--shadow-soft)
 }
 :is(#studio-prompt,[data-cx-id="studio-prompt"]) {
-  padding: 8px 2px;
+  height: 46px;
+  padding: 5px 2px;
   resize: vertical;
   font-size: 14px;
-  min-height: 72px;
-  max-height: 220px
+  min-height: 46px;
+  max-height: min(140px,25dvh)
 }
 :is(#studio-prompt-form,[data-cx-id="studio-prompt-form"]) .cx-composer-toolbar {
   display: flex;
@@ -310,7 +313,7 @@
   flex-shrink: 0
 }
 .cx-composer-meta {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 6px;
   border-top: 1px solid var(--border-subtle);
@@ -374,10 +377,13 @@
 /* Conversation text remains readable in split and expanded layouts. */
 .cx-preferences {
   position: absolute;
-  inset: 42px 8px 8px;
+  top: 42px;
+  right: 8px;
   z-index: 12;
   overflow: auto;
-  padding: 16px;
+  width: min(380px,calc(100% - 16px));
+  max-height: min(420px,60%);
+  padding: 12px;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
@@ -391,12 +397,31 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px
+  gap: 12px;
+  position: sticky;
+  top: -12px;
+  z-index: 1;
+  padding-block: 2px 8px;
+  background: var(--bg-surface)
 }
 .cx-preferences label {
   display: grid;
+  gap: 5px;
+  margin-block: 10px
+}
+.cx-preferences .cx-settings {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
   gap: 8px;
-  margin-block: 16px
+  padding: 0
+}
+.cx-preferences .cx-settings label {
+  min-width: 0;
+  margin: 10px 0 0
+}
+.cx-preferences .cx-settings select {
+  width: 100%;
+  min-height: 36px
 }
 .cx-preferences select {
   width: 100%;
@@ -407,7 +432,7 @@
   line-height: 1.6
 }
 .cx-preferences h4 {
-  margin: 20px 0 8px
+  margin: 12px 0 6px
 }
 .cx-preferences meter {
   width: 100%;

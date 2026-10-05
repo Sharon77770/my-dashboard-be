@@ -630,9 +630,9 @@
   opacity: .75;
 }
 .assistant-window .assistant-composer {
-  width: min(880px,calc(100% - 48px));
-  margin: 0 auto calc(20px + env(safe-area-inset-bottom));
-  padding: 14px 16px;
+  width: min(880px,calc(100% - 24px));
+  margin: 0 auto calc(8px + env(safe-area-inset-bottom));
+  padding: 10px 12px;
   border: 1px solid var(--border-default);
   border-top: 1px solid var(--border-default);
   border-radius: var(--radius-floating);
@@ -644,6 +644,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  max-height: 64px;
+  overflow-y: auto;
 }
 .assistant-window .assistant-attachment {
   display: inline-flex;
@@ -675,13 +677,14 @@
   width: 100%;
   resize: vertical;
   border: 0;
-  padding: 5px 3px;
+  padding: 4px 3px;
   background: transparent;
   font: 13px/1.55 var(--font-ui);
   box-shadow: none;
   font-size: 15px;
-  min-height: 72px;
-  max-height: 220px;
+  height: 46px;
+  min-height: 46px;
+  max-height: min(140px,25dvh);
 }
 .assistant-window .assistant-composer textarea:focus {
   outline: 0;
@@ -716,7 +719,7 @@
   margin-left: auto;
 }
 .assistant-window .assistant-composer-choice {
-  display: block;
+  display: none;
   min-width: 0;
 }
 .assistant-window .assistant-composer-choice:first-child {
@@ -783,8 +786,8 @@
   cursor: wait;
 }
 .assistant-settings {
-  width: min(480px,calc(100% - 24px));
-  max-height: min(700px,calc(100dvh - 32px));
+  width: min(400px,calc(100% - 24px));
+  max-height: min(500px,62dvh);
   padding: 0;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
@@ -799,7 +802,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-subtle);
 }
 .assistant-settings-head h2 {
@@ -814,10 +817,10 @@
   display: grid;
   gap: 0;
   overflow: auto;
-  max-height: calc(100dvh - 110px);
+  max-height: min(430px,calc(62dvh - 60px));
 }
 .assistant-settings-content section {
-  padding: 18px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-subtle);
 }
 .assistant-settings-content h3 {
@@ -1357,9 +1360,9 @@
   min-height: 44px;
 }
 .assistant-window .assistant-composer {
-  width: calc(100% - 24px);
-  margin: 0 auto calc(12px + env(safe-area-inset-bottom));
-  padding: 10px 12px;
+  width: calc(100% - 16px);
+  margin: 0 auto calc(8px + env(safe-area-inset-bottom));
+  padding: 8px 10px;
 }
 .assistant-window-actions button,.assistant-brand #assistant-sidebar-open {
   min-width: 44px;

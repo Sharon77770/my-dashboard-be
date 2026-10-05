@@ -16,7 +16,9 @@ window.WorkspacePlanner = (() => {
   const notice=message=>window.WorkspaceUI.emptyState(message,'','calendar');
   const colorField=value=>field('color','색상',value,'color','required');
   const memo=value=>`<label>메모<textarea name="notes" rows="3" maxlength="4000">${safe(value)}</textarea></label>`;
-  const onDay=(event,day)=>event.start<`${addDays(day,1)}T00:00`&&event.end>`${day}T00:00`;
+  // API date-times can include seconds; compare at the contract's minute precision so an exclusive midnight end stays outside the next day.
+  const onDay=(event,day)=>event.start.slice(0,16)<`${addDays(day,1)}T00:00`&&event.end.slice(0,16)>`${day}T00:00`;
+  const lastDay=event=>event.end.slice(11,16)==='00:00'?addDays(event.end.slice(0,10),-1):event.end.slice(0,10);
   const eventTime=event=>event.allDay?'종일':`${event.start.slice(11,16)}–${event.end.slice(11,16)}`;
   function init(shared) {
     ui=shared; selectedDay=today(); month=selectedDay.slice(0,7);
@@ -40,15 +42,34 @@ window.WorkspacePlanner = (() => {
     finally { if(version===calendarVersion)$('#calendar').removeAttribute('aria-busy'); }
   }
   const paint=(target,html,options)=>options.quiet&&window.WorkspaceLiveDOM?window.WorkspaceLiveDOM.patch(target,html):target.innerHTML=html;
+  /** Place each event in one lane per week so a range is drawn as one continuous bar across its dates. */
+  function calendarWeek(from,weekIndex) {
+    const days=Array.from({length:7},(_,index)=>addDays(from,weekIndex*7+index));
+    const segments=events.map(event=>({event,columns:days.map((day,index)=>onDay(event,day)?index:-1).filter(index=>index>=0)}))
+      .filter(segment=>segment.columns.length)
+      .sort((left,right)=>left.columns[0]-right.columns[0]||left.event.start.localeCompare(right.event.start)||left.event.id.localeCompare(right.event.id));
+    const laneEnds=[];
+    for(const segment of segments) {
+      const first=segment.columns[0];
+      let lane=laneEnds.findIndex(last=>last<first);
+      if(lane<0)lane=laneEnds.length;
+      segment.lane=lane;
+      laneEnds[lane]=segment.columns.at(-1);
+    }
+    const visible=segments.filter(segment=>segment.lane<3);
+    const cells=days.map((day,index)=>{
+      const hiddenCount=segments.filter(segment=>onDay(segment.event,day)&&segment.lane>=3).length;
+      return `<div data-live-key="${day}" class="calendar-day ${day.slice(0,7)!==month?'outside':''} ${day===selectedDay?'selected':''} ${hiddenCount?'has-more':''}" style="--day-row:${weekIndex+1};--day-column:${index+1}"><button class="day-number ${day===today()?'is-today':''}" data-plan="day" data-day="${day}" aria-label="${day} 일정 보기" aria-pressed="${day===selectedDay}">${Number(day.slice(8))}</button>${hiddenCount?`<button class="more-events" data-plan="day" data-day="${day}">+${hiddenCount}개 더 보기</button>`:''}</div>`;
+    }).join('');
+    const bars=visible.map(({event,columns,lane})=>`<button class="event-chip" style="--event-color:${safe(event.color)};--range-row:${weekIndex+1};--range-start:${columns[0]+1};--range-length:${columns.length};--range-lane:${lane}" data-plan="event-edit" data-id="${safe(event.id)}" title="${safe(event.title)}"><span>${event.allDay?'':event.start.slice(11,16)+' '}</span>${safe(event.title)}</button>`).join('');
+    return cells+bars;
+  }
   function renderCalendar(from,options={}) {
     if(!from){const first=asDate(`${month}-01`);from=addDays(`${month}-01`,-((first.getDay()+6)%7));}
     const daily=events.filter(event=>onDay(event,selectedDay));
     paint($('#calendar'),`<div class="page-head"><h1>캘린더</h1><button class="ghost" data-view="military" aria-label="병역 캘린더" title="병역 캘린더">${window.WorkspaceUI.icon('calendar')}<span class="planner-action-label">병역 캘린더</span></button><button class="primary" data-plan="event-new" aria-label="일정 추가" title="일정 추가">${window.WorkspaceUI.icon('plus')}<span class="planner-action-label">일정 추가</span></button></div>
       <div class="planner-toolbar"><div class="actions"><button data-plan="month-prev" aria-label="이전 달" title="이전 달">${window.WorkspaceUI.icon('back')}</button><h2>${Number(month.slice(0,4))}년 ${Number(month.slice(5))}월</h2><input type="month" aria-label="조회할 월" data-month value="${month}" min="1900-01" max="2199-12"><button data-plan="month-next" aria-label="다음 달" title="다음 달">${window.WorkspaceUI.icon('arrowRight')}</button><button data-plan="today">오늘</button></div></div>
-      <div class="calendar-layout"><div class="month-board"><div class="week-labels">${weekdays.map(day=>`<span>${day}</span>`).join('')}</div><div class="month-grid">${Array.from({length:42},(_,index)=>{
-        const day=addDays(from,index), items=events.filter(event=>onDay(event,day));
-        return `<div data-live-key="${day}" class="calendar-day ${day.slice(0,7)!==month?'outside':''} ${day===selectedDay?'selected':''}"><button class="day-number ${day===today()?'is-today':''}" data-plan="day" data-day="${day}" aria-label="${day} 일정 보기" aria-pressed="${day===selectedDay}">${Number(day.slice(8))}</button>${items.slice(0,3).map(event=>`<button class="event-chip" style="--event-color:${safe(event.color)}" data-plan="event-edit" data-id="${safe(event.id)}" title="${safe(event.title)}"><span>${event.allDay?'':event.start.slice(11,16)}</span> ${safe(event.title)}</button>`).join('')}${items.length>3?`<button class="more-events" data-plan="day" data-day="${day}">+${items.length-3}개 더 보기</button>`:''}</div>`;
-      }).join('')}</div></div><aside class="day-agenda"><div class="panel-head"><div><span>선택한 날짜</span><h2>${Number(selectedDay.slice(5,7))}월 ${Number(selectedDay.slice(8))}일</h2></div><button data-plan="event-new" aria-label="선택한 날짜에 일정 추가">＋</button></div>${daily.map(event=>`<button class="agenda-event" data-plan="event-edit" data-id="${safe(event.id)}" style="--event-color:${safe(event.color)}"><small>${safe(eventTime(event))}</small><strong>${safe(event.title)}</strong><span>${safe(event.location)}</span><small>${event.start.slice(0,10)!==event.end.slice(0,10)?safe(event.start.slice(0,10)+' ~ '+(event.allDay?addDays(event.end.slice(0,10),-1):event.end.slice(0,10))):''}</small></button>`).join('')||notice('등록된 일정이 없습니다. 새로운 일정을 추가해 보세요.')}</aside></div>`,options);
+      <div class="calendar-layout"><div class="month-board"><div class="week-labels">${weekdays.map(day=>`<span>${day}</span>`).join('')}</div><div class="month-grid">${Array.from({length:6},(_,index)=>calendarWeek(from,index)).join('')}</div></div><aside class="day-agenda"><div class="panel-head"><div><span>선택한 날짜</span><h2>${Number(selectedDay.slice(5,7))}월 ${Number(selectedDay.slice(8))}일</h2></div><button data-plan="event-new" aria-label="선택한 날짜에 일정 추가">＋</button></div>${daily.map(event=>`<button class="agenda-event" data-plan="event-edit" data-id="${safe(event.id)}" style="--event-color:${safe(event.color)}"><small>${safe(eventTime(event))}</small><strong>${safe(event.title)}</strong><span>${safe(event.location)}</span><small>${event.start.slice(0,10)!==lastDay(event)?safe(event.start.slice(0,10)+' ~ '+lastDay(event)):''}</small></button>`).join('')||notice('등록된 일정이 없습니다. 새로운 일정을 추가해 보세요.')}</aside></div>`,options);
   }
   function editEvent(id) {
     const linked=events.find(event=>event.id===id);
@@ -56,19 +77,20 @@ window.WorkspacePlanner = (() => {
       window.WorkspaceMilitary?.queueEvent(linked.sourceId);
       window.dispatchEvent(new CustomEvent('assistant:navigate',{detail:{route:'military'}}));return;
     }
-    const item=events.find(event=>event.id===id)||{title:'',start:`${selectedDay}T09:00`,end:`${selectedDay}T10:00`,allDay:false,location:'',notes:'',color:palette[0]};
-    ui.editor(id?'일정 수정':'새 일정',field('title','일정 제목',item.title,'text','required maxlength="120"')+ui.fields.check('allDay','종일',item.allDay)+`<div class="form-grid">${field('start','시작',item.start.slice(0,16),'datetime-local','required')}${field('end','종료',item.end.slice(0,16),'datetime-local','required')}${field('location','장소',item.location,'text','maxlength="200"')}${colorField(item.color)}</div>`+memo(item.notes)+(id?'<button type="button" class="danger" id="delete-planner-item">일정 삭제</button>':''),async form=>{
+    const item=events.find(event=>event.id===id)||{title:'',start:`${selectedDay}T00:00`,end:`${addDays(selectedDay,1)}T00:00`,allDay:true,location:'',notes:'',color:palette[0]};
+    const startValue=item.allDay?item.start.slice(0,10):item.start.slice(0,16);
+    const endValue=item.allDay?(id&&lastDay(item)!==item.start.slice(0,10)?lastDay(item):''):item.end.slice(0,16);
+    ui.editor(id?'일정 수정':'새 일정',field('title','일정 제목',item.title,'text','required maxlength="120"')+ui.fields.check('allDay','종일',item.allDay)+`<div class="form-grid">${field('start','시작',startValue,item.allDay?'date':'datetime-local','required')}${field('end','종료 (종일 일정은 선택)',endValue,item.allDay?'date':'datetime-local',item.allDay?'':'required')}${field('location','장소',item.location,'text','maxlength="200"')}${colorField(item.color)}</div>`+memo(item.notes)+(id?'<button type="button" class="danger" id="delete-planner-item">일정 삭제</button>':''),async form=>{
       const allDay=form.has('allDay');
       const start=allDay?`${form.get('start')}T00:00`:form.get('start');
-      const end=allDay?`${addDays(form.get('end'),1)}T00:00`:form.get('end');
+      const end=allDay?`${addDays(form.get('end')||form.get('start'),1)}T00:00`:form.get('end');
       await ui.api(id?`/calendar/events/${id}`:'/calendar/events',id?'PUT':'POST',{title:form.get('title'),start,end,allDay,location:form.get('location'),notes:form.get('notes'),color:form.get('color')});
       selectedDay=start.slice(0,10);month=selectedDay.slice(0,7);await loadCalendar();ui.toast('일정을 저장했습니다.');
     });
     const toggle=()=>{
       const allDay=$('[name=allDay]',$('#editor-form')).checked;
-      for(const name of ['start','end']) {const input=$(`[name=${name}]`,$('#editor-form'));const previous=input.value;input.type=allDay?'date':'datetime-local';input.value=allDay?previous.slice(0,10):`${previous.slice(0,10)}T${name==='start'?'09:00':'10:00'}`;}
+      for(const name of ['start','end']) {const input=$(`[name=${name}]`,$('#editor-form'));const previous=input.value;input.type=allDay?'date':'datetime-local';input.value=allDay?previous.slice(0,10):`${previous.slice(0,10)||$('[name=start]',$('#editor-form')).value.slice(0,10)}T${name==='start'?'09:00':'10:00'}`;if(name==='end')input.required=!allDay;}
     };
-    if(item.allDay){for(const name of ['start','end']){const input=$(`[name=${name}]`,$('#editor-form'));input.type='date';input.value=name==='start'?item.start.slice(0,10):addDays(item.end.slice(0,10),-1);}}
     $('[name=allDay]',$('#editor-form')).addEventListener('change',toggle);
     if(id)$('#delete-planner-item').onclick=()=>remove('일정 삭제','이 일정을 삭제할까요?',`/calendar/events/${id}`,loadCalendar);
   }

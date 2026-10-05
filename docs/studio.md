@@ -23,7 +23,7 @@ Codex는 Linux x86_64/aarch64의 공식 릴리스 파일을 SHA256 검증 후 `~
 
 원격 모드는 계속 대상 SSH 계정에서 실행한다. 프로젝트 파일과 `.git`, CLI 인증/설정은 선택한 실행 환경에 남는다. 브라우저에는 현재 편집 버퍼만 있고 마지막 장비/폴더 선택만 localStorage에 기억한다. 대시보드 DB 스키마는 바뀌지 않는다. Docker 호스트의 다른 폴더를 편집하려면 해당 폴더를 작업 루트 아래로 명시적으로 마운트한다. Windows에서 JAR를 직접 실행하는 로컬 IDE는 지원하지 않으며 Docker의 Linux 환경을 사용한다.
 
-Codex는 `codex app-server`를 stdio JSON-RPC로 실행한다. 모델 목록과 저장된 세션을 조회하고 같은 thread를 resume하여 후속 turn을 보낸다. 읽기 전용/작업 폴더 수정 권한 및 on-request 승인을 사용하며 샌드박스 우회 옵션은 제공하지 않는다. 상세 기능과 제한은 [Codex 패널](codex.md)을 참조한다.
+Codex는 `codex app-server`를 stdio JSON-RPC로 실행한다. 모델 목록과 저장된 세션을 조회하고 같은 thread를 resume하여 후속 turn을 보낸다. 읽기 전용·작업 폴더 수정·SSH 사용자 전체 접근 범위와 직접·자동 심사·승인 요청 안 함을 선택할 수 있다. 상세 기능과 제한은 [Codex 패널](codex.md)을 참조한다.
 
 ## 경계와 실패 처리
 

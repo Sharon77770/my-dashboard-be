@@ -31,7 +31,7 @@
 | github-login / github-status | 없음 | authenticated |
 | codex-login / codex-logout | 없음 | authenticated |
 | codex-status | 없음 | authenticated, version |
-| codex-run | prompt, threadId?, model?, effort?, mode?, approval?, context? | assistant (아래 App Server 계약) |
+| codex-run | prompt, threadId?, model?, effort?, mode?, approval?, reviewer?, context? | assistant (아래 App Server 계약) |
 
 JobView: `{id,action,state,events,result,error,errorStatus}`. state는 RUNNING → SUCCEEDED/FAILED/CANCELLED. result는 성공 시 위 표의 필드만, 실행 중/실패는 null. events는 `{event,text?,state?,url?,code?}`의 최근 목록이다. 이벤트 URL/코드는 의도적으로 시작한 기기 코드 인증에만 제공한다. 비밀번호/API 키/token 필드는 없다. Codex 로그인 상태는 CLI 캐시 존재 확인이며 유료 모델 호출을 통한 인증 검증이 아니다.
 
@@ -39,9 +39,9 @@ HTTP 오류: 익명401, 권한/CSRF403, 미존재/다른 세션 작업404, 잘�
 
 ## Codex App Server
 
-장비·IDE Codex의 `codex-run`, `codex-review`, `codex-thread-new`는 `args.mode`와 `args.approval`을 받는다. mode는 `read-only`(기본), `workspace-write`, `danger-full-access`, approval은 `on-request`(기본), `never`다. 서비스와 원격 bridge 양쪽에서 값을 검증하며 잘못된 값은 400이다. 새 thread와 기존 thread 재개에 sandbox/approvalPolicy를 적용하고, turn 시작에도 sandboxPolicy/approvalPolicy를 명시한다. `workspace-write`의 writableRoots는 선택한 작업 폴더이며 네트워크는 제한한다. `danger-full-access`는 SSH 사용자 OS 권한 안에서 샌드박스 제한 없이 실행한다. 다른 파일/로그 action의 mode 계약은 변경하지 않는다.
+장비·IDE Codex의 `codex-run`, `codex-review`, `codex-thread-new`는 `args.mode`, `args.approval`, `args.reviewer`를 받는다. mode는 `read-only`(기본), `workspace-write`, `danger-full-access`, approval은 `on-request`(기본), `never`, reviewer는 `user`(기본), `auto_review`다. 자동 심사는 `on-request`와 함께 사용하며 `never`와 조합하면 400이다. 서비스와 원격 bridge 양쪽에서 값을 검증하며 잘못된 값은 400이다. 새 thread와 기존 thread 재개에 sandbox/approvalPolicy를 적용하고, turn 시작에도 sandboxPolicy/approvalPolicy를 명시한다. reviewer는 해당 Codex App Server 프로세스의 `approvals_reviewer` 설정으로 전달한다. `workspace-write`의 writableRoots는 선택한 작업 폴더이며 네트워크는 제한한다. `danger-full-access`는 SSH 사용자 OS 권한 안에서 샌드박스 제한 없이 실행한다. 다른 파일/로그 action의 mode 계약은 변경하지 않는다.
 
-`never`는 명령 승인을 요청하지 않으며 sandbox/OS 권한을 확장하지 않는다. 모델의 작업 내용 질문은 기존 answer 입력을 사용한다. AI 비서 경로는 `read-only`와 `on-request`만 허용하며 장비 설정을 적용하지 않는다. 공식 [App Server](https://learn.chatgpt.com/docs/app-server) 및 [승인·보안](https://learn.chatgpt.com/docs/agent-approvals-security) 계약을 따른다.
+`never`는 명령 승인을 요청하지 않으며 sandbox/OS 권한을 확장하지 않는다. `auto_review`는 추가 권한 요청 중 심사 가능한 항목을 자동 심사하고 거절할 수 있으며 OS 권한이나 별도 브라우저 승인 절차를 대체하지 않는다. 모델의 작업 내용 질문은 기존 answer 입력을 사용한다. AI 비서 경로는 `read-only`와 `on-request`만 허용하지만 reviewer는 선택할 수 있다. 공식 [App Server](https://learn.chatgpt.com/docs/app-server) 및 [자동 심사](https://learn.chatgpt.com/docs/sandboxing/auto-review) 계약을 따른다.
 
 기존 codex-run 결과의 ok 대신 result.assistant에 thread, status, turnId를 반환한다. 세션에는 id/name/preview/cwd/createdAt/updatedAt/status/turns가 있으며 turns는 최근 50개, 각 turn은 id/status/items/error다. item은 id/type/text/status/command/output/files(path,diff,kind)로 투영한다. 숨겨진 추론 content, 인증 토큰과 원본 CLI 설정은 반환하지 않는다.
 
@@ -49,7 +49,7 @@ HTTP 오류: 익명401, 권한/CSRF403, 미존재/다른 세션 작업404, 잘�
 | --- | --- | --- |
 | codex-models | 없음 | models: id/name/description/defaultModel/defaultEffort/efforts/inputModalities |
 | codex-threads | query?(200자), cursor?(2000자), archived? | threads, nextCursor. 선택한 cwd만, 25개씩 |
-| codex-thread-new | model?, mode?, approval? | id가 빈 draft thread. 첫 turn 전에는 영속 저장되지 않음 |
+| codex-thread-new | model?, mode?, approval?, reviewer? | id가 빈 draft thread. 첫 turn 전에는 영속 저장되지 않음 |
 | codex-thread-read | threadId | thread |
 | codex-thread-rename | threadId, name(200자) | 기존 result.ok |
 | codex-thread-archive / unarchive | threadId | 기존 result.ok |
@@ -57,8 +57,8 @@ HTTP 오류: 익명401, 권한/CSRF403, 미존재/다른 세션 작업404, 잘�
 | codex-thread-fork | threadId | thread |
 | codex-thread-compact | threadId | 기존 result.ok, 압축 완료까지 RUNNING |
 | codex-thread-rollback | threadId | thread. 마지막 1 turn 기록 제거, 파일 복구 없음 |
-| codex-run | prompt, threadId?, model?, effort?, mode?, approval?, context? | thread, status, turnId |
-| codex-review | threadId?, model?, mode?, approval? | 미커밋 변경 리뷰 후 thread/status/turnId |
+| codex-run | prompt, threadId?, model?, effort?, mode?, approval?, reviewer?, context? | thread, status, turnId |
+| codex-review | threadId?, model?, mode?, approval?, reviewer? | 미커밋 변경 리뷰 후 thread/status/turnId |
 | codex-account | 없음 | authenticated, email?, accountType?, plan? (공개 계정 정보만, 토큰 제외) |
 | codex-rate-limits | 없음 | rateLimits: name, windowDurationMins, usedPercent, resetsAt (계정별 기간 사용률, 잔여 비율은 UI에서 계산) |
 | codex-skills | 없음 | skills: name/description/path/enabled |

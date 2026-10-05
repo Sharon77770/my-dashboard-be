@@ -281,18 +281,19 @@
 }
 #device-codex .device-codex-panel [data-cx-id=studio-prompt-form] {
   flex-shrink: 0;
-  margin: 0 auto calc(14px + env(safe-area-inset-bottom));
-  padding: 14px 16px;
+  margin: 0 auto calc(8px + env(safe-area-inset-bottom));
+  padding: 10px 12px;
   border: 1px solid var(--border-default);
-  width: min(calc(100% - 48px),880px);
+  width: min(calc(100% - 24px),880px);
   background: var(--bg-surface);
   border-radius: var(--radius-floating);
   box-shadow: var(--shadow-soft)
 }
 #device-codex .device-codex-panel [data-cx-id=studio-prompt] {
   width: 100%;
-  min-height: 72px;
-  max-height: 220px;
+  height: 46px;
+  min-height: 46px;
+  max-height: min(140px,25dvh);
   border: 0;
   background: transparent;
   font-size: 15px
@@ -328,9 +329,13 @@
   z-index: 6
 }
 #device-codex .cx-preferences {
-  inset: 70px 16px 16px auto;
-  width: min(520px,calc(100% - 32px));
-  padding: 20px;
+  top: 70px;
+  right: 16px;
+  bottom: auto;
+  left: auto;
+  width: min(400px,calc(100% - 32px));
+  max-height: min(420px,60%);
+  padding: 12px;
   z-index: 40;
   background: var(--bg-surface)
 }
@@ -401,9 +406,9 @@
   max-width: 90%
 }
 #device-codex .device-codex-panel [data-cx-id=studio-prompt-form] {
-  width: calc(100% - 20px);
-  padding: 10px;
-  margin-bottom: calc(10px + env(safe-area-inset-bottom))
+  width: calc(100% - 16px);
+  padding: 8px 10px;
+  margin-bottom: calc(8px + env(safe-area-inset-bottom))
 }
 #device-codex [data-cx-id=cx-send],#device-codex [data-cx=stop],#device-codex .device-codex-panel .cx-settings select {
   min-height: 44px
@@ -412,9 +417,13 @@
   width: 44px
 }
 #device-codex .cx-preferences {
-  inset: 8px 8px 8px;
+  top: 64px;
+  right: 8px;
+  bottom: auto;
+  left: 8px;
   width: auto;
-  padding: 16px
+  max-height: min(360px,55%);
+  padding: 12px
 }
 }
 @media(prefers-reduced-motion:reduce){

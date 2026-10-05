@@ -18,6 +18,7 @@ dashboard=False
 thread_checked=False
 approval='on-request'
 mode='read-only'
+reviewer='user'
 for line in sys.stdin:
  f=json.loads(line);m=f.get('method');p=f.get('params',{});result={}
  if m=='initialize': result={}
@@ -32,6 +33,8 @@ for line in sys.stdin:
   result={'data':[], 'nextCursor':'next'} if not p.get('cursor') else {'data':[dict(name='personal-dashboard',authStatus='bearerToken',runtimeStatus='failed' if failed else None,tools={} if failed else {name:{} for name in required},toolsError=None)]}
  elif m=='thread/start' or m=='thread/resume':
   approval=p.get('approvalPolicy','on-request');mode=p.get('sandbox','read-only')
+  reviewer=next((value.split('=',1)[1].strip('"') for value in sys.argv if value.startswith('approvals_reviewer=')), 'user')
+  assert reviewer in ('user','auto_review')
   dashboard=p.get('config',{}).get('mcp_servers.personal-dashboard.enabled') is True
   if p.get('config',{}).get('mcp_servers.personal-dashboard.enabled') is False:
    assert 'SSH device' in p['developerInstructions']
@@ -59,7 +62,7 @@ for line in sys.stdin:
   turn=dict(id='turn-1',status='inProgress',items=[])
   send(id=f['id'],result={'turn':turn})
   send(method='turn/started',params={'turn':turn})
-  if approval=='never':
+  if approval=='never' or reviewer=='auto_review':
    item=dict(id='answer',type='agentMessage',text='Completed without approval: '+mode)
    send(method='item/completed',params={'item':item})
    send(method='thread/tokenUsage/updated',params=dict(tokenUsage=dict(total=dict(totalTokens=100,inputTokens=70,outputTokens=30,cachedInputTokens=10),last=dict(totalTokens=100),modelContextWindow=1000)))
@@ -121,10 +124,25 @@ class CodexBridgeTest(unittest.TestCase):
 
     def test_invalid_permissions_and_dashboard_overrides_fail_before_start(self):
         for args, dashboard in ((dict(mode='invalid'), False), (dict(approval='invalid'), False),
+                                (dict(reviewer='invalid'), False),
+                                (dict(approval='never', reviewer='auto_review'), False),
                                 (dict(mode='danger-full-access'), True), (dict(approval='never'), True)):
             with self.assertRaises(remote.Failure):
                 remote.codex_action(self.root, 'codex-run', dict(prompt='inspect', **args), dashboard=dashboard)
         self.assertFalse((self.root / 'turn-started').exists())
+
+    def test_auto_review_reaches_new_and_resumed_device_and_dashboard_threads(self):
+        for dashboard, device_codex in ((False, False), (False, True), (True, False)):
+            settings = ({'DASHBOARD_MCP_URL': 'http://127.0.0.1:8080/api/v1/mcp',
+                         'DASHBOARD_MCP_TOKEN': 'f' * 32} if dashboard else
+                        {'CODEX_HOME': str(self.root / 'device-codex')} if device_codex else {})
+            with patch.dict(remote.env, settings):
+                if device_codex: remote.env.pop('DASHBOARD_MCP_TOKEN', None)
+                for thread_id in (None, 'thread-1'):
+                    args = dict(prompt='inspect', reviewer='auto_review', threadId=thread_id)
+                    result = remote.codex_action(self.root, 'codex-run', args,
+                                                 dashboard=dashboard, device_codex=device_codex)
+                    self.assertEqual(result['assistant']['status'], 'completed')
 
     def test_account_projects_email_and_type_without_credentials(self):
         account = remote.codex_action(self.root, 'codex-account', {})['assistant']

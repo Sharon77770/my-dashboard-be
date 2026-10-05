@@ -15,6 +15,7 @@ import com.personal.dashboard.assistant.service.AssistantMcpService;
 import com.personal.dashboard.assistant.service.WorkspaceMemoryService;
 import com.personal.dashboard.global.WorkspaceException;
 import com.personal.dashboard.planner.dto.PlannerDto;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /** Verifies persistence, retrieval, lifecycle, promotion and browser security with SQLite. */
@@ -30,11 +33,18 @@ import org.springframework.test.web.servlet.MockMvc;
       "DASHBOARD_AUTH_ID=memory-test",
       "DASHBOARD_AUTH_PASSWORD=memory-test-only",
       "workspace.root=./target/memory-files",
-      "workspace.key-path=./target/memory-key",
-      "DASHBOARD_DB_PATH=./target/memory-test.db"
+      "workspace.key-path=./target/memory-key"
     })
 @AutoConfigureMockMvc
 class WorkspaceMemoryIntegrationTest {
+  private static final String TEST_DB =
+      Path.of("target", "memory-test-" + UUID.randomUUID() + ".db").toAbsolutePath().toString();
+
+  @DynamicPropertySource
+  static void isolatedDatabase(DynamicPropertyRegistry properties) {
+    properties.add("DASHBOARD_DB_PATH", () -> TEST_DB);
+  }
+
   @Autowired WorkspaceMemoryService memories;
   @Autowired WorkspaceMemoryRepository repository;
   @Autowired AssistantMcpService mcp;

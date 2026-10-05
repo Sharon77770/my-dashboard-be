@@ -106,11 +106,16 @@ public class StudioService {
     if (input.action().startsWith("codex-") && input.args() != null) {
       var mode = input.args().mode();
       var approval = input.args().approval();
+      var reviewer = input.args().reviewer();
       if (mode != null
           && !Set.of("read-only", "workspace-write", "danger-full-access").contains(mode))
         throw new WorkspaceException(400, "지원하지 않는 실행 권한입니다.");
       if (approval != null && !Set.of("on-request", "never").contains(approval))
         throw new WorkspaceException(400, "지원하지 않는 승인 정책입니다.");
+      if (reviewer != null && !Set.of("user", "auto_review").contains(reviewer))
+        throw new WorkspaceException(400, "지원하지 않는 승인 심사자입니다.");
+      if ("never".equals(approval) && "auto_review".equals(reviewer))
+        throw new WorkspaceException(400, "자동 심사는 필요 시 승인 요청과 함께 사용하세요.");
       if (assistant
           && ((mode != null && !mode.equals("read-only"))
               || (approval != null && !approval.equals("on-request"))))

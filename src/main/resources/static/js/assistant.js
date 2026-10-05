@@ -6,6 +6,7 @@
   const prompt = document.querySelector('#assistant-prompt');
   const modelSelect = document.querySelector('#assistant-model');
   const effortSelect = document.querySelector('#assistant-effort');
+  const reviewerSelect = document.querySelector('#assistant-reviewer');
   const composerModelSelect = document.querySelector('#assistant-composer-model');
   const composerEffortSelect = document.querySelector('#assistant-composer-effort');
   const statusLabel = document.querySelector('#assistant-status-text');
@@ -65,11 +66,14 @@
   let models = [];
   let preferredModelId = '';
   let preferredEffort = '';
+  let preferredReviewer = 'user';
   try {
     const stored = JSON.parse(localStorage.getItem(preferencesKey) || '{}');
     if (typeof stored.model === 'string') preferredModelId = stored.model.slice(0, 100);
     if (typeof stored.effort === 'string') preferredEffort = stored.effort.slice(0, 100);
+    if (stored.reviewer === 'auto_review') preferredReviewer = 'auto_review';
   } catch {}
+  reviewerSelect.value = preferredReviewer;
   let threads = [];
   let threadCursor = null;
   let deleteThreads = [];
@@ -763,7 +767,7 @@
   function saveModelPreferences() {
     preferredModelId = modelSelect.value;
     preferredEffort = effortSelect.value;
-    try { localStorage.setItem(preferencesKey, JSON.stringify({ model: preferredModelId, effort: preferredEffort })); }
+    try { localStorage.setItem(preferencesKey, JSON.stringify({ model: preferredModelId, effort: preferredEffort, reviewer: preferredReviewer })); }
     catch { /* The current page keeps the selection when browser storage is unavailable. */ }
   }
 
@@ -1059,7 +1063,9 @@
         threadId: threadId || undefined,
         model: modelSelect.value || undefined,
         effort: effortSelect.value || undefined,
-        mode: 'read-only'
+        mode: 'read-only',
+        approval: 'on-request',
+        reviewer: preferredReviewer
       }, (event, jobId) => receiveEvent(event, responseIndex, jobId));
       const answer = result.assistant || {};
       if (answer.thread?.id) {
@@ -1332,6 +1338,7 @@
   modelSelect.addEventListener('change', () => changeModel(modelSelect));
   composerModelSelect.addEventListener('change', () => changeModel(composerModelSelect));
   effortSelect.addEventListener('change', () => changeEffort(effortSelect));
+  reviewerSelect.addEventListener('change', () => { preferredReviewer = reviewerSelect.value === 'auto_review' ? 'auto_review' : 'user'; saveModelPreferences(); });
   composerEffortSelect.addEventListener('change', () => changeEffort(composerEffortSelect));
   form.addEventListener('submit', event => {
     event.preventDefault();

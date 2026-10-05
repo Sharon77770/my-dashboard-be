@@ -24,7 +24,12 @@ class StudioServiceTest {
     var service = service(adapter);
     var json = new ObjectMapper();
     try {
-      for (var invalid : java.util.List.of("{\"mode\":\"bad\"}", "{\"approval\":\"always\"}")) {
+      for (var invalid :
+          java.util.List.of(
+              "{\"mode\":\"bad\"}",
+              "{\"approval\":\"always\"}",
+              "{\"reviewer\":\"unknown\"}",
+              "{\"approval\":\"never\",\"reviewer\":\"auto_review\"}")) {
         var request =
             new Request("remote", "/home/tester", "codex-run", json.readValue(invalid, Args.class));
         assertThatThrownBy(() -> service.start("owner", request))
@@ -46,6 +51,14 @@ class StudioServiceTest {
       service.startDevice("owner", request);
       verify(adapter, timeout(2000)).execute(any(), eq(request), any(), any());
       verify(adapter, timeout(2000)).executeDeviceCodex(any(), eq(request), any(), any());
+      var reviewed =
+          new Request(
+              "local",
+              "/",
+              "codex-run",
+              json.readValue("{\"reviewer\":\"auto_review\"}", Args.class));
+      service.startAssistant("owner", reviewed);
+      verify(adapter, timeout(2000)).executeAssistant(any(), eq(reviewed), any(), any());
     } finally {
       service.shutdown();
     }
@@ -105,6 +118,24 @@ class StudioServiceTest {
 
   private StudioService service(StudioAdapter adapter) {
     var catalog = mock(CatalogService.class);
+    when(catalog.requireDevice("local"))
+        .thenReturn(
+            new DeviceRecord(
+                "local",
+                "Dashboard",
+                "localhost",
+                22,
+                "",
+                "",
+                "",
+                "/app/data/files",
+                "NONE",
+                3389,
+                "",
+                "",
+                "",
+                "",
+                false));
     when(catalog.requireDevice("remote"))
         .thenReturn(
             new DeviceRecord(

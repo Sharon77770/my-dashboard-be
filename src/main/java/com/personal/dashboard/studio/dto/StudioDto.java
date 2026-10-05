@@ -35,6 +35,7 @@ public final class StudioDto {
       @Size(max = 100) String turnId,
       @Size(max = 100) String effort,
       @Size(max = 20) String approval,
+      @Size(max = 20) String reviewer,
       @Size(max = 2000) String cursor,
       @Size(max = 200) String query,
       Boolean archived,
