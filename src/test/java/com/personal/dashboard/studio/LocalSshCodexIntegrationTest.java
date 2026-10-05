@@ -100,6 +100,63 @@ class LocalSshCodexIntegrationTest {
   }
 
   @Test
+  void permissionsAndUsageRoundTripOverLocalSshForEditorAndDevice() throws Exception {
+    var adapter = new StudioAdapter(ssh, json, new McpAccess(new MockEnvironment()));
+    for (boolean deviceCodex : List.of(false, true)) {
+      for (String mode : List.of("read-only", "workspace-write", "danger-full-access")) {
+        var args =
+            json.readValue(
+                json.writeValueAsString(
+                    Map.of(
+                        "prompt",
+                        "Inspect without command approval",
+                        "threadId",
+                        "thread-1",
+                        "mode",
+                        mode,
+                        "approval",
+                        "never")),
+                StudioDto.Args.class);
+        var messages = new ArrayList<StudioAdapter.Message>();
+        var execution = new StudioAdapter.Execution();
+        var request = new StudioDto.Request(device.id(), device.rootPath(), "codex-run", args);
+        try {
+          if (deviceCodex) adapter.executeDeviceCodex(device, request, execution, messages::add);
+          else adapter.execute(device, request, execution, messages::add);
+        } finally {
+          execution.cancel();
+        }
+        assertTrue(messages.stream().noneMatch(m -> m.error() != null), messages.toString());
+        assertTrue(
+            messages.stream()
+                .noneMatch(m -> m.assistant() != null && m.assistant().interaction() != null));
+        assertTrue(
+            messages.stream()
+                .anyMatch(
+                    m ->
+                        m.assistant() != null
+                            && m.assistant().usage() != null
+                            && m.assistant().usage().totalTokens() == 100));
+        assertEquals("completed", messages.getLast().result().assistant().status());
+      }
+      var messages = new ArrayList<StudioAdapter.Message>();
+      var execution = new StudioAdapter.Execution();
+      var request =
+          new StudioDto.Request(device.id(), device.rootPath(), "codex-rate-limits", null);
+      try {
+        if (deviceCodex) adapter.executeDeviceCodex(device, request, execution, messages::add);
+        else adapter.execute(device, request, execution, messages::add);
+      } finally {
+        execution.cancel();
+      }
+      var limits = messages.getLast().result().assistant().rateLimits();
+      assertEquals(2, limits.size());
+      assertEquals(25.0, limits.getFirst().usedPercent());
+      assertEquals(300L, limits.getFirst().windowDurationMins());
+    }
+  }
+
+  @Test
   void remoteAccountShowsSshAccountEmail() throws Exception {
     var adapter = new StudioAdapter(ssh, json, new McpAccess(new MockEnvironment()));
     var execution = new StudioAdapter.Execution();

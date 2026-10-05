@@ -61,25 +61,25 @@
   display: grid;
   grid-template-columns: minmax(0, 240px) minmax(92px, 160px);
   gap:var(--space-2);
-  width: min(100%, 800px);
+  width: min(100%, 1120px);
   margin-inline: auto;
   padding: 16px 16px 5px;
 }
 
 .assistant-window .assistant-model-bar select { width: 100%; min-height: 30px; padding: 4px 8px; font-size: 11px; }
-.assistant-window .assistant-limits { display: flex; align-items: center; gap: 6px; width: min(100%, 800px); margin-inline: auto; padding: 0 16px 3px; color: var(--text-secondary); font-size: 10px; }
+.assistant-window .assistant-limits { display: flex; align-items: center; gap: 6px; width: min(100%, 1120px); margin-inline: auto; padding: 0 16px 3px; color: var(--text-secondary); font-size: 10px; }
 .assistant-window .assistant-limits span { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .assistant-window .assistant-limits button { min-height: 22px; width: 24px; padding: 0; border-color: transparent; background: transparent; color: var(--text-secondary); font-size: 16px; }
 .assistant-window .assistant-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .assistant-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-.assistant-window .assistant-status { min-height: 22px; width: min(100%, 800px); margin-inline: auto; padding: 1px 16px 5px; display: flex; align-items: center; gap:var(--space-2); color: var(--text-muted); font-size: 10px; }
+.assistant-window .assistant-status { min-height: 22px; width: min(100%, 1120px); margin-inline: auto; padding: 1px 16px 5px; display: flex; align-items: center; gap:var(--space-2); color: var(--text-muted); font-size: 10px; }
 .assistant-window .assistant-status > span { min-width: 0; overflow-wrap: anywhere; }
 .assistant-window .assistant-status button { flex: 0 0 auto; min-height: 26px; padding: 2px 8px; font-size: 10px; }
 .assistant-window .assistant-status:has(> #assistant-status-text:empty):has(> #assistant-login[hidden]) { display:none; }
 .assistant-window .assistant-status[data-kind="error"] { color: var(--danger); }
 .assistant-top-shortcut { display:inline-flex; align-items:center; gap:5px; min-height:34px; padding:5px 11px; border:1px solid var(--border-subtle); border-radius:var(--radius-md); background:var(--accent-subtle); color:var(--accent); font-weight:650; white-space:nowrap; }
 .assistant-top-shortcut:hover { background:var(--bg-surface-hover); }
-.assistant-window .assistant-login-guide { display: grid; gap:var(--space-2); width: min(calc(100% - 32px), 768px); margin: 0 auto 8px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius:var(--radius-md); background: var(--bg-surface); font-size: 11px; }
+.assistant-window .assistant-login-guide { display: grid; gap:var(--space-2); width: min(calc(100% - 32px), 1088px); margin: 0 auto 8px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius:var(--radius-md); background: var(--bg-surface); font-size: 11px; }
 .assistant-window .assistant-login-guide[hidden] { display: none; }
 .assistant-window .assistant-login-guide p { margin: 0; color: var(--text-secondary); line-height: 1.5; }
 .assistant-window .assistant-login-guide a { width: fit-content; color: var(--accent); }
@@ -87,7 +87,7 @@
 .assistant-window .assistant-login-code code { font-size: 17px; font-weight: 700; letter-spacing: .08em; }
 .assistant-window .assistant-login-code button { min-height: 28px; padding: 3px 9px; font-size: 10px; }
 
-.assistant-window .assistant-messages { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 22px; padding: 24px max(16px, calc(50% - 400px)) 36px; scroll-behavior: smooth; }
+.assistant-window .assistant-messages { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 22px; padding: 24px max(16px, calc(50% - 560px)) 36px; scroll-behavior: smooth; }
 .assistant-window .assistant-welcome { max-width: 440px; margin: auto; text-align: center; }
 .assistant-window .assistant-welcome-mark { width: 52px; height: 52px; margin: 0 auto 18px; border-radius:var(--radius-lg); background: var(--accent-subtle); font-size: 25px; }
 .assistant-window .assistant-welcome h2 { margin: 0 0 9px; font-size: 21px; font-weight: 600; }
@@ -98,7 +98,7 @@
 .assistant-window .assistant-message { width: 100%; min-width: 0; display: grid; gap:var(--space-1); align-self: stretch; }
 .assistant-window .assistant-message-label { padding: 0 4px; color: var(--text-muted); font-size: 10px; }
 .assistant-window .assistant-message[data-role="user"] .assistant-message-label { text-align: right; }
-.assistant-window .assistant-message-body { color: var(--text-primary); font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.assistant-window .assistant-message-body { color: var(--text-primary); font-size: 15px; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
 .assistant-window .assistant-message[data-role="assistant"] .assistant-message-body { white-space: normal; }
 .assistant-window .assistant-message-body > :first-child { margin-top: 0; }
 .assistant-window .assistant-message-body > :last-child { margin-bottom: 0; }
@@ -139,7 +139,7 @@
 .assistant-window .assistant-interaction button { justify-self: end; min-height: 30px; padding: 4px 10px; font-size: 10px; }
 .assistant-window .assistant-interaction[data-completed="true"] { opacity: .75; }
 
-.assistant-window .assistant-composer { padding: 14px max(16px, calc(50% - 400px)) calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border-subtle); background: var(--bg-elevated); }
+.assistant-window .assistant-composer { padding: 14px max(16px, calc(50% - 560px)) calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border-subtle); background: var(--bg-elevated); }
 .assistant-window .assistant-attachments { display:flex; flex-wrap:wrap; gap:6px; }
 .assistant-window .assistant-attachment { display:inline-flex; align-items:center; gap:6px; max-width:100%; padding:5px 8px; border:1px solid var(--border-subtle); border-radius:var(--radius-md); background:var(--bg-surface); color:var(--text-secondary); font-size:11px; }
 .assistant-window .assistant-attachment span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:190px; }
@@ -271,3 +271,12 @@
 .assistant-window .assistant-draft-guidance{margin-top:15px;padding-top:10px;border-top:1px solid var(--border-subtle);color:var(--text-secondary);font-size:11px}
 .assistant-window .assistant-draft-guidance p{margin:0 0 4px}
 @media(max-width:600px){.assistant-window .assistant-draft-group{grid-template-columns:1fr;gap:3px}.assistant-window .assistant-draft-heading h3{font-size:15px}}
+
+/* The history list is optional at every width, leaving the conversation the full workspace. */
+.assistant-shell{grid-template-columns:0 minmax(0,1fr)}
+.assistant-shell[data-sidebar-open="true"]{grid-template-columns:240px minmax(0,1fr)}
+.assistant-shell:not([data-sidebar-open="true"]) .assistant-sidebar{visibility:hidden;overflow:hidden;padding-inline:0;border:0}
+.assistant-sidebar-head button,.assistant-brand #assistant-sidebar-open{display:inline-flex;align-items:center;justify-content:center}
+.assistant-window .assistant-composer textarea{min-height:72px;max-height:220px;font-size:15px}
+@media(min-width:701px){.assistant-sidebar-backdrop{display:none}}
+@media(max-width:700px){.assistant-window .assistant-composer textarea{font-size:16px}}

@@ -1,5 +1,9 @@
 # Codex와 서비스 로그의 로컬 SSH 검증
 
+2026-10-05 권한·사용량 보강 검증: Python 40개 통과, 격리 컨테이너의 `spotless:apply verify` 187개 중 183개 통과·조건부 제외 4개, 실패 0. 로컬 SSH 테스트 6개 중 5개 실행·통과, 실제 CLI 재설치 검사는 제외했다. 새 테스트는 IDE/장비 각각의 세 실행 범위 + `never`를 기존 세션에 전달하고 승인 대기 없이 완료·토큰 이벤트 수신 및 계정 한도 조회까지 실제 loopback SSH로 왕복한다. Python은 새 세션/재개, 잘못된 권한 값, AI 비서 정책 분리도 검사한다. 프로토콜 fixture를 사용하며 실제 유료 모델의 명령 실행 성공이나 운영 배포를 뜻하지 않는다.
+
+`node tools/studio-editor/codex-settings-test.cjs`는 장비·IDE의 설정 전송, 장비/폴더별 복원·분리, 한도 창·0 토큰·미제공/조회 실패를 검사한다. `device-codex-test.cjs`는 호스트 화면을 포함한 설정 복원과 실행 중 설정 조회/변경 금지를 검사한다. CLI의 `app-server generate-json-schema`로 sandbox/approvalPolicy/sandboxPolicy 열거값도 확인했다.
+
 `LocalSshCodexIntegrationTest`는 SSHJ로 로컬 SSH 서버 `127.0.0.1:22`에 접속하며 호스트 지문과 임시 비밀번호를 검증한다. Codex App Server는 오프라인 프로토콜 fixture를 사용한다. 실제 OpenAI 로그인·모델 응답 성공을 증명하는 검사는 아니다.
 
 로그는 실제 Docker 컨테이너가 기록한 500 오류·Traceback 뒤에 성공 로그 400줄을 추가해 생성한다. SSH 원격 계정의 실제 Python/Docker CLI → 테스트 전용 읽기 중계기 → Docker daemon으로 읽는다. 중계기는 정확히 지정된 테스트 컨테이너의 inspect/logs와 버전 협상만 허용하며 변경 메서드·다른 컨테이너·외부 공개 포트는 허용하지 않는다. SSH 테스트 컨테이너에는 Docker 소켓을 마운트하지 않는다.

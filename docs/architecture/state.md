@@ -1,8 +1,10 @@
 # 상태
 
-공통 foreground 로딩은 `WorkspaceUI.beginTask`의 요청별 Map으로 관리한다. 첫 요청에서 즉시 모달·배경 inert·입력 잠금을 활성화하고, 마지막 finish 후 호출자의 렌더 microtask가 끝난 다음 해제한다. finish는 중복 호출에 안전하며 겹치는 요청 중 하나가 먼저 끝나도 잠금을 유지한다. 기존 inert와 포커스를 복구한다. quiet 폴링·메모 자동 저장은 이 상태에 포함하지 않는다.
+IDE/장비 공통 Codex의 `sending`은 비동기 CLI 준비와 추가 지시 전송을 단일 실행으로 제한한다. 사용자 말풍선은 임시 ID로 시작해 서버의 첫 userMessage ID로 연결하며, 같은 ID의 재수신은 기존 DOM을 갱신한다. 미확인 요청 실패는 임시 행만 제거한다. 대화 전체 복원은 서버 thread를 기준으로 하고, AI 비서 복원은 turn별 중복 item ID를 제외한다. 본문 문자열만으로 중복을 판정하지 않는다. IDE `codex-focused`, 장비 설정 details.open, AI 비서 sidebarOpen은 표시 상태이며 서버 작업·인증 상태와 독립한다.
 
-장비 Codex job은 기존 `RUNNING → SUCCEEDED/FAILED/CANCELLED`를 사용한다. 서버 메모리의 owner와 deviceScope가 다른 작업 범위 접근을 거부한다. UI selected는 적용된 장비/폴더, prepared는 해당 연결에서 CLI 준비 완료 여부, busy/job은 변경 잠금·취소 상태다. 장비/폴더 적용 시 준비·계정·대화 표시를 초기화하며 실행 중 전환은 막는다. 실제 계정/대화는 원격 장비별 CODEX_HOME에 저장한다. 브라우저 sessionStorage의 `device-codex:` 키에는 장비/폴더와 thread ID만 기록한다.
+공통 foreground 로딩은 `WorkspaceUI.beginTask`의 요청별 Map으로 관리한다. 첫 요청에서 비차단 안내를 표시하고 마지막 finish 후 호출자의 렌더 microtask가 끝난 다음 숨긴다. finish는 중복 호출에 안전하며 겹치는 요청 중 하나가 먼저 끝나도 안내를 유지한다. `data-loading`은 실시간 조회 조정에만 사용하며 입력·스크롤·포커스·기존 inert 상태를 변경하지 않는다. quiet 폴링·메모 자동 저장은 이 상태에 포함하지 않는다.
+
+장비 Codex job은 기존 `RUNNING → SUCCEEDED/FAILED/CANCELLED`를 사용한다. 서버 메모리의 owner와 deviceScope가 다른 작업 범위 접근을 거부한다. UI selected는 적용된 장비/폴더, prepared는 해당 연결에서 CLI 준비 완료 여부, busy/job은 변경 잠금·취소 상태다. 장비/폴더 적용 시 준비·계정·대화·기록 목록을 초기화하며 실행 중 전환은 막는다. 실제 계정/대화는 원격 장비별 CODEX_HOME에 저장한다. 브라우저 sessionStorage의 `device-codex:` 키에는 장비/폴더별 thread ID 및 모델·추론 강도·실행 범위·승인 정책을 기록한다. `data-sidebar-open`은 연결·기록 사이드바의 UI 상태이며 닫을 때만 사이드바에 inert를 적용한다. 토글은 본문 DOM·작성 중 입력·스크롤을 유지한다. 처음 장비 선택 시 열고 연결/기록 선택 완료 시 닫는다.
 
 Database Studio 연결 accessMode는 READ_ONLY(SELECT 한 문장과 DB read-only 강제) 또는 READ_WRITE(DB 권한 내 실행)다. 실행은 RUNNING → SUCCEEDED/FAILED/CANCELLED로 끝나며 worker 메모리의 실행 결과는 재시작 시 복원하지 않는다. resultType은 QUERY/MUTATION 또는 미완료·실패의 빈 값이다. 편집 중 SQL 탭은 브라우저 메모리 상태이며 연결·이력·즐겨찾기는 Workspace SQLite에 남는다.
 

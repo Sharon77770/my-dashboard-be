@@ -103,6 +103,19 @@ public class StudioService {
   private JobView start(String owner, Request input, boolean assistant, String deviceScope) {
     if (!ACTIONS.contains(input.action()) && !AUTH_ACTIONS.contains(input.action()))
       throw new WorkspaceException(400, "지원하지 않는 작업 또는 입력 크기입니다.");
+    if (input.action().startsWith("codex-") && input.args() != null) {
+      var mode = input.args().mode();
+      var approval = input.args().approval();
+      if (mode != null
+          && !Set.of("read-only", "workspace-write", "danger-full-access").contains(mode))
+        throw new WorkspaceException(400, "지원하지 않는 실행 권한입니다.");
+      if (approval != null && !Set.of("on-request", "never").contains(approval))
+        throw new WorkspaceException(400, "지원하지 않는 승인 정책입니다.");
+      if (assistant
+          && ((mode != null && !mode.equals("read-only"))
+              || (approval != null && !approval.equals("on-request"))))
+        throw new WorkspaceException(400, "AI 비서는 읽기 전용 및 필요 시 승인 정책을 사용합니다.");
+    }
     if (input.args() != null && input.args().context() != null) {
       if (assistant
           && (!input.action().equals("codex-run")

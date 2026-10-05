@@ -28,7 +28,7 @@ click('[data-plan=month-next]');await tick();assert.equal(calls.filter(c=>c.url.
 click('[data-plan=event-new]');set('title','과제 <img src=x>');const check=d.querySelector('[name=allDay]');check.checked=true;check.dispatchEvent(new w.Event('change'));
 assert.equal(d.querySelector('[name=start]').type,'date');set('start','2026-10-01');set('end','2026-10-03');await submit();
 const saved=calls.find(c=>c.method==='POST'&&c.url.includes('/calendar/events')).body;assert.equal(saved.end,'2026-10-04T00:00');assert.equal(saved.start,'2026-10-01T00:00');assert.equal(d.querySelectorAll('#calendar img').length,0);
-const agenda=d.querySelector('.day-agenda'),monthInput=d.querySelector('[data-month]');monthInput.focus();await w.WorkspacePlanner.refresh('calendar');assert.equal(d.querySelector('.day-agenda'),agenda);assert.equal(d.activeElement,monthInput);assert.equal(d.querySelector('#workspace-activity').open,false);
+const agenda=d.querySelector('.day-agenda'),monthInput=d.querySelector('[data-month]');monthInput.focus();await w.WorkspacePlanner.refresh('calendar');assert.equal(d.querySelector('.day-agenda'),agenda);assert.equal(d.activeElement,monthInput);assert.equal(d.querySelector('#workspace-activity').hidden,true);
 click('[data-plan=event-edit]');assert.equal(d.querySelector('[name=end]').value,'2026-10-03');click('#editor-dialog [data-action=dialog-close]');
 click('[data-view=timetable]');await tick();assert.ok(d.querySelector('.planner-welcome'));
 click('[data-plan=term-new]');await submit();assert.equal(d.querySelectorAll('.weekday-column').length,7);

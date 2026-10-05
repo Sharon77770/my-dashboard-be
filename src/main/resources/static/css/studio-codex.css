@@ -38,3 +38,19 @@
 :is(#cx-contexts,[data-cx-id="cx-contexts"]) button{background:var(--bg-surface-hover)}
 
 :is(#cx-account,[data-cx-id="cx-account"]){padding:2px 12px 6px;font-size:11px;color:var(--text-muted);overflow-wrap:anywhere}
+
+/* Conversation text remains readable in split and expanded layouts. */
+.cx-preferences{position:absolute;inset:42px 8px 8px;z-index:12;overflow:auto;padding:16px;background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-sm);box-shadow:var(--shadow);font-size:13px}
+.cx-preferences[hidden]{display:none}.cx-preferences header{display:flex;align-items:center;justify-content:space-between;gap:12px}.cx-preferences label{display:grid;gap:8px;margin-block:16px}.cx-preferences select{width:100%;min-height:36px}.cx-preferences p{color:var(--text-secondary);line-height:1.6}.cx-preferences h4{margin:20px 0 8px}.cx-preferences meter{width:100%;height:12px}.cx-preferences small{display:block;color:var(--text-secondary);margin-bottom:12px}.cx-preferences [data-cx-id=cx-token-detail]{white-space:pre-line;line-height:1.8;overflow-wrap:anywhere}
+:is(#studio-codex,[data-cx-id="studio-codex"])>.studio-toolbar>[data-cx=settings],.device-codex-panel>.studio-toolbar>[data-cx=settings]{width:auto;white-space:nowrap;font-size:11px;padding-inline:6px;flex-shrink:0}
+.composer-context :is(#studio-mode-label,[data-cx-id="studio-mode-label"]){display:block;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cx-message-text{font-size:14px;line-height:1.8}
+.cx-message[data-kind=userMessage]{margin-left:auto;max-width:92%;padding:12px 16px}
+:is(#studio-prompt,[data-cx-id="studio-prompt"]){font-size:14px;min-height:72px;max-height:220px}
+:is(#studio-codex,[data-cx-id="studio-codex"])>.studio-toolbar>[data-cx=focus]{width:auto;white-space:nowrap;padding-inline:8px}
+#studio .studio-workbench.codex-focused{grid-template-columns:minmax(0,1fr)}
+#studio .studio-workbench.codex-focused>.studio-explorer,#studio .studio-workbench.codex-focused>.studio-editor,#studio .studio-workbench.codex-focused>.ui-splitter{display:none}
+#studio .studio-workbench.codex-focused>.studio-inspector{display:flex;visibility:visible;grid-column:1}
+#studio .codex-focused #studio-conversation{padding-inline:clamp(16px,4vw,64px)}
+#studio .codex-focused #studio-prompt-form{margin-inline:clamp(12px,4vw,64px)}
+@media(max-width:700px){:is(#studio-prompt,[data-cx-id="studio-prompt"]){font-size:16px}.cx-message-text{font-size:14px}}

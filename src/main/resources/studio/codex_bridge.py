@@ -353,6 +353,14 @@ def codex_input(root, args):
 
 
 def codex_action(root, action, args, dashboard=False, device_codex=False):
+    mode = args.get('mode') or 'read-only'
+    approval = args.get('approval') or 'on-request'
+    if mode not in ('read-only', 'workspace-write', 'danger-full-access'):
+        raise Failure('지원하지 않는 실행 권한입니다.')
+    if approval not in ('on-request', 'never'):
+        raise Failure('지원하지 않는 승인 정책입니다.')
+    if dashboard and (mode != 'read-only' or approval != 'on-request'):
+        raise Failure('AI 비서는 읽기 전용 및 필요 시 승인 정책을 사용합니다.')
     # Empty App Server threads are not persisted until their first turn.
     if action == 'codex-thread-new':
         return dict(assistant=dict(thread=assistant_thread(dict(id='', cwd=str(root), turns=[]))))
@@ -404,9 +412,7 @@ def codex_action(root, action, args, dashboard=False, device_codex=False):
             if result.get('thread'): return dict(assistant=dict(thread=assistant_thread(result['thread'])))
             return dict(ok=True)
         if action not in ('codex-run', 'codex-review'): raise Failure('지원하지 않는 Codex 작업입니다.')
-        mode = args.get('mode') or 'read-only'
-        if mode not in ('read-only', 'workspace-write'): raise Failure('지원하지 않는 실행 권한입니다.')
-        params = dict(cwd=str(root), sandbox=mode, approvalPolicy='on-request')
+        params = dict(cwd=str(root), sandbox=mode, approvalPolicy=approval)
         if device_codex:
             params['config'] = {'mcp_servers.personal-dashboard.enabled': False,
                                 'mcp_servers.personal-dashboard.url': 'http://127.0.0.1:1/disabled'}
@@ -449,7 +455,11 @@ def codex_action(root, action, args, dashboard=False, device_codex=False):
                            if s['path'] == context.get('path') and s['name'] == context.get('name') and s['enabled']]
                 if not matches: raise Failure('활성화된 CLI 스킬만 첨부할 수 있습니다.')
                 inputs.append(dict(type='skill', name=matches[0]['name'], path=matches[0]['path']))
-        turn_params = dict(threadId=bridge.thread_id, input=inputs)
+        sandbox = dict(type={'read-only': 'readOnly', 'workspace-write': 'workspaceWrite',
+                             'danger-full-access': 'dangerFullAccess'}[mode])
+        if mode == 'workspace-write': sandbox.update(writableRoots=[str(root)], networkAccess=False)
+        turn_params = dict(threadId=bridge.thread_id, input=inputs, approvalPolicy=approval,
+                           sandboxPolicy=sandbox)
         if args.get('model'): turn_params['model'] = args['model']
         if args.get('effort'): turn_params['effort'] = textarg(args, 'effort', 100)
         result = bridge.call('review/start', dict(threadId=bridge.thread_id, target=dict(type='uncommittedChanges'), delivery='inline')) if action == 'codex-review' else bridge.call('turn/start', turn_params)

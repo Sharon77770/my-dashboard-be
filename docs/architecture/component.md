@@ -1,6 +1,6 @@
 # 컴포넌트와 모듈
 
-`WorkspaceUI.beginTask`는 foreground 요청의 공통 로딩 모달·입력 잠금·동시 요청 수명·포커스 복원을 소유한다. 각 API wrapper는 finally에서 반환된 finish를 호출한다. 스타일은 `shell.css`와 `tools/ui/workspace.css`의 backdrop 규칙을 통해 생성 bundle에 포함한다. 자동 조회·실시간 작업 상태는 quiet로 구분한다.
+`WorkspaceUI.beginTask`는 foreground 요청의 비차단 로딩 안내와 동시 요청 수명을 소유한다. 각 API wrapper는 finally에서 반환된 finish를 호출한다. 배경 inert, 이벤트 차단, 포커스 이동, 로딩 backdrop은 사용하지 않는다. 스타일은 `shell.css`에서 생성 bundle에 포함한다. 자동 조회·실시간 작업 상태는 quiet로 구분한다.
 
 `DeviceCodexController`는 장비 route와 `DeviceCodexDto.Request`를 서비스 입력으로 변환한다. `StudioService`가 장비 대상/action/root·작업 소유권과 수명을 검증하고 `StudioAdapter.executeDeviceCodex`가 SSH 실행에 서버 전용 scope를 전달한다. `WorkspaceDeviceCodex`는 연결·설치·로그인 화면을 맡으며 공통 `StudioCodex`는 host의 jobsPath/storagePrefix/idPrefix를 통해 독립 대화·DOM을 제공한다. 기존 IDE 기본 경로는 유지한다.
 

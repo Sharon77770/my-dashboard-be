@@ -48,6 +48,7 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  assert.ok(calls.slice(0,3).every(c=>c.deviceId==='local'));
  assert.equal(d.querySelector('.studio-connection').textContent,'서버 자체 · 로컬 편집');
  assert.equal(d.querySelector('.studio-workbench').hidden,false);
+ assert.equal(d.querySelector('.studio-workbench').style.getPropertyValue('--inspector-width'),'480px');
  assert.match(d.querySelector('#studio-changes').textContent,/해결이 필요한 충돌/);assert.match(d.querySelector('#studio-changes').textContent,/커밋에 포함될 변경/);assert.match(d.querySelector('#studio-changes').textContent,/작업 폴더 변경/);assert.equal(d.querySelector('[data-studio="git-stage-all"]')!==null,true);
  click('[data-studio="folder-options"]');await tick();assert.equal(d.querySelector('#studio-folder-options option').value,'/app/data/files/project');assert.match(d.querySelector('#studio-folder-status').textContent,/폴더를 검색/);
  assert.equal(d.querySelector('#studio-tree img'),null);
@@ -57,6 +58,8 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  edit('unsaved');click('[data-studio="close"][data-path="app.py"]');await tick();assert.equal(d.querySelector('#editor-dialog').open,true);
  d.querySelector('#editor-dialog').close();await tick();assert.ok(d.querySelector('[data-studio="tab"]'));
  click('[data-studio-panel="codex"]');assert.equal(d.querySelector('#studio-codex').hidden,false);
+ click('[data-cx="focus"]');assert.ok(d.querySelector('.studio-workbench').classList.contains('codex-focused'));
+ click('[data-cx="focus"]');assert.equal(d.querySelector('.studio-workbench').classList.contains('codex-focused'),false);
  d.querySelector('#studio-prompt').value='Review';d.querySelector('#studio-prompt-form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();
  assert.equal(calls.some(c=>c.action==='codex-run'),false);assert.ok(notices.some(n=>n.includes('저장')));
  await tick();assert.equal(d.querySelector('#studio-auth-cta').hidden,false);assert.equal(d.querySelector('[data-studio="codex-logout"]').hidden,true);

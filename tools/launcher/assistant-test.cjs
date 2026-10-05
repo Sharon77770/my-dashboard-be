@@ -84,7 +84,7 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       : body.action === 'codex-connections' ? { assistant: { connections: state.connection ? [state.connection] : [] } }
       : body.action === 'codex-models' ? { assistant: { models: availableModels } }
       : body.action === 'codex-threads' ? { assistant: { threads: state.threads.slice(body.args.cursor ? 25 : 0, body.args.cursor ? 50 : 25), nextCursor: !body.args.cursor && state.threads.length > 25 ? 'next' : null } }
-      : body.action === 'codex-thread-read' ? { assistant: { thread: { id: body.args.threadId, turns: [{ items: [
+      : body.action === 'codex-thread-read' ? { assistant: { thread: { id: body.args.threadId, turns: state.historyTurns || [{ items: [
         { type: 'userMessage', text: '10월 일정 설명해줘' },
         { type: 'mcpToolCall', server: 'personal-dashboard', tool: 'list_calendar_events', status: 'completed' },
         { type: 'agentMessage', text: answer }
@@ -107,6 +107,17 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
 }
 
 (async () => {
+  const replay = await fixture(connected);
+  try {
+    const user={id:'same-item',type:'userMessage',text:'Same request'};
+    replay.state.historyTurns=[{id:'turn-one',items:[user,user]},{id:'turn-two',items:[{...user,id:'next-item'}]}];
+    replay.state.threads=[{id:'replay-thread',name:'Replay',updatedAt:100}];
+    replay.d.querySelector('#assistant-history-refresh').click();await tick();
+    replay.d.querySelector('#assistant-sessions button').click();await tick();
+    assert.equal(replay.d.querySelectorAll('.assistant-message[data-role=user]').length,2,'history deduplicates IDs but preserves intentional repeated text');
+    replay.d.querySelector('#assistant-sidebar-open').click();assert.equal(replay.d.querySelector('.assistant-shell').dataset.sidebarOpen,'true');
+    replay.d.querySelector('#assistant-sidebar-open').click();assert.equal(replay.d.querySelector('.assistant-shell').dataset.sidebarOpen,'false');
+  } finally { replay.dom.window.close(); }
   for (const runtimeStatus of [null, undefined, 'connected']) {
     const f = await fixture({ ...connected, runtimeStatus });
     try {
@@ -126,8 +137,10 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
       assert.equal(f.d.querySelector('#assistant-stop').hidden, true);
       f.d.querySelector('#assistant-prompt').value = '10월 일정 설명해줘';
       f.d.querySelector('#assistant-form').dispatchEvent(new f.w.Event('submit', { cancelable: true }));
+      f.d.querySelector('#assistant-form').dispatchEvent(new f.w.Event('submit', { cancelable: true }));
       await tick();
       assert.ok(f.calls.includes('codex-run'));
+      assert.equal(f.d.querySelectorAll('.assistant-message[data-role=user]').length,1);
       assert.equal(f.d.querySelector('#assistant-status-text').textContent, '');
       f.d.querySelector('#assistant').classList.remove('active');
       f.w.dispatchEvent(new f.w.CustomEvent('workspace:view', { detail: { id: 'calendar' } }));

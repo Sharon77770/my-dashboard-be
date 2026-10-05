@@ -19,6 +19,39 @@ import org.junit.jupiter.api.Test;
  */
 class StudioServiceTest {
   @Test
+  void validatesCodexPermissionsBeforeSchedulingAndProtectsAssistant() throws Exception {
+    var adapter = mock(StudioAdapter.class);
+    var service = service(adapter);
+    var json = new ObjectMapper();
+    try {
+      for (var invalid : java.util.List.of("{\"mode\":\"bad\"}", "{\"approval\":\"always\"}")) {
+        var request =
+            new Request("remote", "/home/tester", "codex-run", json.readValue(invalid, Args.class));
+        assertThatThrownBy(() -> service.start("owner", request))
+            .isInstanceOf(WorkspaceException.class);
+        assertThatThrownBy(() -> service.startDevice("owner", request))
+            .isInstanceOf(WorkspaceException.class);
+      }
+      for (var override :
+          java.util.List.of("{\"mode\":\"danger-full-access\"}", "{\"approval\":\"never\"}")) {
+        var request = new Request("local", "/", "codex-run", json.readValue(override, Args.class));
+        assertThatThrownBy(() -> service.startAssistant("owner", request))
+            .isInstanceOf(WorkspaceException.class);
+      }
+      verifyNoInteractions(adapter);
+      var args =
+          json.readValue("{\"mode\":\"danger-full-access\",\"approval\":\"never\"}", Args.class);
+      var request = new Request("remote", "/home/tester", "codex-run", args);
+      service.start("owner", request);
+      service.startDevice("owner", request);
+      verify(adapter, timeout(2000)).execute(any(), eq(request), any(), any());
+      verify(adapter, timeout(2000)).executeDeviceCodex(any(), eq(request), any(), any());
+    } finally {
+      service.shutdown();
+    }
+  }
+
+  @Test
   void deviceJobsCannotCrossDeviceSessionOrEditorBoundaries() throws Exception {
     var adapter = mock(StudioAdapter.class);
     var entered = new CountDownLatch(1);

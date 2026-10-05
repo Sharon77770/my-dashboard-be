@@ -5,16 +5,46 @@ window.WorkspaceDeviceCodex = (() => {
   const project=()=>selected?{deviceId:selected.id,root:selected.root}:null;
   const path=()=>'/devices/'+encodeURIComponent(selected.id)+'/codex/jobs';
   const status=text=>{$('[data-dc-status]').textContent=text;};
+  function setSidebar(open, focus=false){
+    $('.device-codex-panel').dataset.sidebarOpen=String(open);
+    $('[data-dc-sidebar]').inert=!open;
+    $('[data-dc-backdrop]').hidden=!open;
+    $('[data-dc-sidebar-toggle]').setAttribute('aria-expanded',String(open));
+    if(focus)(open?$('[data-dc-sidebar-close]'):$('[data-dc-sidebar-toggle]')).focus();
+  }
+
+  // Move the shared chat nodes once; streaming, selection and composer state retain their identity.
+  function arrangeChat(panel, settings){
+    const connectionStatus=$('[data-dc-status]'),authentication=$('[data-dc-auth]');
+    const main=document.createElement('div');main.className='device-codex-main';
+    main.append(...panel.children);
+    const sidebar=document.createElement('aside');sidebar.className='device-codex-sidebar';sidebar.dataset.dcSidebar='';sidebar.id='device-codex-sidebar';sidebar.setAttribute('aria-label','장비 연결과 대화 기록');
+    sidebar.innerHTML='<div class="device-codex-sidebar-head"><strong>장비 · 대화</strong><button type="button" data-dc-sidebar-close aria-label="장비·대화 사이드바 닫기">✕</button></div>';
+    sidebar.append(settings);
+    const history=main.querySelector('[data-cx-id=cx-history]');
+    const historyButton=document.createElement('button');historyButton.type='button';historyButton.dataset.cx='history';historyButton.className='device-codex-history-button';historyButton.textContent='대화 기록 불러오기';
+    sidebar.append(historyButton,history);
+    const foot=document.createElement('div');foot.className='device-codex-sidebar-foot';foot.append(main.querySelector('[data-cx-id=cx-account]'));sidebar.append(foot);
+    const backdrop=document.createElement('button');backdrop.type='button';backdrop.dataset.dcBackdrop='';backdrop.className='device-codex-backdrop';backdrop.setAttribute('aria-label','장비·대화 사이드바 닫기');backdrop.hidden=true;backdrop.tabIndex=-1;
+    const header=main.querySelector('.studio-toolbar');header.classList.add('device-codex-header');
+    const toggle=document.createElement('button');toggle.type='button';toggle.dataset.dcSidebarToggle='';toggle.textContent='☰';toggle.setAttribute('aria-label','장비·대화 사이드바 열기');toggle.setAttribute('aria-controls',sidebar.id);toggle.setAttribute('aria-expanded','false');header.prepend(toggle);
+    header.querySelector('.cx-panel-title strong').textContent='장비 Codex';
+    const target=document.createElement('button');target.type='button';target.dataset.dcTarget='';target.className='device-codex-target';target.textContent='SSH 장비 선택';target.title='장비 및 작업 폴더 변경';
+    const connection=document.createElement('div');connection.className='device-codex-connection';connection.append(target,$('[data-dc-cancel]'));header.after(connection);
+    connection.after(connectionStatus,authentication);
+    panel.append(sidebar,backdrop,main);
+    setSidebar(false);
+  }
   function setBusy(value){
     busy=value;
     view.querySelectorAll('[data-dc-controls] input,[data-dc-controls] select,[data-dc-controls] button,[data-dc-prompt],.device-codex-panel button,.device-codex-panel select,.device-codex-panel textarea').forEach(element=>element.disabled=value||!selected);
+    view.querySelectorAll('[data-cx=settings],[data-cx=settings-close],[data-dc-sidebar-toggle],[data-dc-sidebar-close],[data-dc-backdrop],[data-dc-target],[data-dc-cancel]').forEach(element=>element.disabled=false);
     $('[data-dc-device]').disabled=value||!devices.length;
     $('[data-dc-cancel]').hidden=!value;
   }
   function clearAuth(){const box=$('[data-dc-auth]');box.replaceChildren();box.hidden=true;}
   function resetChat(){
     chat.reset();
-    const mode=$('[data-cx-id="studio-codex-mode"]');mode.value='read-only';mode.dispatchEvent(new Event('change'));
   }
   function authEvent(event){
     if(event.event)status(event.event);
@@ -50,6 +80,10 @@ window.WorkspaceDeviceCodex = (() => {
     prepared=false;resetChat();
     $('[data-dc-device]').value=selected?.id||'';
     $('[data-dc-root]').value=selected?.root||'';
+    $('[data-dc-settings]').open=true;
+    $('[data-dc-summary]').textContent=selected?selected.name+' · '+selected.root:'장비 · 작업 폴더';
+    $('[data-dc-target]').textContent=selected?selected.name+' · '+selected.root:'SSH 장비 선택';
+    setSidebar(true);
     status(selected?selected.name+' · '+selected.host+' · SSH 계정 권한으로 실행':'먼저 인프라에서 SSH 장비를 등록하세요.');
     clearAuth();setBusy(false);
   }
@@ -58,6 +92,7 @@ window.WorkspaceDeviceCodex = (() => {
     if(!selected||!root.startsWith('/'))throw Error('SSH 장비와 절대 경로의 작업 폴더를 선택하세요.');
     if(selected.root!==root){selected={...selected,root};prepared=false;resetChat();}
     await prepare(refresh);await chat.load(true);
+    if(prepared){$('[data-dc-settings]').open=false;$('[data-dc-summary]').textContent=selected.name+' · '+selected.root;$('[data-dc-target]').textContent=selected.name+' · '+selected.root;setSidebar(false,true);}
   }
   async function guard(work){try{await work();}catch(error){status(error.message);ui.toast(error.message);}}
   function init(helpers){
@@ -67,16 +102,26 @@ window.WorkspaceDeviceCodex = (() => {
       <p class="section-hint">선택한 장비에서 상태 확인, 로그 수집, 배포, 파일 수정과 Git 작업을 수행합니다. 작업 폴더를 적용하려면 연결을 누르세요.</p><p data-dc-status role="status" aria-live="polite"></p><div data-dc-auth hidden></div>
       <div class="device-codex-suggestions"><button data-dc-prompt="현재 장비의 CPU, 메모리, 디스크와 실행 중인 서비스 상태를 확인하고 문제를 설명하라.">장비 상태</button><button data-dc-prompt="1557 포트의 서비스를 찾아 지난주부터 현재까지 실제 실행 로그와 HTTP 5xx 오류를 수집하고 원인을 설명하라.">서비스 오류 로그</button><button data-dc-prompt="작업 폴더의 배포 구성을 확인하고 현재 변경 사항을 배포한 뒤 서비스 상태를 검증하라.">배포</button><button data-dc-prompt="작업 폴더의 Git 상태, 변경 내용과 최근 커밋을 확인하라.">Git 확인</button></div><section class="device-codex-panel" data-cx-id="studio-codex" aria-label="장비 Codex 대화"></section>`;
     const panel=$('.device-codex-panel');
+    const settings=document.createElement('details');settings.className='device-codex-settings';settings.dataset.dcSettings='';settings.open=true;
+    const summary=document.createElement('summary');summary.dataset.dcSummary='';summary.textContent='장비 · 작업 폴더';settings.append(summary);
+    const controls=$('[data-dc-controls]');controls.before(settings);settings.append(controls,$('[data-dc-status]'));
+    const suggestions=$('.device-codex-suggestions');
     chat=window.StudioCodex(panel,{
       ...ui,project,jobsPath:path,idPrefix:'device-',storagePrefix:'device-codex:',busy:()=>busy,setBusy,
       welcomeTitle:'장비에 어떤 작업이 필요한가요?',welcomeText:'실제 장비의 서비스 상태, 로그, 배포와 Git 작업을 요청하세요.',
+      renderWelcome:welcome=>welcome.append(suggestions),historyVisibility:open=>setSidebar(open,!open),
       job:value=>{job=value;},prepare,dirty:()=>false,context:()=>null,publish:()=>{},confirm:ui.confirm,
       auth:value=>{panel.querySelector('[data-cx-id="studio-auth-cta"]').hidden=value!==false;panel.querySelectorAll('[data-studio="codex-logout"]').forEach(element=>element.hidden=value!==true);}
     });
+    arrangeChat(panel,settings);
+    $('.page-head').remove();$('.section-hint').remove();
     panel.querySelectorAll('[data-cx="file"],[data-cx="selection"]').forEach(element=>element.hidden=true);
     $('[data-dc-device]').addEventListener('change',event=>choose(event.target.value));
     view.addEventListener('click',event=>guard(async()=>{
       const button=event.target.closest('button');if(!button||button.disabled)return;
+      if(button.hasAttribute('data-dc-sidebar-toggle'))setSidebar(panel.dataset.sidebarOpen!=='true',true);
+      if(button.hasAttribute('data-dc-sidebar-close')||button.hasAttribute('data-dc-backdrop'))setSidebar(false,true);
+      if(button.hasAttribute('data-dc-target')){setSidebar(true);settings.open=true;$('[data-dc-device]').focus();}
       if(button.hasAttribute('data-dc-connect'))await connect();
       if(button.hasAttribute('data-dc-update'))await connect(true);
       if(button.hasAttribute('data-dc-cancel')&&job){await ui.api(path()+'/'+job,'DELETE');clearAuth();}
@@ -86,6 +131,15 @@ window.WorkspaceDeviceCodex = (() => {
       if(button.dataset.studio==='codex-logout'){await task('codex-logout');resetChat();status('이 장비의 Codex 로그아웃 완료');}
       if(button.dataset.dcPrompt){const input=panel.querySelector('[data-cx-id="studio-prompt"]');input.value=button.dataset.dcPrompt;input.focus();}
     }));
+    view.addEventListener('keydown',event=>{
+      if(event.key==='Escape'&&panel.dataset.sidebarOpen==='true'){event.preventDefault();setSidebar(false,true);}
+      if(event.key==='Tab'&&panel.dataset.sidebarOpen==='true'&&window.matchMedia?.('(max-width:700px)').matches){
+        const controls=[...$('[data-dc-sidebar]').querySelectorAll('button,input,select,summary')].filter(element=>!element.disabled&&element.getClientRects().length);
+        const first=controls[0],last=controls.at(-1);
+        if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus();}
+        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus();}
+      }
+    });
     setBusy(false);
   }
   async function open(id){

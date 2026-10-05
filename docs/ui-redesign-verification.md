@@ -1,5 +1,11 @@
 # UI redesign 검증 현황
 
+2026-10-05 장비 Codex: AI 비서형 전체 화면·접이식 연결/기록 사이드바·중앙 본문/입력창을 적용했다. `device-codex-test.cjs`는 연결 후 닫기, 토글/Escape/배경 닫기, 포커스 복원, 입력 DOM·초안·스크롤 유지, 기록 복원, 장비 전환 시 기록 초기화와 기존 인증·설정 동작을 검사한다. `responsive-test.cjs`는 9개 폭에서 사이드바 표시, 모바일 서랍, 기록의 정상 문서 배치와 16px 입력 글자를 검사한다. Browser 연결 시도에서 사용 가능한 브라우저가 없었으므로 실제 화면·터치·가상 키보드 검증은 미실시다.
+
+## Codex 채팅 영역과 중복 메시지 회귀 검사
+
+`tools/studio-editor/codex-chat-test.cjs`는 IDE/장비 공통 패널에서 임시 행과 서버 echo 통합, 같은 ID 재수신, 첨부 문맥이 추가된 메시지, 의도적으로 반복한 다음 turn, 준비·steer 연속 전송, 실패 재시도를 검증한다. 기존 IDE/장비/AI 비서 검사는 확대·복원, 장비 설정 접기, AI 비서 목록 토글·복원 ID 중복 제외·연속 전송을 포함한다. 반응형 검사는 1440~360px의 9개 너비에서 대화 영역 CSS 계약을 확인한다. 실제 브라우저가 연결되지 않아 시각·터치 QA는 수행하지 않았다.
+
 ## 2026-10-05 실시간 UI 추가 검증
 
 - Docker `mvn -B spotless:apply verify`: BUILD SUCCESS, 176 tests / 168 passed / 8 skipped. 실제 HTTP 로그인·WebSocket Upgrade·REST 변경 수신·로그아웃 종료·Origin/익명 거부·세션별 작업 분리 검증 포함.
@@ -9,7 +15,7 @@
 - 현재 Browser runtime의 `browsers.list()`는 빈 목록이다. 실제 렌더링·터치·운영 reverse proxy 경유 WebSocket 검증은 수행하지 않았다. 아래 이전 검증 기록과 분리한다.
 - 적용 범위와 예외: [실시간 UI](realtime-ui.md).
 
-2026-10-05 공통 로딩 변경: 중앙 모달·3px 배경 blur·입력 잠금과 동시 요청/오류 해제/포커스 복원을 적용했다. `loading-test.cjs`와 Launcher의 실제 API wrapper 검사에서 응답 본문 수신 완료 전 잠금, 탐색 차단, 실패 해제 및 AI 비서 폴링 제외를 확인했다. Launcher, Database polling, Services, Notes, Planner, GitHub, Assistant, responsive/theme 검사와 CSS build 및 Maven verify(171개, 실패 0, 조건부 제외 8)가 통과했다. 실제 브라우저 blur·top-layer·터치 렌더링 검증은 수행하지 않았다.
+2026-10-05 공통 로딩의 상호작용 차단을 사용자 요청으로 취소했다. 중앙 모달·배경 blur·inert·전역 이벤트 차단·포커스 강제 이동을 제거하고 상단 비차단 안내로 변경했다. 동시 요청과 실패 정리, quiet 요청 제외는 유지한다. `loading-test.cjs`는 클릭·키보드·제출·스크롤 이벤트 허용과 포커스 유지를, Launcher 검사는 응답 대기 중 화면 이동을 확인한다. 실제 브라우저·모바일 터치 검증은 별도 대상이다.
 
 2026-09-30 작업 트리 기준. 이 문서는 전체 리디자인의 완료 선언이 아니다. 소스와 자동 검사에서 확인한 내용과 실제 렌더링 검증을 구분한다.
 

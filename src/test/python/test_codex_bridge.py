@@ -16,6 +16,8 @@ def send(**v): print(json.dumps(v),flush=True)
 thread=dict(id='thread-1',cwd=os.getcwd(),turns=[])
 dashboard=False
 thread_checked=False
+approval='on-request'
+mode='read-only'
 for line in sys.stdin:
  f=json.loads(line);m=f.get('method');p=f.get('params',{});result={}
  if m=='initialize': result={}
@@ -29,10 +31,11 @@ for line in sys.stdin:
   required=['list_apps','list_calendar_events','create_calendar_event','update_calendar_event','delete_calendar_event','list_notes','read_note','create_note','append_note','update_note_metadata','replace_note_text','delete_note','github.get_repository','github.update_repository','github.update_release','github.delete_repository','github.delete_release','discover_service_resources','create_service_draft','update_service_draft','get_service_draft','cancel_service_draft','commit_service_draft','search_memories','get_memory','create_memory','compose_memory_context', 'get_service_runtime', 'get_service_logs']
   result={'data':[], 'nextCursor':'next'} if not p.get('cursor') else {'data':[dict(name='personal-dashboard',authStatus='bearerToken',runtimeStatus='failed' if failed else None,tools={} if failed else {name:{} for name in required},toolsError=None)]}
  elif m=='thread/start' or m=='thread/resume':
+  approval=p.get('approvalPolicy','on-request');mode=p.get('sandbox','read-only')
   dashboard=p.get('config',{}).get('mcp_servers.personal-dashboard.enabled') is True
   if p.get('config',{}).get('mcp_servers.personal-dashboard.enabled') is False:
    assert 'SSH device' in p['developerInstructions']
-   assert p['approvalPolicy']=='on-request'
+   assert approval in ('on-request','never')
    assert 'device-codex' in os.environ['CODEX_HOME']
    assert 'DASHBOARD_MCP_TOKEN' not in os.environ
    open('device-codex-proof','w').write(os.environ['CODEX_HOME'])
@@ -49,10 +52,20 @@ for line in sys.stdin:
   assert p['threadId']=='thread-1'
   open('thread-deleted','w').close()
  elif m=='turn/start':
+  assert p['approvalPolicy']==approval
+  assert p['sandboxPolicy']['type']=={'read-only':'readOnly','workspace-write':'workspaceWrite','danger-full-access':'dangerFullAccess'}[mode]
+  if mode=='workspace-write': assert p['sandboxPolicy']['writableRoots']==[os.getcwd()] and p['sandboxPolicy']['networkAccess'] is False
   open('turn-started','w').close()
   turn=dict(id='turn-1',status='inProgress',items=[])
   send(id=f['id'],result={'turn':turn})
   send(method='turn/started',params={'turn':turn})
+  if approval=='never':
+   item=dict(id='answer',type='agentMessage',text='Completed without approval: '+mode)
+   send(method='item/completed',params={'item':item})
+   send(method='thread/tokenUsage/updated',params=dict(tokenUsage=dict(total=dict(totalTokens=100,inputTokens=70,outputTokens=30,cachedInputTokens=10),last=dict(totalTokens=100),modelContextWindow=1000)))
+   turn=dict(id='turn-1',status='completed',items=[item]);thread['turns']=[turn]
+   send(method='turn/completed',params={'turn':turn})
+   continue
   if dashboard:
    assert thread_checked
    item=dict(id='tool',type='mcpToolCall',server='personal-dashboard',tool='list_apps',status='completed')
@@ -95,6 +108,23 @@ class CodexBridgeTest(unittest.TestCase):
         result = remote.codex_action(self.root, 'codex-models', {})
         self.assertEqual(result['assistant']['models'][0]['id'], 'fixture')
         self.assertEqual(result['assistant']['models'][0]['efforts'][0]['reasoningEffort'], 'medium')
+
+    def test_never_policy_and_permissions_apply_to_new_and_resumed_turns(self):
+        for mode in ('read-only', 'workspace-write', 'danger-full-access'):
+            for thread_id in (None, 'thread-1'):
+                self.events.clear()
+                result = remote.codex_action(self.root, 'codex-run', dict(prompt='inspect', mode=mode, approval='never', threadId=thread_id))
+                self.assertEqual(result['assistant']['status'], 'completed')
+                self.assertIn(mode, result['assistant']['thread']['turns'][0]['items'][0]['text'])
+                self.assertNotIn('interaction', [e['assistant']['kind'] for e in self.events])
+                self.assertEqual(next(e['assistant']['usage']['totalTokens'] for e in self.events if e['assistant']['kind'] == 'usage'), 100)
+
+    def test_invalid_permissions_and_dashboard_overrides_fail_before_start(self):
+        for args, dashboard in ((dict(mode='invalid'), False), (dict(approval='invalid'), False),
+                                (dict(mode='danger-full-access'), True), (dict(approval='never'), True)):
+            with self.assertRaises(remote.Failure):
+                remote.codex_action(self.root, 'codex-run', dict(prompt='inspect', **args), dashboard=dashboard)
+        self.assertFalse((self.root / 'turn-started').exists())
 
     def test_account_projects_email_and_type_without_credentials(self):
         account = remote.codex_action(self.root, 'codex-account', {})['assistant']

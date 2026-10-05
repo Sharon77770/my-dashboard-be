@@ -20,19 +20,20 @@ const load=()=>JSON.parse(w.localStorage.getItem(w.HomePersistence.key()));
 (async()=>{
 for(const file of ['ui.js','live-dom.js','launcher/app-registry.js','launcher/grid-model.js','launcher/persistence.js','launcher/widget-registry.js','launcher/interactions.js','launcher/launcher.js','planner.js','workspace.js'])w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/js',file),'utf8'));
 await tick();assert.equal(d.querySelector('#sidebar'),null);assert.equal(d.querySelectorAll('.home-item').length,16);
-// A deferred response must block navigation until its body and render continuation complete.
+// A deferred response shows activity while navigation remains available.
 const originalFetch=w.fetch;let resolveResponse,resolveBody;
 w.fetch=async url=>url==='/api/v1/loading-check'?new Promise(resolve=>{resolveResponse=resolve;}):originalFetch(url);
 const foreground=w.WorkspaceAssistantRuntime.api('/loading-check');
-assert.equal(d.querySelector('#workspace-activity').open,true);
-click('#home-grid [data-view="calendar"]');assert.equal(d.body.dataset.home,'true');
+assert.equal(d.querySelector('#workspace-activity').hidden,false);
+click('#home-grid [data-view="calendar"]');assert.equal(d.body.dataset.home,'false');
+click('[data-view="home"]');
 resolveResponse({ok:true,status:200,headers:{get:()=> 'application/json'},json:()=>new Promise(resolve=>{resolveBody=resolve;})});
-await tick();assert.equal(d.querySelector('#workspace-activity').open,true);
-resolveBody({ok:true});await foreground;await tick();assert.equal(d.querySelector('#workspace-activity').open,false);
+await tick();assert.equal(d.querySelector('#workspace-activity').hidden,false);
+resolveBody({ok:true});await foreground;await tick();assert.equal(d.querySelector('#workspace-activity').hidden,true);
 w.fetch=async()=>{throw Error('offline');};
-await assert.rejects(w.WorkspaceAssistantRuntime.api('/loading-check'),/offline/);await tick();assert.equal(d.querySelector('#workspace-activity').open,false);
+await assert.rejects(w.WorkspaceAssistantRuntime.api('/loading-check'),/offline/);await tick();assert.equal(d.querySelector('#workspace-activity').hidden,true);
 let finishPolling;w.fetch=async()=>new Promise(resolve=>{finishPolling=resolve;});
-const polling=w.WorkspaceAssistantRuntime.api('/assistant/jobs/polling-check');assert.equal(d.querySelector('#workspace-activity').open,false);
+const polling=w.WorkspaceAssistantRuntime.api('/assistant/jobs/polling-check');assert.equal(d.querySelector('#workspace-activity').hidden,true);
 finishPolling({ok:true,status:204});await polling;w.fetch=originalFetch;
 const homeItemBeforeRefresh=d.querySelector('.home-item');
 w.dispatchEvent(new w.CustomEvent('workspace:invalidate',{detail:{topics:['workspace']}}));await new Promise(resolve=>setTimeout(resolve,250));

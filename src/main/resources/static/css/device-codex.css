@@ -1,16 +1,74 @@
-#device-codex{max-width:1200px;margin:auto}
-.device-codex-controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap}
-.device-codex-controls label{display:grid;gap:6px;flex:1;min-width:180px;font-size:12px}
-.device-codex-controls input,.device-codex-controls select{width:100%}
-[data-dc-status]{font-size:12px;color:var(--text-secondary);overflow-wrap:anywhere;min-height:18px}
-[data-dc-auth]{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border-subtle);flex-wrap:wrap}
-.device-codex-suggestions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
-.device-codex-suggestions button{font-size:12px}
-.device-codex-panel{display:flex;flex-direction:column;min-height:460px;height:calc(100dvh - 370px);border-top:1px solid var(--border-subtle);position:relative}
-.device-codex-panel [data-cx-id=studio-conversation]{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
-.device-codex-panel [data-cx-id=studio-prompt-form]{flex-shrink:0;border:1px solid var(--border-default)}
-.device-codex-panel [data-cx-id=studio-prompt]{width:100%;border:0;background:transparent}
-.device-codex-panel .cx-message-text{font-size:14px}
-.device-codex-panel .cx-attachments .ui-menu-content{top:auto;bottom:100%;left:0;right:auto}
-.device-codex-panel .ui-menu-content{z-index:6}
-@media(max-width:700px){.device-codex-controls{gap:8px}.device-codex-controls label{flex-basis:100%}.device-codex-panel{height:65dvh;min-height:420px}.device-codex-suggestions{gap:4px}.device-codex-controls input,.device-codex-controls select{font-size:16px}}
+/* Device chat follows the assistant's full-area shell, optional history and centered composer. */
+#device-codex{width:100%;height:100%;min-height:0;padding:0;margin:0}
+#device-codex.active{display:flex;overflow:hidden}
+#device-codex .device-codex-panel{display:grid;grid-template-columns:0 minmax(0,1fr);width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;position:relative;background:var(--bg-app)}
+#device-codex .device-codex-panel[data-sidebar-open=true]{grid-template-columns:280px minmax(0,1fr)}
+#device-codex .device-codex-sidebar{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0;padding:16px 12px 12px;border-right:1px solid var(--border-subtle);background:var(--bg-sidebar);overflow:auto}
+#device-codex .device-codex-panel:not([data-sidebar-open=true]) .device-codex-sidebar{visibility:hidden;overflow:hidden;padding-inline:0;border:0}
+#device-codex .device-codex-sidebar-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;min-height:36px}
+#device-codex .device-codex-sidebar-head button{border:0;background:transparent;color:var(--text-secondary)}
+#device-codex .device-codex-settings>summary{padding:8px 0;cursor:pointer;font-size:12px;color:var(--text-secondary);overflow-wrap:anywhere}
+#device-codex .device-codex-controls{display:grid;gap:12px;padding-block:8px 12px}
+#device-codex .device-codex-controls label{display:grid;gap:6px;font-size:12px}
+#device-codex .device-codex-controls input,#device-codex .device-codex-controls select{width:100%;min-width:0}
+#device-codex .device-codex-controls>.ui-menu>summary{font-size:12px;color:var(--text-secondary)}
+#device-codex .device-codex-sidebar-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--border-subtle)}
+#device-codex .device-codex-sidebar [data-cx-id=cx-account]{padding:0;font-size:11px;line-height:1.6}
+#device-codex .device-codex-sidebar [data-cx-id=cx-history]{position:static;inset:auto;padding:0;overflow:visible;background:transparent}
+#device-codex .device-codex-sidebar [data-cx-id=cx-search]{display:flex;gap:4px}#device-codex .device-codex-sidebar [data-cx-id=cx-search] input{min-width:0}
+#device-codex .device-codex-history-button{width:100%;text-align:left;background:transparent;border:1px solid var(--border-subtle);font-size:12px}
+#device-codex .device-codex-sidebar .cx-session{border:0;background:transparent;text-align:left;margin:2px 0;padding:10px 8px;font-size:12px}
+#device-codex .device-codex-sidebar .cx-session:hover{background:var(--bg-surface-hover)}
+#device-codex .device-codex-main{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+#device-codex .device-codex-header{display:flex;align-items:center;gap:8px;min-height:62px;padding:10px clamp(12px,2vw,28px);border-bottom:1px solid var(--border-subtle);background:var(--bg-surface);flex-shrink:0}
+#device-codex .device-codex-header>button{min-height:34px;min-width:34px;width:auto;padding:4px 8px;border:0;background:transparent;color:var(--text-secondary)}
+#device-codex .cx-panel-title{display:grid;gap:2px;min-width:0}#device-codex .device-codex-header .cx-panel-title strong{font-size:13px}#device-codex .device-codex-header .cx-panel-title span{font-size:11px}
+#device-codex .device-codex-connection{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px clamp(12px,2vw,28px)}
+#device-codex .device-codex-target{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:transparent;color:var(--text-secondary);text-align:left;font-size:11px;padding:2px 0}
+#device-codex [data-dc-status]{margin:0;padding:0 clamp(12px,2vw,28px) 4px;color:var(--text-muted);font-size:11px;overflow-wrap:anywhere}
+#device-codex [data-dc-auth]{display:flex;align-items:center;gap:12px;padding:12px;margin:8px 16px;border:1px solid var(--border-subtle);flex-wrap:wrap;font-size:12px}
+#device-codex [data-dc-auth][hidden]{display:none}
+#device-codex .device-codex-panel [data-cx-id=studio-conversation]{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;gap:22px;padding:24px max(16px,calc(50% - 560px)) 36px}
+#device-codex .assistant-welcome{max-width:520px;margin:auto;text-align:center}
+#device-codex .assistant-welcome>span{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 18px;border-radius:var(--radius-lg);background:var(--accent-subtle);color:var(--accent);font-size:25px}
+#device-codex .assistant-welcome h3{font-size:21px;margin:0 0 9px;font-weight:600}
+#device-codex .assistant-welcome p{max-width:none;margin:0;color:var(--text-secondary);font-size:13px;line-height:1.7}
+#device-codex .assistant-welcome small{display:none}
+#device-codex .device-codex-suggestions{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:16px}
+#device-codex .device-codex-suggestions button{min-height:34px;padding:6px 11px;border-radius:var(--radius-lg);font-size:12px}
+#device-codex .cx-message{width:100%;padding:0;margin:0;flex-shrink:0}
+#device-codex .cx-message-text{font-size:15px;line-height:1.75}
+#device-codex .cx-message[data-kind=userMessage]{width:auto;max-width:80%;align-self:flex-end;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--bg-elevated)}
+#device-codex .cx-message[data-kind=agentMessage]{background:transparent}
+#device-codex .cx-message[data-kind=agentMessage] .cx-message-text{white-space:normal}
+#device-codex .device-codex-panel [data-cx-id=studio-prompt-form]{flex-shrink:0;width:min(calc(100% - 32px),1120px);margin:0 auto calc(14px + env(safe-area-inset-bottom));padding:14px 16px;border:1px solid var(--border-default);border-radius:var(--radius-lg);background:var(--bg-elevated)}
+#device-codex .device-codex-panel [data-cx-id=studio-prompt]{width:100%;min-height:72px;max-height:220px;border:0;background:transparent;font-size:15px}
+#device-codex .device-codex-panel .cx-composer-toolbar .cx-settings{flex:0 1 480px;margin-right:auto}
+#device-codex .device-codex-panel .cx-composer-toolbar .cx-settings select{font-size:12px}
+#device-codex [data-cx-id=cx-send],#device-codex [data-cx=stop]{width:36px;min-height:36px;border-radius:var(--radius-md)}
+#device-codex .device-codex-panel [data-cx-id=cx-status],#device-codex .device-codex-panel [data-cx-id=cx-interactions]{width:min(100%,1120px);margin-inline:auto;flex-shrink:0}
+#device-codex .device-codex-panel [data-cx-id=cx-interactions]{max-height:35%;overflow:auto}
+#device-codex .device-codex-panel .cx-attachments .ui-menu-content{top:auto;bottom:100%;left:0;right:auto}
+#device-codex .device-codex-panel .ui-menu-content{z-index:6}
+#device-codex .cx-preferences{inset:70px 16px 16px auto;width:min(520px,calc(100% - 32px));padding:20px;z-index:40;background:var(--bg-surface)}
+#device-codex .device-codex-backdrop{display:none}
+@media(max-width:700px){
+  #device-codex .device-codex-panel,#device-codex .device-codex-panel[data-sidebar-open=true]{display:block}
+  #device-codex .device-codex-main{height:100%}
+  #device-codex .device-codex-sidebar{position:absolute;z-index:35;inset:0 auto 0 0;width:min(300px,88%);transform:translateX(-100%);transition:transform var(--motion-base) var(--motion-ease);box-shadow:var(--shadow-raised)}
+  #device-codex .device-codex-panel[data-sidebar-open=true] .device-codex-sidebar{transform:translateX(0)}
+  #device-codex .device-codex-panel[data-sidebar-open=true] .device-codex-backdrop:not([hidden]){display:block;position:absolute;z-index:34;inset:0;width:100%;border:0;border-radius:0;background:var(--drawer-overlay)}
+  #device-codex .device-codex-header{gap:4px;padding:8px;min-height:60px}
+  #device-codex .device-codex-header>button{min-width:36px;min-height:44px;padding:4px}
+  #device-codex .device-codex-header>[data-cx=history]{display:none}
+  #device-codex .device-codex-header>[data-cx=settings]{max-width:96px;white-space:normal;font-size:11px}
+  #device-codex .device-codex-header .ui-menu>summary,#device-codex .device-codex-sidebar-head button{min-width:44px;min-height:44px;display:grid;place-items:center}
+  #device-codex .device-codex-controls input,#device-codex .device-codex-controls select,#device-codex .device-codex-panel [data-cx-id=studio-prompt]{font-size:16px}
+  #device-codex .device-codex-panel [data-cx-id=studio-conversation]{padding:20px 16px 28px;gap:18px}
+  #device-codex .cx-message[data-kind=userMessage]{max-width:90%}
+  #device-codex .device-codex-panel [data-cx-id=studio-prompt-form]{width:calc(100% - 20px);padding:10px;margin-bottom:calc(10px + env(safe-area-inset-bottom))}
+  #device-codex [data-cx-id=cx-send],#device-codex [data-cx=stop],#device-codex .device-codex-panel .cx-settings select{min-height:44px}
+  #device-codex [data-cx-id=cx-send],#device-codex [data-cx=stop]{width:44px}
+  #device-codex .cx-preferences{inset:8px 8px 8px;width:auto;padding:16px}
+}
+@media(prefers-reduced-motion:reduce){#device-codex .device-codex-sidebar{transition:none}}

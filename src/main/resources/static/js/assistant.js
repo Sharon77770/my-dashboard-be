@@ -614,7 +614,10 @@
     const entries = [];
     for (const turn of thread.turns || []) {
       let lastAssistant = null;
+      const seenItems = new Set();
       for (const item of turn.items || []) {
+        if (item.id && seenItems.has(item.id)) continue;
+        if (item.id) seenItems.add(item.id);
         if ((item.type === 'userMessage' || item.type === 'agentMessage') && item.text) {
           entries.push({ role: item.type === 'userMessage' ? 'user' : 'assistant', text: item.text });
           if (item.type === 'agentMessage') lastAssistant = entries[entries.length - 1];
@@ -1250,7 +1253,7 @@
   });
   document.querySelector('#assistant-new').addEventListener('click', newChat);
   document.querySelector('#assistant-header-new').addEventListener('click', newChat);
-  document.querySelector('#assistant-sidebar-open').addEventListener('click', () => setSidebar(true));
+  document.querySelector('#assistant-sidebar-open').addEventListener('click', () => setSidebar(shell.dataset.sidebarOpen !== 'true'));
   document.querySelector('#assistant-sidebar-close').addEventListener('click', () => setSidebar(false));
   document.querySelector('#assistant-sidebar-backdrop').addEventListener('click', () => setSidebar(false));
   const openSettings = () => { setSidebar(false); if (typeof settings.showModal === 'function') settings.showModal(); else settings.setAttribute('open', ''); };

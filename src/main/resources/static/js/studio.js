@@ -37,7 +37,7 @@
       if (doc) { doc.content = content; doc.dirty = content !== doc.saved; renderTabs(); }
     });
     codeEditor.load('', '');
-    codex=window.StudioCodex($('#studio-codex'),{escape,api:ui.api,toast:ui.toast,editor:ui.editor,project:()=>project,busy:()=>busy,setBusy,job:id=>{jobId=id;},dirty,confirm:confirmChange,auth:updateAuth,publish,context:kind=>{if(!activeFile)return null;const selection=codeEditor.selection?.();return kind==='selection'?(selection?.content?{kind,path:activeFile,name:activeFile+':'+selection.fromLine,...selection}:null):{kind:'file',path:activeFile,name:activeFile};}});
+    codex=window.StudioCodex($('#studio-codex'),{escape,api:ui.api,toast:ui.toast,editor:ui.editor,project:()=>project,busy:()=>busy,setBusy,job:id=>{jobId=id;},dirty,confirm:confirmChange,auth:updateAuth,publish,toggleFocus:()=>$('.studio-workbench').classList.toggle('codex-focused'),context:kind=>{if(!activeFile)return null;const selection=codeEditor.selection?.();return kind==='selection'?(selection?.content?{kind,path:activeFile,name:activeFile+':'+selection.fromLine,...selection}:null):{kind:'file',path:activeFile,name:activeFile};}});
     root.addEventListener('click', onClick);
     root.addEventListener('submit', onSubmit);
     $('.studio-project-menu').addEventListener('keydown',event=>{if(event.key==='Escape'){$('.studio-project-menu').open=false;$('.studio-project-menu summary').focus();}});
@@ -61,7 +61,7 @@
   function setBusy(value) {
     busy = value;
     root.querySelectorAll('button,select,input,textarea').forEach(element => { element.disabled = value; });
-    root.querySelectorAll('[data-studio="cancel"], [data-studio-panel], [data-pane]').forEach(element => {element.disabled=false;});
+    root.querySelectorAll('[data-studio="cancel"], [data-studio-panel], [data-pane], [data-cx="focus"], [data-cx="settings"], [data-cx="settings-close"]').forEach(element => {element.disabled=false;});
     root.querySelectorAll('[data-studio="cancel"]').forEach(button=>{button.hidden=!value;});
     $('#studio-prompt-form').setAttribute('aria-busy',String(value));
     if(!value){$('[data-studio="save"]').disabled=!activeFile;$('[data-studio="reload-file"]').disabled=!activeFile;}
@@ -204,7 +204,7 @@
   }
   async function onClick(event) {
     const button=event.target.closest('button');if(!button)return;
-    if(button.dataset.studioPanel) {activePanel=button.dataset.studioPanel;$('.studio-workbench').dataset.mobilePane='inspector';$('#studio-git').hidden=activePanel!=='git';$('#studio-codex').hidden=activePanel!=='codex';root.querySelectorAll('[data-studio-panel]').forEach(item=>{item.classList.toggle('active',item===button);item.setAttribute('aria-selected',String(item===button));});if(activePanel==='codex')codex.load();return;}
+    if(button.dataset.studioPanel) {if(button.dataset.studioPanel!=='codex'){$('.studio-workbench').classList.remove('codex-focused');const focus=$('[data-cx=focus]');focus?.setAttribute('aria-pressed','false');if(focus)focus.textContent='대화 확대';}activePanel=button.dataset.studioPanel;$('.studio-workbench').dataset.mobilePane='inspector';$('#studio-git').hidden=activePanel!=='git';$('#studio-codex').hidden=activePanel!=='codex';root.querySelectorAll('[data-studio-panel]').forEach(item=>{item.classList.toggle('active',item===button);item.setAttribute('aria-selected',String(item===button));});if(activePanel==='codex')codex.load();return;}
     const action=button.dataset.studio, path=button.dataset.path;if(!action)return;
     await guard(async()=>{
       if(action==='open-project'){$('.studio-project-menu').open=true;$('#studio-root').focus();await refreshFolderOptions();return;}
