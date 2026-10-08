@@ -6,14 +6,16 @@
 
 작업 폴더 입력은 장비의 작업 루트에서 `list` 작업으로 읽은 폴더만 자동완성에 표시한다. 폴더 메뉴를 열거나 장비를 바꾸면 `ls` 결과를 불러오고, 경로를 바꾼 뒤 목록 새로고침을 누르면 해당 위치의 하위 폴더를 다시 검색한다. 자동완성에 없는 경로도 기존 경로 검증 규칙을 통과하면 직접 열 수 있다.
 
-- 탐색기: 폴더 이동, UTF-8 파일 생성/열기/저장, 폴더 생성, 이름 변경, 파일/빈 폴더 삭제.
-- 편집기: 여러 파일 탭, 변경 표시, Ctrl+S 저장, 구문 강조(JavaScript/TypeScript/JSX, Python, HTML, CSS, Java, JSON, Markdown), 줄 번호, 찾기/바꾸기, 실행 취소. CodeMirror 정적 번들은 같은 서버에서 제공한다.
+- 탐색기: lazy 폴더 트리, 새로고침, UTF-8 파일 생성/열기/저장, 폴더 생성, 이름 변경, 파일/빈 폴더 삭제, 업로드, 활성 파일 다운로드, 활성 파일 또는 현재 폴더의 절대 경로 복사. 업로드는 현재 선택한 폴더에 새 파일을 만들며 기존 이름을 덮어쓰지 않는다. 전송은 기존 Files API의 local/SFTP 계층을 재사용한다. 프로젝트 루트는 탐색 중 변경되지 않는다.
+- 편집기: Monaco, 여러 파일 탭, 변경 표시, Ctrl+S 저장, Ctrl+Shift+S/모두 저장, 구문 강조, 줄 번호, 찾기/바꾸기, 줄 이동, 커서 줄/열, 실행 취소, 서버 파일 재읽기, 미저장 파일 닫기 확인. 탭마다 모델·커서·스크롤·실행 취소 이력을 유지한다. Monaco와 worker·CSS·폰트는 같은 서버의 정적 자산이다. 모두 저장은 탭 순서대로 기존 revision 검사를 수행하며 충돌 시 멈추고 남은 변경을 보존한다.
 - Git: 초기화, HTTPS/SSH 저장소 복제, origin 주소 설정, 변경/스테이징 상태, diff, 파일별 stage/unstage와 전체 stage/unstage, 저장소별 작성자, 커밋, 브랜치 생성/전환, fetch, pull(--ff-only), push, 최근 커밋. 변경 검토는 충돌·커밋 예정·작업 폴더 변경을 별도 그룹으로 표시하며 상태와 파일별 diff를 함께 보여 준다. 새 브랜치의 첫 push는 origin/HEAD에 upstream을 설정한다. 저장소 최상위 폴더를 열어 사용한다. 복제 후 입력된 새 작업 폴더를 연다.
 - GitHub 로그인: 원격 `gh auth login --hostname github.com --git-protocol https --web`, 승인 후 `gh auth setup-git`. 기존 원격 Git credential helper/SSH 인증도 사용한다. 다른 Git 호스팅은 SSH 터미널에서 해당 CLI로 인증한다.
-- Codex: 프로젝트 편집기에서는 등록 SSH 장비의 Codex CLI와 계정 세션을 사용한다. 우측 하단 플로팅 ✦ assistant는 서버 Codex로 동작하며 앱의 전역 페이지/캘린더/노트 MCP 도구를 이용한다. 모델·추론 강도·남은 컨텍스트 사용량을 볼 수 있다. 채팅 상세는 [Codex 패널](codex.md)을 참고한다.
+- Codex: 프로젝트 편집기에서는 local Linux 또는 등록 SSH 장비의 Codex CLI와 계정 세션을 사용한다. local 프로젝트는 별도 CODEX_HOME을 사용한다. 우측 하단 플로팅 ✦ assistant는 기존 서버 Codex와 전역 페이지/캘린더/노트 MCP 경계를 유지한다. 프로젝트의 실행 결과·Browser/API 관찰도 전달한다. 채팅 상세는 [Codex 패널](codex.md)을 참고한다.
 - 실행 중지: 진행 중인 원격 작업을 취소한다. 이미 저장된 파일이나 완료된 커밋은 되돌리지 않는다. 로그아웃/세션 만료 시에도 작업을 취소한다.
 
 ## 자동 설치와 실행 환경
+
+내장 Terminal, Run/Process, Tests/Problems/Output, Ports, Chromium Browser, API Client 사용법과 제한은 [Studio 프로젝트 도구](studio-workbench.md)에 있다. 최신 실제 검증 결과는 [IDE 검증 기록](studio-ide-validation.md)을 기준으로 확인한다. 아래 오래된 날짜의 검증은 당시 범위의 기록이다.
 
 Git/Python이 없는 서버는 `apt-get`, `dnf`, `apk`로 `git python3 ca-certificates`를 설치한다. 패키지 설치에는 root 또는 `sudo -n` 권한이 필요하다. 권한이 없으면 오류에 필요한 패키지를 안내하고 중단하며 sudo 비밀번호를 웹에서 수집하지 않는다. 패키지가 이미 있으면 관리자 권한이 필요 없다.
 

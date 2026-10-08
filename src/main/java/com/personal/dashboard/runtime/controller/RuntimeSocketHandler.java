@@ -63,7 +63,7 @@ public class RuntimeSocketHandler extends TextWebSocketHandler implements SubPro
       connectionKind = runtime.kind;
       socket.setTextMessageSizeLimit(65536);
       if (runtime.kind.equals("TERMINAL")) {
-        var terminal = terminals.open(runtime.device);
+        var terminal = terminals.open(runtime.device, runtime.root);
         if (!service.bind(
             runtime,
             () -> {

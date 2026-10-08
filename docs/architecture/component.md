@@ -1,5 +1,7 @@
 # 컴포넌트와 모듈
 
+Studio의 `WorkspaceCodeEditor`는 Monaco model과 view state의 생성·활성화·해제를 담당한다. `studio.js`는 기존 프로젝트와 파일 탭, 저장 revision, 확인 대화상자, Files API 요청을 조합한다. 파일 업로드·다운로드는 기존 FileService/FileAdapter를 사용하며 새 파일 시스템 계층이나 전역 탭을 추가하지 않는다.
+
 `WorkspaceUI.beginTask`는 foreground 요청의 비차단 로딩 안내와 동시 요청 수명을 소유한다. 각 API wrapper는 finally에서 반환된 finish를 호출한다. 배경 inert, 이벤트 차단, 포커스 이동, 로딩 backdrop은 사용하지 않는다. 스타일은 `shell.css`에서 생성 bundle에 포함한다. 자동 조회·실시간 작업 상태는 quiet로 구분한다.
 
 `DeviceCodexController`는 장비 route와 `DeviceCodexDto.Request`를 서비스 입력으로 변환한다. `StudioService`가 장비 대상/action/root·작업 소유권과 수명을 검증하고 `StudioAdapter.executeDeviceCodex`가 SSH 실행에 서버 전용 scope를 전달한다. `WorkspaceDeviceCodex`는 연결·설치·로그인 화면을 맡으며 공통 `StudioCodex`는 host의 jobsPath/storagePrefix/idPrefix를 통해 독립 대화·DOM을 제공한다. 기존 IDE 기본 경로는 유지한다.
@@ -62,3 +64,4 @@ DesktopSetupService는 기존 CatalogService 프로필과 RemoteAdapter 연결 �
 WorkspaceEvents는 도메인 리소스를 읽지 않는 공통 알림 서비스다. HTTP filter는 변경 영역만 전달하고 WebSocket handler는 세션 검증·전송·연결 정리만 수행한다. 각 화면의 `refresh()`는 해당 화면의 상태 소유권을 지키면서 조용한 조회와 부분 반영을 담당한다. 공통 DOM 조정기는 form/editor의 사용자 소유 상태를 덮어쓰지 않는다. [상세](../realtime-ui.md).
 
 병역 전용 MilitaryService는 복무기간·진급 순서·휴가 중복·revision과 집계를 소유한다. MilitaryRecords는 저장 모델, MilitaryDto는 HTTP 모델, MilitaryDates.Progress는 계산 모델로 구분한다. PlannerService에는 Calendar EventView 읽기 투영만 제공한다. military.js는 공통 editor/confirmAction/API/LiveDOM을 조합하고 서버가 반환한 시간 구간 사이의 초 단위 표시만 보간한다. 공통 live coordinator의 `military` 영역으로 갱신하며 별도 WebSocket을 만들지 않는다.
+Studio 하단 도구는 StudioWorkbench가 프로젝트별 UI 상태를 소유한다. StudioProcesses는 기존 Studio jobs/helper를 재사용하며, StudioBrowserController → StudioBrowserService → StudioBrowserAdapter는 기존 서버 Chromium과 SshAdapter의 표준 TCP 포워더를 연결한다. StudioApiController → StudioApiService → StudioAdapter는 대상 장비 HTTP client를 호출한다. StudioApiRepository는 별도 persistence record를 CredentialVault로 암호화해 보관하며 DTO를 저장 모델로 직접 사용하지 않는다. 상세 경계와 수명은 [Studio 프로젝트 도구](../studio-workbench.md)를 참조한다.

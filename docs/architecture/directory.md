@@ -53,7 +53,7 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 | `src/main/resources/static/vendor/` | 자체 제공 xterm/Guacamole JS와 라이선스 |
 | `src/test/java/` | 인증·메타데이터·파일·실행 세션 테스트 |
 | `docker/browser/` | Chromium+VNC 이미지 및 진입 스크립트 |
-| `Dockerfile`, `compose.yaml` | 서버, 원격 실행, SMB NAS 서비스 구성 |
+| `Dockerfile`, `compose.yaml` | Ubuntu/JDK 작업 공간 이미지, apt 확장 패키지, CPU/RAM/JVM 설정, 원격 실행, SMB NAS 서비스 구성 |
 | `pom.xml`, `mvnw*`, `.mvn/` | 재현 가능한 빌드·테스트·스타일 검사 |
 | `docs/features.md` | 참고 화면 기능 대조표 |
 
@@ -83,7 +83,7 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 - src/main/java/com/personal/dashboard/studio/: controller, service, adapter, dto, 세션 종료 설정.
 - src/main/resources/studio/: SSH에서 실행하는 bootstrap.sh / remote.py.
 - src/main/resources/static/{js,css}/studio.*: 원격 에디터 UI.
-- tools/studio-editor/: CodeMirror 번들 소스, 잠금 파일과 재현 빌드.
+- tools/studio-editor/: Monaco 번들·worker 소스, 잠금 파일과 재현 빌드, Studio DOM 회귀 검사.
 - src/test/python/: 실제 Linux 파일/Git helper 테스트.
 
 ## Launcher UI

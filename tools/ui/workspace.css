@@ -12,6 +12,7 @@
 @import "../../src/main/resources/static/css/planner.css" layer(base);
 @import "../../src/main/resources/static/css/military.css" layer(base);
 @import "../../src/main/resources/static/css/studio.css" layer(base);
+@import "../../src/main/resources/static/css/studio-workbench.css" layer(base);
 @import "../../src/main/resources/static/css/studio-codex.css" layer(base);
 @import "../../src/main/resources/static/css/device-codex.css" layer(base);
 @import "../../src/main/resources/static/css/telemetry.css" layer(base);

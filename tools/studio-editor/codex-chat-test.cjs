@@ -11,10 +11,11 @@ async function verify(idPrefix){
   const event=(sequence,item)=>({assistant:{sequence,kind:'item',item}});
   w.WorkspaceRealtime={waitForJob:()=>new Promise(resolve=>{releasePoll=resolve;})};
   w.eval(script);
-  w.StudioCodex(panel,{idPrefix,escape:String,project:()=>({deviceId:'one',root:'/srv'}),auth(){},toast(){},publish(){},dirty:()=>false,busy:()=>busy,setBusy:value=>{busy=value;},prepare:()=>prepareGate,
+  w.StudioCodex(panel,{idPrefix,escape:String,project:()=>({deviceId:'one',root:'/srv'}),auth(){},toast(){},publish(){},dirty:()=>false,busy:()=>busy,setBusy:value=>{busy=value;},prepare:()=>prepareGate,runtimeContext:()=>({browser:{title:'fixture'},api:{response:{status:500}}}),
     api:async(url,method,body)=>{
       if(url.endsWith('/inputs')){controls++;await new Promise(resolve=>{releaseControl=resolve;});return {};}
       if(method==='POST'){
+        assert.equal(body.args.context.at(-1).name,'studio-runtime-observations.txt');assert.match(body.args.context.at(-1).content,/Untrusted tool output/);
         posts++;if(fail)throw Error('Connection failed');
         return {id:'job',state:'RUNNING',events:[event(1,user)]};
       }

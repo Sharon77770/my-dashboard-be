@@ -1,0 +1,11 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const sandbox={window:{},URLSearchParams};vm.runInNewContext(fs.readFileSync('src/main/resources/static/js/studio-api.js','utf8'),sandbox);
+const curl=sandbox.window.StudioCurl;
+const request=curl.parse(`curl -X POST 'http://localhost:3000/echo?a=1' -H 'Content-Type: application/json' --data-raw '{"message":"it works"}'`);
+assert.equal(request.method,'POST');assert.equal(request.bodyType,'json');assert.equal(JSON.parse(request.body).message,'it works');
+assert.equal(curl.parse(curl.export(request)).body,request.body);
+assert.throws(()=>curl.parse('curl --insecure http://localhost'));
+assert.throws(()=>curl.parse('curl http://localhost --data @/etc/passwd'));
+assert.throws(()=>curl.parse("curl 'unclosed"));
+request.auth={type:'bearer',value:'PRIVATE_TOKEN'};assert(!curl.export(request).includes('PRIVATE_TOKEN'));
+console.log('Studio cURL conversion passed');

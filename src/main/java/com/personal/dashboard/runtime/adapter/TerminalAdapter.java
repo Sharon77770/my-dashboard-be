@@ -19,16 +19,24 @@ public class TerminalAdapter {
   }
 
   private final SshAdapter ssh;
+  private final com.personal.dashboard.files.adapter.FileAdapter files;
 
-  public TerminalAdapter(SshAdapter ssh) {
+  public TerminalAdapter(SshAdapter ssh, com.personal.dashboard.files.adapter.FileAdapter files) {
     this.ssh = ssh;
+    this.files = files;
   }
 
   public Connection open(DeviceRecord device) throws Exception {
+    return open(device, null);
+  }
+
+  public Connection open(DeviceRecord device, String projectRoot) throws Exception {
+    String directory =
+        projectRoot == null ? device.rootPath() : files.projectDirectory(device, projectRoot);
     if (device.id().equals("local")) {
       ProcessBuilder builder =
           new ProcessBuilder("script", "-q", "-f", "-c", "/bin/bash", "/dev/null");
-      builder.directory(new File(device.rootPath())).redirectErrorStream(true);
+      builder.directory(new File(directory)).redirectErrorStream(true);
       builder
           .environment()
           .keySet()
@@ -79,6 +87,14 @@ public class TerminalAdapter {
       var session = client.startSession();
       session.allocatePTY("xterm-256color", 120, 32, 0, 0, java.util.Map.of());
       var shell = session.startShell();
+      if (projectRoot != null) {
+        shell
+            .getOutputStream()
+            .write(
+                ("cd -- '" + directory.replace("'", "'\"'\"'") + "' || exit\r")
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        shell.getOutputStream().flush();
+      }
       return new Connection() {
         public InputStream output() {
           return shell.getInputStream();

@@ -26,6 +26,7 @@ public class RuntimeService {
     public final long createdAt = System.currentTimeMillis();
     public volatile AutoCloseable connection;
     public volatile boolean attached;
+    public String root;
 
     RuntimeSession(
         String ownerId, DeviceRecord device, String kind, String label, int width, int height) {
@@ -106,6 +107,7 @@ public class RuntimeService {
         new RuntimeSession(
             ownerId, device, request.kind(), label, request.width(), request.height());
     sessions.put(runtime.id, runtime);
+    runtime.root = request.kind().equals("TERMINAL") ? request.root() : null;
     return new SessionView(runtime.id, runtime.kind, runtime.label, "");
   }
 

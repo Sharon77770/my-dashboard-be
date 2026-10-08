@@ -163,7 +163,7 @@ class StudioServiceTest {
   }
 
   @Test
-  void codexActionsRequireAnSshDevice() {
+  void localProjectCodexUsesProjectAdapterBoundary() {
     var catalog = mock(CatalogService.class);
     when(catalog.requireDevice("local"))
         .thenReturn(
@@ -188,13 +188,11 @@ class StudioServiceTest {
         new StudioService(
             catalog, adapter, new com.personal.dashboard.realtime.service.WorkspaceEvents());
     try {
-      assertThatThrownBy(
-              () ->
-                  service.start(
-                      "owner", new Request("local", "/app/data/files", "codex-models", null)))
-          .isInstanceOf(WorkspaceException.class)
-          .hasMessageContaining("SSH 원격 장비");
-      verifyNoInteractions(adapter);
+      var job =
+          service.start("owner", new Request("local", "/app/data/files", "codex-models", null));
+      assertThat(job.id()).isNotBlank();
+      verify(adapter, timeout(2000)).execute(any(), any(), any(), any());
+      verify(adapter, never()).executeAssistant(any(), any(), any(), any());
     } finally {
       service.shutdown();
     }

@@ -312,7 +312,7 @@ def ensure_server_codex(destination, arch, cache):
     install_codex_artifact(destination, arch, release['url'], release['digest'])
 
 
-def setup(device_id=None, refresh=False, device_codex=False):
+def setup(device_id=None, refresh=False, device_codex=False, project_codex=False):
     emit(event='Codex CLI 확인 중')
     arch = os.uname().machine
     hashes = {'x86_64': 'd7e18b2597ae8f242f5f31ee9e90deef48dbc9edd634d9868fb6435d08c07f02',
@@ -361,7 +361,7 @@ def setup(device_id=None, refresh=False, device_codex=False):
         elif installed_codex_version(destination) == fallback['version'] and not codex_host_ready(destination, fallback['version']):
             install_codex_host(destination, arch, fallback)
         install_github_cli()
-    if device_id == 'local':
+    if device_id == 'local' and not project_codex:
         url = os.environ.get('DASHBOARD_MCP_URL', '')
         token = os.environ.get('DASHBOARD_MCP_TOKEN', '')
         if not url or len(token) < 32: raise Failure('대시보드 MCP 설정을 확인해 주세요.', 500)
@@ -376,6 +376,8 @@ def setup(device_id=None, refresh=False, device_codex=False):
 
 # CODEX_BRIDGE
 # LOGS_BRIDGE
+# PROCESSES_BRIDGE
+# API_BRIDGE
 
 
 def handle(request):
@@ -391,11 +393,18 @@ def handle(request):
         env['CODEX_HOME'] = str(home)
         for key in ('CODEX_SQLITE_HOME', 'OPENAI_API_KEY', 'CODEX_API_KEY', 'DASHBOARD_MCP_TOKEN', 'DASHBOARD_MCP_URL'):
             env.pop(key, None)
-    if action == 'setup': return setup(request.get('deviceId'), args.get('refresh') is True, device_codex)
+    project_codex=request.get('projectCodex') is True and request.get('deviceId')=='local'
+    if project_codex:
+        home=Path.home()/'.local/share/personal-workspace/project-codex';home.mkdir(parents=True,exist_ok=True,mode=0o700)
+        env['CODEX_HOME']=str(home)
+        for key in ('DASHBOARD_MCP_TOKEN','DASHBOARD_MCP_URL','CODEX_API_KEY','OPENAI_API_KEY'):env.pop(key,None)
+    if action == 'setup': return setup(request.get('deviceId'), args.get('refresh') is True, device_codex, project_codex)
     base = Path(request['base']).resolve(strict=True)
     root = within(base, request['root']).resolve(strict=True)
     if not root.is_dir(): raise Failure('작업 폴더가 아닙니다.')
     if action in ('logs-targets', 'logs-follow'): return device_logs(action, args, root)
+    if action == 'api-request': return api_request(args)
+    if action in ('run-list', 'run-logs', 'run-commands', 'ports'): return process_action(root, action, args)
     # Serialize editor/Git/Codex mutations across HTTP sessions on this SSH account.
     lockdir = Path.home() / '.cache/personal-workspace'
     lockdir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -403,6 +412,7 @@ def handle(request):
     try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError: raise Failure('이 작업 폴더에서 다른 작업이 진행 중입니다.', 409)
     with lock:
+        if action.startswith('run-') or action == 'ports': return process_action(root, action, args)
         if action == 'github-status':
             rc, unused = run(['gh', 'auth', 'status', '--hostname', 'github.com'], check=False)
             return dict(authenticated=rc == 0)
@@ -512,7 +522,7 @@ def handle(request):
         if action == 'codex-logout':
             run(['codex', 'logout']); return dict(authenticated=False)
         if action.startswith('codex-'):
-            return codex_action(root, action, args, dashboard=request.get('deviceId') == 'local', device_codex=device_codex)
+            return codex_action(root, action, args, dashboard=request.get('deviceId') == 'local' and not request.get('projectCodex'), device_codex=device_codex)
         raise Failure('지원하지 않는 작업입니다.')
 
 

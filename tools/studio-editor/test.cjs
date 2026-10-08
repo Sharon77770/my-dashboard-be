@@ -1,22 +1,29 @@
 const {JSDOM}=require('jsdom');
+// Monaco cancels pending language work when a model is disposed. In a real browser
+// this is a rejected cancellation promise, not a Node process-level failure.
+process.on('unhandledRejection',error=>{if(error?.name!=='Canceled'||error?.message!=='Canceled')throw error;});
 const fs=require('node:fs');const path=require('node:path');const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'../..');
 const dom=new JSDOM(fs.readFileSync(path.join(root,'src/main/resources/templates/home.html'),'utf8'),{url:'http://localhost',runScripts:'outside-only',pretendToBeVisual:true});
 const w=dom.window;const d=w.document;let edit,loaded,dialogSubmit;
+const domErrors=[];w.addEventListener('error',event=>domErrors.push(event.error));
 w.WorkspaceCodeEditor=(parent,onChange)=>{edit=onChange;return {load:(name,text)=>{loaded=text;},focus(){}};};
 w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
 const calls=[];let jobs=0;const requests=new Map();const notices=[];
 const project={devices:[{id:'remote',name:'Test',host:'localhost',rootPath:'/home/tester'},{id:'local',name:'Dashboard Server',host:'localhost',rootPath:'/app/data/files'}]};
-let content='print("hello")';let revision='v1';let running=false,cancelled=false,authenticated=false;
+let content='print("hello")';let revision='v1';let running=false,cancelled=false,authenticated=false,conflictPath=null;
+const transferred=[];
 const api=async(url,method,body)=>{
  if(url==='/workspace')return project;
+ if(url.startsWith('/devices/')&&method==='POST'){transferred.push({url,path:body.get('path'),name:body.get('file').name});return null;}
+ if(url.startsWith('/devices/')&&!method)return {entries:[]};
  if(url.endsWith('/inputs')){cancelled=true;return null;}
  if(method==='DELETE'){cancelled=true;return null;}
  if(url.startsWith('/studio/jobs/')&&!method)return {id:'running',state:cancelled?'CANCELLED':'RUNNING',events:[],error:cancelled?'사용자가 중지했습니다.':null};
  if(method==='POST'){calls.push(body);const id=String(++jobs);requests.set(id,body);let result={ok:true};
   if(body.action==='list')result={root:body.root,path:'.',entries:[{name:'project',path:'project',directory:true},{name:'app.py',path:'app.py',directory:false},{name:'<img src=x onerror=alert(1)>',path:'<unsafe>',directory:false}]};
   if(body.action==='read')result={content,revision};
-  if(body.action==='save'){assert.equal(body.args.revision,revision);content=body.args.content;revision='v2';result={revision};}
+  if(body.action==='save'){if(body.args.path===conflictPath)throw new Error('revision conflict');assert.equal(body.args.revision,revision);content=body.args.content;revision='v2';result={revision};}
   if(body.action==='git-status')result={branch:'main',branches:['main'],changes:[{index:'M',worktree:' ',path:'staged.ts'},{index:' ',worktree:'M',path:'working.ts'},{index:'U',worktree:'U',path:'conflict.ts'},{index:'?',worktree:'?',path:'new.ts'}],history:'abc first'};
   if(body.action==='codex-status')result={authenticated:false};
   if(body.action==='codex-account')result={assistant:{authenticated,email:authenticated?'ssh@example.com':null,accountType:'chatgpt',plan:'plus'}};
@@ -90,15 +97,50 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  click('#studio-auth-cta [data-studio="codex-login"]');await tick();
  assert.match(d.querySelector('#cx-account').textContent,/ssh@example.com/);
  assert.equal(calls.filter(c=>c.action==='codex-account').at(-1).deviceId,'remote');
+ // Save All captures each path independently, preserves the active tab and stops on conflict.
+ click('[data-studio="file"][data-path="app.py"]');await tick();edit('first pending');
+ click('[data-studio="file"][data-path="<unsafe>"]');await tick();edit('second pending');
+ const beforeAll=calls.filter(c=>c.action==='save').length;
+ conflictPath='app.py';click('[data-studio="save-all"]');await tick();
+ assert.equal(calls.filter(c=>c.action==='save').length,beforeAll+1);
+ assert.equal(d.querySelectorAll('#studio-file-tabs [role=tab]').length,2);
+ assert.match(d.querySelector('#studio-file-tabs').textContent,/●/);
+ conflictPath=null;click('[data-studio="save-all"]');await tick();
+ assert.deepEqual(calls.filter(c=>c.action==='save').slice(-2).map(call=>call.args.path),['app.py','<unsafe>']);
+ assert.equal(d.querySelector('#studio-file-label').textContent,'<unsafe>');
+ assert.doesNotMatch(d.querySelector('#studio-file-tabs').textContent,/●/);
+ // A project below the device root must translate upload/download paths once.
+ d.querySelector('#studio-root').value='/home/tester/project';
+ d.querySelector('.studio-connect').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();
+ const picker=d.querySelector('#studio-upload');
+ Object.defineProperty(picker,'files',{value:[new w.File(['upload'],'new.txt',{type:'text/plain'})]});
+ picker.dispatchEvent(new w.Event('change'));await tick();
+ assert.deepEqual(transferred.at(-1),{url:'/devices/remote/files',path:'/project',name:'new.txt'});
+ click('[data-studio="file"][data-path="app.py"]');await tick();
+ let download='';w.HTMLAnchorElement.prototype.click=function(){download=this.href;};
+ click('[data-studio="download"]');await tick();
+ assert.equal(new URL(download).searchParams.get('path'),'/project/app.py');
+ assert.equal(calls.filter(c=>c.action==='read').at(-1).root,'/home/tester/project');
+ const stopWorkers=require('./monaco-dom.cjs')(w,path.join(root,'src/main/resources/static/vendor'));
  w.eval(fs.readFileSync(path.join(root,'src/main/resources/static/vendor/studio-editor.js'),'utf8'));
  const mount=d.createElement('div');d.body.append(mount);
  const actualEditor=w.WorkspaceCodeEditor(mount,()=>{});
  actualEditor.load('sample.py','print("hello")\n');
- assert.match(mount.querySelector('.cm-content').textContent,/print\("hello"\)/);
- assert.ok(mount.querySelector('.cm-gutters'));
- const workspaceCss=fs.readFileSync(path.join(root,'src/main/resources/static/vendor/workspace-ui.css'),'utf8');
- assert.match(workspaceCss,/#studio-code \.cm-cursor/);
- assert.match(workspaceCss,/caret-color:var\(--accent\)!important/);
+ await tick();
+ assert.ok(mount.querySelector('.monaco-editor'));
+ actualEditor.goto(1,1);
+ actualEditor.load('other.java','class Other {}');
+ await tick();
+ actualEditor.load('sample.py','print("hello")\n');
+ await tick();
+ assert.equal(actualEditor.selection().fromLine,1);
+ actualEditor.close('other.java');
+ actualEditor.reset();
+ actualEditor.load('sample.py','new project');
+ await tick();
  actualEditor.destroy();
- dom.window.close();console.log('PASS: actual CodeMirror bundle mount plus editor connect/bootstrap, escaped file names, tabs, dirty tracking, save, cancel dialog, Codex unsaved guard');
+ await tick();
+ await stopWorkers();
+ assert.deepEqual(domErrors,[],'No uncaught DOM errors');
+ dom.window.close();console.log('PASS: actual Monaco bundle mount plus editor connect/bootstrap, escaped file names, tabs, dirty tracking, save, cancel dialog, Codex unsaved guard (DOM only)');
 })().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});

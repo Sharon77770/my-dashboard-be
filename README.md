@@ -122,6 +122,10 @@ OpenSSH가 최초 접속 시 호스트 확인을 요청하면 터미널에서 �
 
 데이터는 SQLite/Docker 데이터 볼륨에 보존한다. 시간은 입력한 현지 시각을 그대로 저장하며 시간대 변환은 하지 않는다. 학기 수업은 주간 시간표로 관리하며 캘린더에 자동 복제하지 않는다. 모바일 시간표는 월~일 열을 유지하며 가로 스크롤한다. 반복 일정·알림·외부 캘린더 동기화·학교 강의 목록 연동은 포함하지 않는다.
 
+## 클라우드 작업 공간
+
+클라우드 작업 공간은 Ubuntu 기반 JDK 이미지에 Linux 개발·진단 도구를 포함하며 CPU·RAM·공유 메모리와 서버 JVM 힙을 `.env`에서 조절한다. 추가 apt 패키지는 `WORKSPACE_APT_PACKAGES`로 이미지에 포함한다. [자원·Linux 도구 설정](docs/deployment.md#클라우드-작업-공간-자원).
+
 ## Docker 내 Tailscale
 별도 설치 없이 `docker compose up -d --build`로 Tailscale도 함께 실행한다. Linux Docker 엔진의 `/dev/net/tun`과 NET_ADMIN/NET_RAW가 필요하며 이 권한은 Tailscale 컨테이너에만 부여한다. Docker Desktop은 Linux 컨테이너 모드를 사용한다.
 

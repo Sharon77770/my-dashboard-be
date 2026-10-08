@@ -735,3 +735,14 @@ topic은 `workspace`, `devices`, `notes`, `calendar`, `military`, `timetables`, 
 미인증 401, OWNER/CSRF 실패 403은 공통 보안 계약을 따른다. 도메인 오류 본문은 `{message: String}`이며 별도 error code 필드는 없다. 입력 형식 오류 400은 `입력 형식과 필수 항목을 확인해 주세요.`; 도메인 검증 400은 기간·진급 순서·중복 휴가·일정 한도에 대한 한국어 안내다. 프로필 미등록 404는 `복무 정보를 먼저 등록해 주세요.`, 일정 미존재 404는 `병역 일정을 찾을 수 없습니다.`. revision 불일치 409는 `다른 곳에서 변경되었습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.`다. 예상하지 못한 오류는 공통 500 응답이다.
 
 기존 Calendar API 및 MCP `list_calendar_events`는 연동된 병역 투영도 반환한다. 병역 항목은 일반 Calendar/MCP 쓰기 대상이 아니며 원본은 위 API로 수정한다. 삭제·연동 해제 후 투영은 사라지지만 일반 일정에는 영향을 주지 않는다. 성공한 변경 후 WebSocket은 `military`, `calendar` 재조회를 알린다. 외부 군돌이/병무청 개인정보 API 호출은 없다.
+## Studio workbench 추가 계약
+
+- `SessionRequest.root`: 선택적 프로젝트 절대 경로(최대 4096자), TERMINAL에서만 적용. 대상 FileAdapter의 root 경계와 directory 여부를 검증한다.
+- Studio jobs: `run-start`는 `args.name`(80), `args.content`(명령 4000), `args.mode`(`run|test|build`); `run-logs/stop/restart/delete`는 `args.path`(32자리 hex process ID). `run-list`, `run-commands`, `ports`는 추가 args 없음. `Result.tools`에는 `processes`, `commands`, `ports`, `output`이 선택적으로 들어간다. Process: id/name/command/kind/state/pid/exitCode/started/finished/truncated. Port: port/protocol/pids/project/url. Command: name/command/kind. read-only 조회는 editor/Codex mutation lock을 점유하지 않는다.
+- `POST studio/browser`: `{deviceId,root,action,url?,text?,x?,y?,delta?}`. HTTP(S) URL만 허용, embedded credentials 금지. Response: `{url,title,text,consoleErrors,networkFailures,image,width,height}`, image는 JPEG base64이며 viewport는 1200×720. close는 `{ok:true}`. HTTP 세션 소유자만 같은 페이지에 접근하고 로그아웃 시 정리한다. key는 Enter/Tab/Backspace/Escape/방향키, click 좌표 범위는 화면 안으로 제한한다.
+- `POST studio/api/send`: `{deviceId,root,method,url,params?,headers?,bodyType,body?,fields?,auth?}`. params/headers/fields는 `{name,value,fileName?}` 배열(각 100개 이하). bodyType은 none/json/text/form/multipart. multipart fileName이 있으면 value는 파일 base64. auth는 `{type:none|basic|bearer|api-key,username?,value?,name?,location:header|query?}`. 응답 `{id,response:{status,headers,body,base64,latency,size,truncated}}`; latency는 ms, size는 수신한 body byte수(1 MiB 제한), truncation은 별도 표시. 리다이렉트는 응답으로 돌려준다.
+- `POST studio/api/history`, `environment/read`: `{deviceId,root}`. history는 `{id,time,method,url,status}` 배열이고 query는 숨긴다. environment/read는 변수 이름 배열만 반환한다.
+- `POST studio/api/environment`: `{deviceId,root,values:{NAME:"value",REMOVE:null}}`; 이름은 `[A-Za-z_][A-Za-z0-9_]{0,79}`, 프로젝트당 50개, 값 최대 4000자. `{{NAME}}`은 실행 직전에 server-side 치환한다.
+- `POST studio/api/replay`: `{deviceId,root,id}`; 저장된 요청을 실제로 다시 보내고 새 기록을 만든다. 인증값은 history 응답이나 브라우저 localStorage로 반환하지 않는다.
+- API 상태는 SQLite entity와 무관한 vault 암호화 파일이며 key는 기존 CredentialVault를 공유한다. `workspace.studio-state-path` 기본값은 `./data/studio-api`. 최신 요청/응답 30개를 유지한다.
+- local 프로젝트 Codex를 허용한다. trusted adapter `projectCodex` 플래그와 별도 CODEX_HOME으로 기존 서버 assistant의 MCP/읽기 전용 계약을 유지한다. HTTP 요청에서 이 내부 플래그는 받지 않는다.

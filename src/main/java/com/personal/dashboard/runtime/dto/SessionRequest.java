@@ -7,4 +7,9 @@ public record SessionRequest(
     @NotNull @Pattern(regexp = "TERMINAL|REMOTE|APP") String kind,
     @NotBlank String targetId,
     @Min(320) @Max(3840) int width,
-    @Min(240) @Max(2160) int height) {}
+    @Min(240) @Max(2160) int height,
+    @Size(max = 4096) String root) {
+  public SessionRequest(String kind, String targetId, int width, int height) {
+    this(kind, targetId, width, height, null);
+  }
+}

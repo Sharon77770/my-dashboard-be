@@ -4,7 +4,12 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 const here=path.dirname(fileURLToPath(import.meta.url));
 const destination=path.resolve(here,'../../src/main/resources/static/vendor');
-await build({entryPoints:[path.join(here,'editor.js')],bundle:true,minify:true,outfile:path.join(destination,'studio-editor.js')});
+// Escape multiline literals so generated code stays diff-check clean without altering literal data.
+const supported={'template-literal':false};
+await build({entryPoints:[path.join(here,'editor.js')],bundle:true,minify:true,supported,loader:{'.ttf':'file'},assetNames:'studio-[name]-[hash]',outfile:path.join(destination,'studio-editor.js')});
+for (const [name,source] of Object.entries({editor:'editor/editor',json:'language/json/json',css:'language/css/css',html:'language/html/html',ts:'language/typescript/ts'})) {
+  await build({entryPoints:[path.join(here,`node_modules/monaco-editor/esm/vs/${source}.worker.js`)],bundle:true,minify:true,supported,outfile:path.join(destination,`studio-${name}.worker.js`)});
+}
 const lock=JSON.parse(fs.readFileSync(path.join(here,'package-lock.json'),'utf8'));
 const notices=[];
 for(const directory of Object.keys(lock.packages).filter(key=>key.startsWith('node_modules/') && !key.includes('esbuild') && !lock.packages[key].dev)) {

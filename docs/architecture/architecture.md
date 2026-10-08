@@ -67,7 +67,7 @@ SSH 호스트 지문과 RDP 인증서는 검증하며 자동 신뢰를 하지 �
 
 ## 원격 개발 작업 공간
 
-studio/controller → studio/service → studio/adapter → 로컬 프로세스 또는 SSH의 고정 Python/CLI helper. Thymeleaf/CodeMirror는 UI를 담당하고 파일·Git·Codex 처리는 대상 서버에서 실행한다. SQLite 변경 없이 로그인 소유 작업을 메모리에서 관리한다. [상세](../studio.md).
+studio/controller → studio/service → studio/adapter → 로컬 프로세스 또는 SSH의 고정 Python/CLI helper. Thymeleaf/Monaco는 UI를 담당하고 파일·Git·Codex 처리는 대상 서버에서 실행한다. 업로드·다운로드는 기존 files/controller → files/service → files/adapter의 local/SFTP 계층을 사용한다. SQLite 변경 없이 로그인 소유 작업을 메모리에서 관리한다. [상세](../studio.md).
 
 ## Launcher 표시 아키텍처 (2026-09-14)
 

@@ -48,6 +48,28 @@ public final class StudioDto {
 
   public record Change(String index, String worktree, String path, String oldPath) {}
 
+  public record ProcessView(
+      String id,
+      String name,
+      String command,
+      String kind,
+      String state,
+      Long pid,
+      Integer exitCode,
+      Long started,
+      Long finished,
+      Boolean truncated) {}
+
+  public record CommandView(String name, String command, String kind) {}
+
+  public record PortView(int port, String protocol, List<Long> pids, boolean project, String url) {}
+
+  public record Tools(
+      List<ProcessView> processes,
+      List<CommandView> commands,
+      List<PortView> ports,
+      String output) {}
+
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record Result(
       String root,
@@ -66,7 +88,9 @@ public final class StudioDto {
       Boolean authenticated,
       String version,
       AssistantDto.Result assistant,
-      List<LogTarget> logTargets) {}
+      List<LogTarget> logTargets,
+      Tools tools,
+      StudioApiDto.Response api) {}
 
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public record Event(

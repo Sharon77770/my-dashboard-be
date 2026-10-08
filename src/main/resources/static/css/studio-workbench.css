@@ -1,0 +1,35 @@
+#studio .studio-bottom{flex:0 0 var(--bottom-height,280px);min-height:0;display:flex;flex-direction:column;border-top:1px solid var(--border-default);overflow:hidden}
+#studio .studio-bottom[hidden]{display:none}
+#studio .studio-bottom.collapsed{flex-basis:38px}
+#studio .studio-bottom.collapsed .studio-bottom-body{display:none}
+#studio .studio-bottom-resize{height:5px;flex:none;cursor:ns-resize;touch-action:none;background:var(--border-subtle)}
+#studio .studio-bottom-tabs{display:flex;gap:4px;overflow:auto;flex:none;border-bottom:1px solid var(--border-subtle)}
+#studio .studio-bottom-tabs button{font-size:12px;white-space:nowrap;background:transparent;border:0}
+#studio .studio-bottom-tabs button[aria-selected=true]{color:var(--accent);border-bottom:2px solid var(--accent)}
+#studio .studio-bottom-body{flex:1;min-height:0;overflow:hidden}
+#studio [data-bottom-page]{height:100%;overflow:auto;min-width:0}
+#studio [data-bottom-page=Terminal]{display:flex;flex-direction:column}
+#studio [data-bottom-page][hidden]{display:none}
+#studio .studio-tool-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 8px;flex:none}
+#studio .studio-tool-actions button{font-size:12px}
+#studio .studio-tool-actions input{min-width:90px;flex:1}
+#studio .studio-terminals{flex:1;min-height:0}
+#studio .studio-terminal-session{height:100%;display:flex;flex-direction:column}
+#studio .studio-terminal-session[hidden]{display:none}
+#studio .studio-terminal-screen{flex:1;min-height:0;padding:4px 8px;overflow:hidden}
+#studio .studio-bottom .studio-output{max-height:none;overflow:auto;border:0}
+#studio .studio-bottom pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 var(--font-mono);margin:8px}
+#studio .studio-process-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:5px 8px;border-bottom:1px solid var(--border-subtle);font-size:12px}
+#studio .studio-process-row small{width:100%;font-family:var(--font-mono);color:var(--text-secondary)}
+#studio [data-bottom-page=Problems]>button{display:block;text-align:left;width:100%;font-size:12px}
+#studio .studio-browser-screen{display:block;width:100%;max-width:1200px;height:auto;cursor:crosshair}
+#studio .studio-browser-screen[hidden]{display:none}
+#studio .studio-browser-status{font-size:12px;padding:4px 8px;color:var(--text-secondary)}
+#studio .studio-api-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:8px}
+#studio .studio-api-fields label{display:flex;flex-direction:column;gap:4px;font-size:12px}
+#studio .studio-api-fields textarea{width:100%;min-height:52px;font:12px/1.5 var(--font-mono);resize:vertical}
+#studio .studio-api-fields input{min-width:0;width:100%}
+#studio [data-history] button{display:block;text-align:left;font-size:12px}
+#studio [data-env-list]{display:flex;flex-wrap:wrap;gap:8px;padding:8px;font-size:12px}
+#studio .studio-api-response{padding:8px;border-top:1px solid var(--border-subtle)}
+@media(max-width:700px){#studio .studio-api-fields{grid-template-columns:1fr}#studio .studio-bottom-tabs button{padding:6px}}

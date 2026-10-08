@@ -4,6 +4,8 @@
 
 ## HTTPS 운영 예시
 
+클라우드 작업 공간의 Linux 도구·자원 설정은 아래 **클라우드 작업 공간 자원** 절을 참고한다.
+
 ```dotenv
 DASHBOARD_AUTH_ID=your-login-id
 DASHBOARD_AUTH_PASSWORD='여기에-직접-설정한-긴-비밀번호'
@@ -48,6 +50,31 @@ HTTP로 직접 접속할 때만 `SESSION_COOKIE_SECURE=false`를 사용한다. H
 
 SQLite·드라이브·암호화 키는 dashboard-data 볼륨, Tailscale 상태는 tailscale-state에 저장된다. 정상 업데이트는 `docker compose --env-file .env up -d --build`를 사용한다. `down -v`는 영구 데이터를 삭제하므로 업데이트 명령으로 사용하지 않는다. `/dev/net/tun`과 NET_ADMIN이 허용된 Linux Docker 환경이 필요하다.
 
+
+## 클라우드 작업 공간 자원
+
+대시보드 실행 이미지는 Ubuntu 22.04 Jammy 기반 `eclipse-temurin:21-jdk-jammy`다. `apt`/`apt-get`과 Bash, coreutils/find/grep/sed/awk, Git/SSH/tmux, JDK 21, C/C++ compiler/make/pkg-config, Python 3/pip/venv, curl/wget/jq/rg, ps/top/free/ss/ip/ping/DNS/netcat, zip/unzip, less/vi를 포함한다. Linux 작업 폴더에서 빌드·테스트·일반 셸 명령을 실행할 수 있다. Maven/Gradle은 프로젝트 wrapper를 사용할 수 있으며 Node.js 등 별도 런타임은 프로젝트 요구 버전에 맞춰 추가 설치한다.
+
+기본 CPU·컨테이너 메모리 상한은 `0`(별도 제한 없음)이다. 이는 자원 예약이나 클라우드 서버 증설이 아니며 호스트 또는 Docker VM에 실제 배정된 용량 이내에서 다른 작업과 공유한다. `.env`로 상한을 늘리거나 지정할 수 있다. 다음은 충분한 용량을 가진 서버에서 사용할 설정 예시다.
+
+```dotenv
+WORKSPACE_CPUS=8
+WORKSPACE_MEMORY_LIMIT=16g
+WORKSPACE_SHM_SIZE=512m
+BROWSER_SHM_SIZE=2gb
+DASHBOARD_JAVA_TOOL_OPTIONS=-Xms128m -Xmx1g
+WORKSPACE_APT_PACKAGES=tree
+```
+
+`WORKSPACE_CPUS`/`WORKSPACE_MEMORY_LIMIT`는 dashboard 컨테이너와 그 안의 터미널·빌드·프로젝트 프로세스가 함께 사용하는 상한이다. browser/guacd/Tailscale/Samba는 별도 컨테이너이므로 전체 호스트 용량을 별도로 고려한다. `WORKSPACE_SHM_SIZE` 기본값은 256m, browser의 `BROWSER_SHM_SIZE` 기본값은 1gb다. 공유 메모리는 실제 사용량만큼 메모리를 소비하며 컨테이너 메모리 상한과 독립된 추가 RAM이 아니다. 설정은 [Compose 서비스 자원 옵션](https://docs.docker.com/reference/compose-file/services/)을 따른다.
+
+대시보드 JVM 힙 기본값은 `-Xms128m -Xmx1g`다. JVM native memory와 프로젝트 빌드·실행에 쓸 공간을 남겨야 하므로 컨테이너 전체 RAM을 JVM 힙에 배정하지 않는다. `DASHBOARD_JAVA_TOOL_OPTIONS`는 Compose에서 서버 JVM에 전달한다. 기존 local Studio/Terminal 어댑터는 작업 프로세스 환경을 선별하므로 이 서버 옵션을 프로젝트 Java 프로세스에 자동 상속하지 않는다.
+
+`WORKSPACE_APT_PACKAGES`에는 신뢰하는 추가 Ubuntu 패키지 이름을 공백으로 구분해 넣고 이미지를 재빌드한다. apt 설치는 Dockerfile의 root 빌드 단계에서 수행하며, 웹앱·Studio 셸의 기본 실행 계정은 계속 UID/GID 10001이다. 따라서 Studio 셸에서 시스템 `apt install`을 바로 실행할 권한은 없다. 비밀번호 없는 sudo나 root 웹앱 실행을 추가하지 않는다. 운영자가 일회성으로 컨테이너 내부에서 설치한 시스템 패키지는 재생성 시 사라지므로 지속적으로 필요한 도구는 이 빌드 설정에 포함한다. Python 프로젝트 의존성은 프로젝트별 `python3 -m venv .venv`를 사용할 수 있다.
+
+프로젝트 파일과 홈·CLI 설정은 기존 `/app/data` 볼륨에 유지된다. 자원 옵션 변경은 컨테이너 재생성, apt 패키지 변경은 이미지 재빌드가 필요하다. 기존 세션이 종료될 수 있으므로 작업 저장 후 `docker compose --env-file .env config --quiet`와 `docker compose --env-file .env up -d --build`를 실행한다. `init: true`로 작업 자식 프로세스의 회수를 지원한다. Docker CLI는 포함되지만 호스트 Docker 소켓은 기존처럼 자동 마운트하지 않는다.
+
+2026-10-08 격리 검증: 추가 apt 패키지 `tree`를 포함한 최종 이미지 빌드 성공. 이미지 빌드 중 Python 41개와 Maven verify(Java 178개 통과·9개 skip, 패키징·Spotless) 통과. UID 10001, cap-drop ALL, no-new-privileges 조건에서 Java/C 컴파일·실행과 Python venv 생성 성공. 컨테이너 내부에서 CPU 2개·메모리 2GiB·공유 메모리 256MiB 제한을 확인했다. 기본 설정 및 8 CPU/16g 설정의 Compose config 검사도 통과했다. 운영 서버의 자원 증설·재배포 및 실제 부하 검증은 수행하지 않았다.
 
 ## 카카오톡 기능 제거 후 업데이트
 

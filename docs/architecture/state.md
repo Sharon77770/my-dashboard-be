@@ -1,5 +1,7 @@
 # 상태
 
+Studio 파일 탭은 `content`, `saved`, `revision`, `dirty`와 활성 경로를 브라우저 메모리에 유지한다. Monaco model과 view state도 파일별로 유지하며 탭을 닫거나 프로젝트가 변경될 때 해제한다. 다른 대시보드 앱으로 이동할 때 Studio DOM을 재생성하지 않으므로 편집 상태가 유지된다. 전체 페이지 새로고침에는 버퍼를 복원하지 않으며 기존 beforeunload 경고와 마지막 장비/루트 저장만 적용한다.
+
 IDE/장비 공통 Codex의 `sending`은 비동기 CLI 준비와 추가 지시 전송을 단일 실행으로 제한한다. 사용자 말풍선은 임시 ID로 시작해 서버의 첫 userMessage ID로 연결하며, 같은 ID의 재수신은 기존 DOM을 갱신한다. 미확인 요청 실패는 임시 행만 제거한다. 대화 전체 복원은 서버 thread를 기준으로 하고, AI 비서 복원은 turn별 중복 item ID를 제외한다. 본문 문자열만으로 중복을 판정하지 않는다. IDE `codex-focused`, 장비 설정 details.open, AI 비서 sidebarOpen은 표시 상태이며 서버 작업·인증 상태와 독립한다.
 
 공통 foreground 로딩은 `WorkspaceUI.beginTask`의 요청별 Map으로 관리한다. 첫 요청에서 비차단 안내를 표시하고 마지막 finish 후 호출자의 렌더 microtask가 끝난 다음 숨긴다. finish는 중복 호출에 안전하며 겹치는 요청 중 하나가 먼저 끝나도 안내를 유지한다. `data-loading`은 실시간 조회 조정에만 사용하며 입력·스크롤·포커스·기존 inert 상태를 변경하지 않는다. quiet 폴링·메모 자동 저장은 이 상태에 포함하지 않는다.

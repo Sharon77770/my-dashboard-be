@@ -230,6 +230,20 @@ POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로
 | GET | /api/v1/services/{id}/resources/{resourceId}/log-history | OWNER | 기간별 컨테이너 로그와 오류 후보·조회 범위 |
 | POST | /api/v1/services/{id}/resources/{resourceId}/actions | OWNER + CSRF | 연결된 컨테이너 시작·중지·재시작 |
 
+## Studio 프로젝트 도구
+
+| Method | URL | Auth | 설명 |
+| --- | --- | --- | --- |
+| POST | /api/v1/studio/jobs | OWNER + CSRF | 기존 작업 API에 run-commands/start/list/logs/stop/restart/delete 및 ports 추가 |
+| POST | /api/v1/studio/browser | OWNER + CSRF | 프로젝트 Chromium 탭 open/snapshot/back/forward/reload/click/text/key/scroll/close |
+| POST | /api/v1/studio/api/send | OWNER + CSRF | 대상 장비에서 HTTP 요청 실행·기록 암호화 저장 |
+| POST | /api/v1/studio/api/history | OWNER + CSRF | 프로젝트 요청 기록의 비밀값 없는 개요 |
+| POST | /api/v1/studio/api/replay | OWNER + CSRF | 암호화된 기록을 읽어 실제 요청 재전송 |
+| POST | /api/v1/studio/api/environment/read | OWNER + CSRF | 프로젝트 환경변수 이름만 조회 |
+| POST | /api/v1/studio/api/environment | OWNER + CSRF | 환경변수 병합 저장, null 값은 삭제 |
+
+Terminal은 기존 `POST /api/v1/sessions`에 선택 필드 `root`를 전달한다. 상세 계약은 `specification.md`와 `../studio-workbench.md`를 참조한다.
+
 ## 메모장
 
 | Method | URL | Auth | 설명 |

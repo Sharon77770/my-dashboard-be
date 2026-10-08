@@ -20,6 +20,14 @@ public class StudioService {
   private static final Set<String> ACTIONS =
       Set.of(
           "setup",
+          "run-commands",
+          "run-start",
+          "run-list",
+          "run-stop",
+          "run-restart",
+          "run-logs",
+          "run-delete",
+          "ports",
           "logs-targets",
           "logs-follow",
           "list",
@@ -144,8 +152,6 @@ public class StudioService {
         && (!device.id().equals("local")
             || !(input.action().equals("setup") || input.action().startsWith("codex-"))))
       throw new WorkspaceException(400, "서버 assistant는 local Codex 및 setup 작업만 실행할 수 있습니다.");
-    if (!assistant && input.action().startsWith("codex-") && device.id().equals("local"))
-      throw new WorkspaceException(400, "프로젝트 Codex는 등록한 SSH 원격 장비에서 실행합니다.");
     if (jobs.values().stream().filter(Job::running).count() >= 4)
       throw new WorkspaceException(429, "최대 4개 작업을 실행할 수 있습니다.");
     while (jobs.size() >= 32) {

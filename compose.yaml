@@ -30,8 +30,16 @@ services:
       retries: 3
       start_period: 30s
   dashboard:
-    build: .
+    build:
+      context: .
+      args:
+        WORKSPACE_APT_PACKAGES: ${WORKSPACE_APT_PACKAGES:-}
     restart: unless-stopped
+    init: true
+    # Zero keeps host/VM capacity available; deployments can set explicit ceilings.
+    cpus: ${WORKSPACE_CPUS:-0}
+    mem_limit: ${WORKSPACE_MEMORY_LIMIT:-0}
+    shm_size: ${WORKSPACE_SHM_SIZE:-256m}
     ports:
       - "${DASHBOARD_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT:-8080}:8080"
       - "${NAS_SMB_BIND_ADDRESS:?Set NAS_SMB_BIND_ADDRESS to a LAN interface IP or 127.0.0.1}:${NAS_SMB_HOST_PORT:-445}:445"
@@ -50,6 +58,7 @@ services:
       GUACD_HOST: 127.0.0.1
       BROWSER_HOST: 127.0.0.1
       UPLOAD_MAX_SIZE: ${UPLOAD_MAX_SIZE:-1GB}
+      JAVA_TOOL_OPTIONS: ${DASHBOARD_JAVA_TOOL_OPTIONS:--Xms128m -Xmx1g}
     volumes:
       - dashboard-data:/app/data
       - tailscale-control:/run/dashboard-tailscale:ro
@@ -121,7 +130,7 @@ services:
     network_mode: service:dashboard
     environment:
       BROWSER_LOCAL_ONLY: "true"
-    shm_size: 1gb
+    shm_size: ${BROWSER_SHM_SIZE:-1gb}
     volumes:
       - browser-profile:/home/browser/profile
     security_opt:

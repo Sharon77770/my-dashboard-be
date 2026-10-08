@@ -178,6 +178,31 @@ public class FileAdapter {
     }
   }
 
+  /** Resolves an absolute Studio project directory through the existing local/SFTP boundary. */
+  public String projectDirectory(DeviceRecord device, String absolute) throws IOException {
+    String base = device.rootPath().replaceAll("/+$", "");
+    if (absolute == null
+        || !absolute.startsWith("/")
+        || absolute.indexOf('\0') >= 0
+        || java.util.Arrays.asList(absolute.split("/")).contains("..")
+        || !(absolute.equals(base) || absolute.startsWith(base + "/")))
+      throw new WorkspaceException(403, "프로젝트 경로가 장비 루트 밖입니다.");
+    String relative = absolute.substring(base.length());
+    if (relative.isEmpty()) relative = "/";
+    if (device.id().equals("local")) {
+      Path directory = local(device, relative, false);
+      if (!Files.isDirectory(directory)) throw new WorkspaceException(400, "프로젝트 폴더가 아닙니다.");
+      return directory.toString();
+    }
+    try (SSHClient client = ssh.connect(device);
+        SFTPClient sftp = client.newSFTPClient()) {
+      String directory = remote(sftp, device, relative, false);
+      if (sftp.stat(directory).getType() != net.schmizz.sshj.sftp.FileMode.Type.DIRECTORY)
+        throw new WorkspaceException(400, "프로젝트 폴더가 아닙니다.");
+      return directory;
+    }
+  }
+
   private Path local(DeviceRecord device, String path, boolean creating) throws IOException {
     Path root = Path.of(device.rootPath()).toRealPath();
     Path target = root.resolve(path.substring(1)).normalize();

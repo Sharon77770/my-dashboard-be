@@ -46,7 +46,9 @@ public class StudioAdapter {
     program =
         resource("remote.py")
             .replace("# CODEX_BRIDGE", resource("codex_bridge.py"))
-            .replace("# LOGS_BRIDGE", resource("logs.py"));
+            .replace("# LOGS_BRIDGE", resource("logs.py"))
+            .replace("# PROCESSES_BRIDGE", resource("processes.py"))
+            .replace("# API_BRIDGE", resource("api_client.py"));
     bootstrap = resource("bootstrap.sh");
   }
 
@@ -118,9 +120,7 @@ public class StudioAdapter {
 
   public void execute(
       DeviceRecord device, Request request, Execution execution, Consumer<Message> output) {
-    if (device.id().equals("local") && request.action().startsWith("codex-"))
-      throw new WorkspaceException(400, "프로젝트 Codex는 등록한 SSH 원격 장비에서 실행합니다.");
-    executeForDevice(device, request, execution, output);
+    executeForDevice(device, request, execution, output, false, true);
   }
 
   /** Runs the separate server-hosted assistant CLI; project editor jobs cannot use this path. */
@@ -134,13 +134,13 @@ public class StudioAdapter {
 
   private void executeForDevice(
       DeviceRecord device, Request request, Execution execution, Consumer<Message> output) {
-    executeForDevice(device, request, execution, output, false);
+    executeForDevice(device, request, execution, output, false, false);
   }
 
   public void executeDeviceCodex(
       DeviceRecord device, Request request, Execution execution, Consumer<Message> output) {
     if (device.id().equals("local")) throw new WorkspaceException(400, "장비 Codex에는 SSH 장비가 필요합니다.");
-    executeForDevice(device, request, execution, output, true);
+    executeForDevice(device, request, execution, output, true, false);
   }
 
   private void executeForDevice(
@@ -148,13 +148,14 @@ public class StudioAdapter {
       Request request,
       Execution execution,
       Consumer<Message> output,
-      boolean deviceCodex) {
+      boolean deviceCodex,
+      boolean projectCodex) {
     String encoded = Base64.getEncoder().encodeToString(program.getBytes(StandardCharsets.UTF_8));
     String python =
         "exec python3 -u -c 'import base64;exec(base64.b64decode(\"" + encoded + "\"))'";
     String command = (request.action().equals("setup") ? bootstrap + "\n" : "") + python;
     if (device.id().equals("local")) {
-      executeLocal(device, request, execution, output, command);
+      executeLocal(device, request, execution, output, command, projectCodex);
       return;
     }
     try (var client = ssh.connect(device)) {
@@ -169,7 +170,8 @@ public class StudioAdapter {
             remote.getInputStream(),
             execution,
             output,
-            deviceCodex);
+            deviceCodex,
+            projectCodex);
       }
     } catch (WorkspaceException exception) {
       throw exception;
@@ -183,7 +185,8 @@ public class StudioAdapter {
       Request request,
       Execution execution,
       Consumer<Message> output,
-      String command) {
+      String command,
+      boolean projectCodex) {
     if (!System.getProperty("os.name").equalsIgnoreCase("Linux"))
       throw new WorkspaceException(400, "서버 자체 IDE는 Linux에서 실행됩니다. Docker로 대시보드를 실행해 주세요.");
     try {
@@ -195,8 +198,10 @@ public class StudioAdapter {
           .environment()
           .keySet()
           .removeIf(key -> !Set.of("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR").contains(key));
-      builder.environment().put("DASHBOARD_MCP_TOKEN", mcpAccess.token());
-      builder.environment().put("DASHBOARD_MCP_URL", mcpAccess.url());
+      if (!projectCodex) {
+        builder.environment().put("DASHBOARD_MCP_TOKEN", mcpAccess.token());
+        builder.environment().put("DASHBOARD_MCP_URL", mcpAccess.url());
+      }
       var process = builder.start();
       execution.attach(process);
       exchange(
@@ -206,7 +211,8 @@ public class StudioAdapter {
           process.getInputStream(),
           execution,
           output,
-          false);
+          false,
+          projectCodex);
     } catch (WorkspaceException exception) {
       throw exception;
     } catch (Exception exception) {
@@ -231,12 +237,14 @@ public class StudioAdapter {
       InputStream outputStream,
       Execution execution,
       Consumer<Message> output,
-      boolean deviceCodex)
+      boolean deviceCodex,
+      boolean projectCodex)
       throws IOException {
     var input = json.createObjectNode();
     input.put("deviceId", device.id());
     input.put("base", deviceCodex ? "/" : device.rootPath());
     input.put("deviceCodex", deviceCodex);
+    input.put("projectCodex", projectCodex);
     input.put("root", request.root());
     input.put("action", request.action());
     input.set(
