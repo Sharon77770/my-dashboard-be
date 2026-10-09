@@ -69,9 +69,9 @@
         if(row)items.set(item.id,row);
       }
       if(!row){row=document.createElement('article');row.className='cx-message';items.set(item.id,row);$('#studio-conversation').append(row);}
-      const titles={userMessage:'나',agentMessage:'Codex',commandExecution:'터미널',fileChange:'파일 변경',reasoning:'진행 요약',plan:'계획',contextCompaction:'컨텍스트 압축'};
+      const titles={userMessage:'나',agentMessage:'Codex',commandExecution:'터미널',fileChange:'파일 변경',reasoning:'진행 요약',plan:'계획',contextCompaction:'컨텍스트 압축',dynamicToolCall:'실시간 검증'};
       row.dataset.kind=item.type;row.replaceChildren();
-      const heading=document.createElement('small');heading.textContent=(titles[item.type]||item.type)+(item.status?' · '+item.status:'');row.append(heading);
+      const heading=document.createElement('small');heading.textContent=(titles[item.type]||item.type)+(item.tool?' · '+item.tool:'')+(item.status?' · '+item.status:'');row.append(heading);
       if(item.text){const text=document.createElement('div');text.className='cx-message-text';if(item.type==='agentMessage')markdown(text,item.text);else text.textContent=item.text;row.append(text);}
       if(item.command||item.output){const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent=item.command||'명령 출력';details.append(summary);const pre=document.createElement('pre');pre.textContent=item.output||'실행 중…';details.append(pre);row.append(details);}
       for(const file of item.files||[]){const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent=file.path;const pre=document.createElement('pre');pre.textContent=file.diff;details.append(summary,pre);row.append(details);}

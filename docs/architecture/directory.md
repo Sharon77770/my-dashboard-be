@@ -92,6 +92,8 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 
 - studio/dto/AssistantDto.java: Codex 세션·모델·입력·이벤트 계약.
 - resources/studio/codex_bridge.py: 고정 helper에 포함되는 App Server stdio adapter.
+- studio/service/StudioToolService.java: Studio Codex 동적 도구의 프로젝트·실행 권한·포트 검증과 기존 Browser/API/Process 서비스 조합.
+- runtime/dto/StudioSessionView.java: 로그인 세션 소유 Studio 터미널 복원 메타데이터. 셸 출력과 인증 정보는 포함하지 않는다.
 - static/js/studio-codex.js, static/css/studio-codex.css: IDE의 Codex 세션 패널.
 - src/test/python/test_codex_bridge.py: 외부 모델 호출 없는 실행형 CLI fixture 계약 테스트.
 
@@ -150,9 +152,14 @@ Java 기준 루트: `src/main/java/com/personal/dashboard/`.
 
 ## 병역 캘린더
 
+Database Studio의 `database/adapter/DatabaseTargetAdapter.java`는 등록 장비 및 Docker 대상 해석과 JDBC별 SSH 터널 수명을 담당한다. 기존 CommandAdapter/SshAdapter를 재사용한다. `db/migrations/V11__database_targets.sql`은 대상 선택 정보를 추가한다. `scripts/check-databases.mjs`는 격리 SSH/DB fixture의 Playwright 연결·SQL·화면 검증이다.
+
 - `military/controller`, `military/service`, `military/repository`: OWNER HTTP 계약, 유스케이스, SQLite 접근.
 - `military/domain/MilitaryDates.java`, `ServiceType.java`, `MilitaryEventKind.java`: 서울 날짜 계산과 복무·일정 종류.
 - `military/entity/MilitaryRecords.java`, `military/dto/MilitaryDto.java`: 저장 모델과 요청·응답 모델.
 - `db/migrations/V10__military_calendar.sql`: 개인 복무 프로필과 일정 테이블.
 - `static/js/military.js`, `static/css/military.css`: 실시간 현황·월간 달력·휴가·복무 정보 폼.
 - `docs/military-calendar.md`: 사용법, 계산 기준, 참고 자료와 검증 범위.
+
+- static/css/compact-workspace.css: 공통 UI 밀도와 앱별 작업 영역·반응형 조정. tools/ui/workspace.css에서 기존 CSS 뒤에 합성한다.
+- scripts/check-ui.mjs: 격리 대시보드의 실제 Playwright 전체 앱 화면·설정 캡처와 레이아웃 검사.

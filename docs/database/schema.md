@@ -8,6 +8,8 @@
 
 ## Database Studio (owner: database)
 
+`V11__database_targets.sql`은 `database_connections`에 TEXT NOT NULL 컬럼 `target_mode` (기본 `DIRECT`, 허용값 DIRECT/DEVICE/DOCKER), `device_id` (기본 빈 문자열), `container_id` (기본 빈 문자열)를 추가한다. 기존 연결과 암호문을 보존하며 시작 시 PRAGMA 검사로 중복 적용을 방지한다. 세 컬럼은 별도 인덱스/unique/FK가 없다. 장비 ID는 사용 시 catalog에서 확인하므로 장비 삭제가 연결 정보를 연쇄 삭제하지 않는다. 컨테이너 주소는 저장하지 않고 연결 시 새로 조회한다.
+
 `V8__database_studio.sql`은 idempotent CREATE로 적용한다. 연결 삭제 시 즐겨찾기는 CASCADE 삭제되고 이력의 `connection_id`는 NULL이 되며 `connection_name` snapshot은 남는다. 활성 JDBC 연결과 SQL 결과는 저장하지 않는다.
 
 | Table | 주요 컬럼 | 제약·의미 |

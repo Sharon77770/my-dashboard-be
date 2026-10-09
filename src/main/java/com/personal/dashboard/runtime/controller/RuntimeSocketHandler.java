@@ -55,6 +55,7 @@ public class RuntimeSocketHandler extends TextWebSocketHandler implements SubPro
     String path = socket.getUri().getPath();
     String id = path.substring(path.lastIndexOf('/') + 1);
     boolean attached = false;
+    boolean retained = false;
     String connectionKind = "";
     try {
       String owner = (String) socket.getAttributes().get("HTTP.SESSION.ID");
@@ -63,6 +64,36 @@ public class RuntimeSocketHandler extends TextWebSocketHandler implements SubPro
       connectionKind = runtime.kind;
       socket.setTextMessageSizeLimit(65536);
       if (runtime.kind.equals("TERMINAL")) {
+        if (runtime.root != null) {
+          if (runtime.terminal == null) {
+            runtime.terminal = new RetainedTerminal(terminals.open(runtime.device, runtime.root));
+            if (!service.bind(runtime, runtime.terminal)) return;
+          }
+          if (!socket.isOpen()) {
+            service.detachTerminal(runtime);
+            retained = true;
+            return;
+          }
+          bindings.put(socket.getId(), new Binding(socket, runtime, runtime.terminal, null));
+          socket.sendMessage(new TextMessage("{\"type\":\"ready\"}"));
+          runtime.terminal.attach(
+              text -> {
+                try {
+                  socket.sendMessage(new TextMessage(text));
+                } catch (IOException exception) {
+                  throw new UncheckedIOException(exception);
+                }
+              },
+              () -> {
+                try {
+                  socket.close();
+                } catch (IOException ignored) {
+                }
+              },
+              () -> service.close(id));
+          retained = true;
+          return;
+        }
         var terminal = terminals.open(runtime.device, runtime.root);
         if (!service.bind(
             runtime,
@@ -109,11 +140,13 @@ public class RuntimeSocketHandler extends TextWebSocketHandler implements SubPro
       } catch (Exception ignored) {
       }
     } finally {
-      bindings.remove(socket.getId());
-      if (attached) service.close(id);
-      try {
-        socket.close();
-      } catch (Exception ignored) {
+      if (!retained) {
+        bindings.remove(socket.getId());
+        if (attached) service.close(id);
+        try {
+          socket.close();
+        } catch (Exception ignored) {
+        }
       }
     }
   }
@@ -143,7 +176,10 @@ public class RuntimeSocketHandler extends TextWebSocketHandler implements SubPro
   @Override
   public void afterConnectionClosed(WebSocketSession socket, CloseStatus status) {
     Binding binding = bindings.remove(socket.getId());
-    if (binding != null) service.close(binding.runtime.id);
+    if (binding != null) {
+      if (binding.runtime.terminal != null) service.detachTerminal(binding.runtime);
+      else service.close(binding.runtime.id);
+    }
   }
 
   public void validateSessions() {

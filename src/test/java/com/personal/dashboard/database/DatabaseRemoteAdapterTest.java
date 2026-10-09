@@ -40,7 +40,11 @@ class DatabaseRemoteAdapterTest {
     assumeTrue(portText != null && password != null, "Disposable DB server is not configured");
     int port = portText.isBlank() ? defaultPort : Integer.parseInt(portText);
     CredentialVault vault = new CredentialVault(directory.resolve("key").toString());
-    DatabaseAdapter adapter = new DatabaseAdapter(vault, mock(CatalogService.class));
+    DatabaseAdapter adapter =
+        new DatabaseAdapter(
+            vault,
+            mock(CatalogService.class),
+            mock(com.personal.dashboard.database.adapter.DatabaseTargetAdapter.class));
     DatabaseConnection write =
         new DatabaseConnection(
             "test",

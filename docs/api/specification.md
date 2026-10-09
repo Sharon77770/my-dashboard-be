@@ -226,6 +226,8 @@ FileEntry: `{name:String,path:String,directory:boolean,size:long,modifiedAt:long
 ## 실행과 WebSocket
 
 ### POST /api/v1/sessions
+
+관련 조회: `GET /api/v1/sessions?deviceId=...&root=...`는 OWNER 로그인 세션이 소유한 해당 장비·정확한 프로젝트 root의 유지 중인 Studio 터미널만 반환한다. 두 query는 필수 string이며 누락 시 400이다. 응답 200은 배열이며 각 항목의 `id`, `deviceId`, `root`는 필수 non-null string, `attached`는 현재 WebSocket 연결 여부인 필수 boolean이다. 일치하는 세션이 없으면 빈 배열이다. 다른 로그인 세션의 핸들이나 출력은 노출하지 않는다. 이 GET은 셸을 생성하거나 기존 연결을 빼앗지 않는다. 인증·권한 오류는 공통 로그인/OWNER 정책을 따른다.
 - body SessionRequest `{kind:String,targetId:String,width:int,height:int}`.
 - kind 필수 non-null enum TERMINAL/REMOTE/APP, targetId 필수 nonblank String, width 320~3840, height 240~2160.
 - 201 SessionView `{id:String,kind:String,label:String,url:String}`. 일반 실행 url은 빈 문자열이다.
@@ -243,7 +245,7 @@ FileEntry: `{name:String,path:String,directory:boolean,size:long,modifiedAt:long
 - REMOTE/APP 양방향은 Guacamole 1.6 프로토콜 instruction 문자열이다. 초기 빈 opcode는 터널 UUID, 내부 ping은 echo한다.
 - 한 메시지 최대 64KiB, 송신 buffer 1MiB, 10초 송신 제한. 초기 생성 요청의 viewport와 remote resize/scale에 따라 화면을 표시한다.
 - 연결/프로토콜 실패는 WS 1011과 연결 유형별 안전한 안내 문구, 정상 셸 종료는 WS 1000과 종료 안내 문구를 보낸다. 계정/접속정보를 close reason에 포함하지 않는다. 핸드셰이크 실패로 close reason이 없으면 클라이언트는 로그인과 프록시 WebSocket 설정을 확인하도록 안내한다.
-- 소켓 종료·DELETE·로그아웃·로그인 만료·서버 종료는 리소스를 정리한다. UI 재연결은 새 POST로 새 핸들을 만든다.
+- 일반 실행 세션은 소켓 종료·DELETE·로그아웃·로그인 만료·서버 종료 시 정리하며 새 POST로 재연결한다. `root`가 지정된 Studio TERMINAL은 소켓 단절 후 30분 동안 같은 PTY를 유지한다. 같은 로그인 소유자가 기존 `/ws/runtime/{id}`로 재연결하면 ready 뒤 최근 65,536자 출력을 재생한다. 동시 중복 연결은 거부한다. DELETE·셸 종료·로그아웃·서버 종료·유예 만료 시 종료하며, 다른 로그인 세션은 핸들을 재사용할 수 없다.
 
 ## 외부 연동 계약
 
@@ -589,6 +591,10 @@ MCP tool 목록과 입력 계약:
 Tool 오류는 MCP `CallToolResult.isError=true` 및 text content로 반환한다. 도구는 WorkspaceException의 검증 오류를 안전하게 전달하고 예상하지 못한 예외 세부 내용은 숨긴다. `open_page` navigation 이벤트는 owner 세션 browser만 GET으로 polling한다. 일정·메모 삭제는 정확한 ID와 메모 revision을 요구한다. GitHub 저장소·릴리스 삭제는 10분 유효 브라우저 승인을 소비한다. 임의 파일·셸 작업은 제공하지 않는다.
 
 ## Database Studio API
+
+`ConnectionRequest`에 선택적 문자열 `targetMode` (`DIRECT` 기본값, `DEVICE`, `DOCKER`), `deviceId` (최대 100자), `containerId` (최대 128자, 영문·숫자·밑줄·점·하이픈)를 추가한다. 생략/null은 DIRECT 및 빈 ID로 정규화한다. `ConnectionView`에도 세 필드가 null 없이 반환된다. DIRECT는 ID를 비워야 하고, DEVICE/DOCKER는 등록된 deviceId가 필요하다. DOCKER는 containerId가 필수다. DEVICE의 host는 장비에서 보이는 주소(기본 127.0.0.1), DOCKER의 port는 컨테이너 내부 DB 포트이고 host는 서버가 결정한다. 원격 SQLite는 400으로 거부한다. 삭제된 장비는 404, 정지/주소 없는 컨테이너는 409, Docker 조회 실패는 502이다. 연결 테스트에서 대상 해석 실패는 `connected:false`, `errorType:TARGET_UNAVAILABLE`로 반환한다.
+
+`GET /api/v1/databases/devices/{deviceId}/containers`: OWNER 세션, 필수 path deviceId, query/body 없음. 200 응답은 최대 200개의 `{id,name,image,ports}` 배열이며 모든 필드는 null이 아닌 문자열이다. 환경 변수나 인증 정보는 포함하지 않는다. 없는 장비 404, Docker 조회 실패 502 (`message`: 장비의 Docker 목록을 읽지 못했습니다. Docker 설치와 SSH 계정의 접근 권한을 확인하세요.), 인증·권한 오류는 아래 공통 계약을 따른다.
 
 모든 경로는 OWNER 세션이 필요하다. 쓰기·테스트·취소 요청에는 CSRF 토큰이 필요하다. 미인증 401, 권한 부족/READ_ONLY 쓰기 403, 잘못된 입력 400, 없는 연결/테이블/실행 404, 위험 SQL 미확인 또는 활성 쿼리 중 연결 삭제 409, 대기열 초과 429, 외부 DB 조회 오류 502. 실패 응답은 `{message}`이고 원본 JDBC 예외를 포함하지 않는다. [보안·수명 계약](../database-studio.md).
 

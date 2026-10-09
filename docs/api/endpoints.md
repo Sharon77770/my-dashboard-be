@@ -135,6 +135,7 @@
 | DELETE | /api/v1/devices/{device}/files | OWNER | 파일/빈 폴더 삭제 |
 | GET | /api/v1/devices/{device}/files/content | OWNER | 파일 다운로드 |
 | POST | /api/v1/sessions | OWNER | 실행 세션 생성 |
+| GET | /api/v1/sessions | OWNER + 생성한 로그인 세션 | 현재 프로젝트의 유지 중인 Studio 터미널 목록 |
 | DELETE | /api/v1/sessions/{id} | OWNER | 실행 세션 종료 |
 | GET (WS Upgrade) | /ws/runtime/{id} | OWNER + same origin | 터미널/원격 스트림 |
 
@@ -198,6 +199,7 @@ POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로
 | GET/PUT/DELETE | /api/v1/databases/{id} | OWNER / OWNER + CSRF | 연결 조회·수정·삭제 |
 | POST | /api/v1/databases/{id}/test | OWNER + CSRF | 연결 테스트 |
 | POST | /api/v1/databases/test | OWNER + CSRF | 저장 전 연결 설정 테스트 |
+| GET | /api/v1/databases/devices/{deviceId}/containers | OWNER | 등록 장비의 실행 중 Docker 컨테이너 목록 |
 | GET | /api/v1/databases/{id}/schemas | OWNER | schema 목록 |
 | GET | /api/v1/databases/{id}/tables | OWNER | table/view 목록 |
 | GET | /api/v1/databases/{id}/functions | OWNER | function 목록 |

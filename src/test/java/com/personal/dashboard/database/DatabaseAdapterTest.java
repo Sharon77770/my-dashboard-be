@@ -29,7 +29,10 @@ class DatabaseAdapterTest {
   @Test
   void timeoutIsMappedWithoutRawDriverMessage() {
     DatabaseAdapter adapter =
-        new DatabaseAdapter(mock(CredentialVault.class), mock(CatalogService.class));
+        new DatabaseAdapter(
+            mock(CredentialVault.class),
+            mock(CatalogService.class),
+            mock(com.personal.dashboard.database.adapter.DatabaseTargetAdapter.class));
     assertEquals(
         "CONNECTION_TIMEOUT",
         adapter.errorType(new java.sql.SQLTimeoutException("secret host name")));
@@ -42,7 +45,11 @@ class DatabaseAdapterTest {
     DeviceRecord local = mock(DeviceRecord.class);
     when(local.rootPath()).thenReturn(root.toString());
     when(catalog.requireDevice("local")).thenReturn(local);
-    DatabaseAdapter adapter = new DatabaseAdapter(mock(CredentialVault.class), catalog);
+    DatabaseAdapter adapter =
+        new DatabaseAdapter(
+            mock(CredentialVault.class),
+            catalog,
+            mock(com.personal.dashboard.database.adapter.DatabaseTargetAdapter.class));
     DatabaseConnection write = connection(file, "READ_WRITE");
     try (Connection connection = adapter.open(write);
         var statement = connection.createStatement()) {
@@ -78,7 +85,11 @@ class DatabaseAdapterTest {
       DeviceRecord local = mock(DeviceRecord.class);
       when(local.rootPath()).thenReturn(root.toString());
       when(catalog.requireDevice("local")).thenReturn(local);
-      DatabaseAdapter adapter = new DatabaseAdapter(mock(CredentialVault.class), catalog);
+      DatabaseAdapter adapter =
+          new DatabaseAdapter(
+              mock(CredentialVault.class),
+              catalog,
+              mock(com.personal.dashboard.database.adapter.DatabaseTargetAdapter.class));
       assertThrows(WorkspaceException.class, () -> adapter.open(connection(file, "READ_ONLY")));
     } finally {
       Files.deleteIfExists(file);

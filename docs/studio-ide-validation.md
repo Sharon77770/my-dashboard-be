@@ -49,6 +49,43 @@
 
 위 통합 실행은 실제 backend/PTY/Chromium/Codex 경로를 검증한다. **연결 가능한 앱 내 Browser가 없어 사용자가 Studio 화면에서 수행하는 12단계 UI acceptance는 완료하지 못했다.** browser discovery 결과가 빈 배열이었다. Monaco Ctrl+S 실제 키보드, 화면 resize/touch, 파일 worker 네트워크, Browser 화면 클릭과 한글 IME까지 검증한 것으로 해석하지 않는다.
 
-Maven/Gradle/npm 테스트 추천은 설정 탐지이고 실제 통합 프로젝트는 Python이었다. 각 언어 프로젝트의 런타임/toolchain은 대상 장비에 필요하다. Rerun Failed는 실패한 명령 전체를 다시 실행한다. Browser는 이미지 기반 기본 상호작용이며 전체 DevTools/업로드·다운로드 UI는 없다. Codex의 Browser/API 컨텍스트는 관찰 스냅샷이며 새 실시간 브라우저 제어 MCP가 아니다. 네트워크가 끊긴 PTY 재연결은 새 셸이다.
+각 언어 프로젝트의 런타임/toolchain은 대상 장비에 필요하다. Rerun Failed는 실패한 명령 전체를 다시 실행한다. Browser는 이미지 기반 기본 상호작용이며 전체 DevTools/업로드·다운로드 UI는 없다. Codex의 Browser/API 컨텍스트는 관찰 스냅샷이며 새 실시간 브라우저 제어 MCP가 아니다.
 
-사용자가 실제 Studio 화면 검증을 직접 진행하기로 했으므로 이번 작업은 빌드·코드 검증 기준으로 마무리한다. 실제 화면 acceptance 전체 통과를 의미하지 않으며 운영 배포는 수행하지 않았다.
+2026-10-08에는 사용자 요청으로 빌드·코드 검증 기준에서 중단했으며 운영 배포는 수행하지 않았다.
+
+## 2026-10-09 재개 검증
+
+- 하단 패널을 중앙 `.studio-editor` 안으로 이동했다. 좌우 사이드바는 전체 높이를 유지하며 패널 높이 상한은 중앙 열의 높이를 기준으로 한다. DOM 회귀 및 CSS 생성 통과. 실제 화면의 기하·터치 검증은 아직 미완료다.
+- 이전 Browser back/forward 뒤 API 502 경로를 threaded HTTP fixture로 다시 실행했다. API 요청·history replay·서버 restart·Browser/API 후속 확인까지 통과했다. 당시 단일 스레드 fixture의 동시 연결 처리가 원인으로 추정되며 같은 502는 재현되지 않았다.
+- SSH Codex가 workspace-write에서 실제 app.py를 수정하고 테스트를 실행했다. 관리 프로세스 재시작 후 Browser/API와 실제 git diff가 모두 수정 결과를 확인했다.
+- Studio PTY의 WebSocket 단절 후 기존 핸들로 재연결했고 dev server PID가 유지됨을 확인했다. 30분 유예·로그인 소유권·명시적 종료를 유지하며 최근 출력은 65,536자로 제한한다. 일반 Terminal 앱의 세션 수명은 유지했다.
+- 실제 SSH 대상의 Maven/JUnit, Gradle/JUnit, npm/node:test, pytest 프로젝트 각각에서 명령 추천·실패 테스트·source save·재실행 성공·build 성공을 확인했다. `STUDIO_TEST_LANGUAGES=true`와 `language-fixtures.cjs`로 재현 가능하다.
+- `my-dashboard-ide-check:resume` Docker build 통과: Python 45개 통과, Java 190개 중 181개 통과·9개 조건부 제외, 실패/오류 0. Monaco/Studio·Terminal·Codex chat·cURL DOM 회귀 통과.
+- 브라우저 연결 목록은 재확인 시에도 비어 있었고 새 Browser MCP 도구가 현재 대화에 노출되지 않았다. 실제 Studio 화면 12단계 acceptance 전체 통과로 보고하지 않는다.
+
+## 2026-10-09 실제 Playwright UI 재검증
+
+위 Browser 연결 제약 이후, 사용자 지시에 따라 기존 세션과 `http://127.0.0.1:18187`을 유지하고 `scripts/check-studio.mjs`로 실제 Chromium을 실행했다. `STUDIO_TEST_FULL_UI=true` 실행에서 SSH 프로젝트 열기 → 내장 Terminal 서버 실행 → 포트 탐지 → Preview → API 요청 → Monaco 편집/Ctrl+S → 실패 테스트/Problems 파일 이동 → Codex 요청/실제 SSH 파일 수정 → 서버·테스트 재실행 → Browser/API 재검증 → Git diff 표시까지 통과했다. 한글 소스 붙여넣기와 정확한 저장 내용도 확인했다.
+
+- 실제 화면에서 발견한 모바일 Editor 클릭 가로채기, 폴더 입력 후 열기 버튼 위치 변동, API 탭 뒤에 숨는 Git diff를 수정했다.
+- 1600/1280/1024/390px 렌더링, 중앙 열 안의 하단 패널, 드래그 리사이즈·접기, 데스크톱 좌우 사이드바 전체 높이, 문서 가로 overflow 없음을 확인했다.
+- `artifacts/studio.png`, 반응형 캡처, `artifacts/studio-report.json`을 생성했다. 통과 실행의 console/pageerror/failed request는 모두 0건이다.
+- 최종 Docker 이미지 `my-dashboard-ide-check:final` 빌드와 Maven verify 성공. Python 45개, Java 190개 중 181개 통과·9개 조건부 제외, 실패/오류 0. Studio/Terminal/drawers DOM 회귀도 통과했다.
+
+이는 격리된 SSH Python fixture의 실제 UI 검증이다. OS 한글 IME 조합, 물리 터치, 운영 배포 검증은 포함하지 않는다. Codex는 첨부된 Browser/API 관찰을 사용했으며 자율적인 실시간 Browser/API 도구 반복 제어를 검증한 것은 아니다. Maven/Gradle/npm의 실제 검증은 위 backend 통합 범위다.
+
+## 2026-10-09 Chromium 복구와 실시간 도구 최종 검증
+
+아래 결과가 앞선 날짜별 검증의 미완료 항목을 갱신한다.
+
+- 운영 Chromium의 기존 프로필에 이전 컨테이너의 SingletonLock이 남아 오류 대화상태로 유지되면서 CDP 9222가 열리지 않았다. profile lease, stale singleton 정리, CDP 기동 확인·healthcheck를 추가했다. 기존 프로필과 로그인 데이터는 보존했고 동일 프로필 재시작 및 운영 재생성 후 CDP 200/healthy를 확인했다.
+- 새로고침 후 같은 로그인 세션·프로젝트의 터미널을 조회해 복원한다. Playwright가 새로고침 전후 동일한 session ID, 셸 PID, 환경변수를 확인했다. 다른 탭의 연결은 빼앗지 않는다.
+- Codex dynamic tools가 Browser/API의 최신 상태를 직접 조회하고 기존 관리 프로세스를 재시작한다. 실제 검증에서 Codex가 broken 응답 재현 → 파일 수정 → 단위 테스트 → process restart → Browser/API fixed 응답을 확인했다. 파일 수정 전·후의 관찰을 단순 첨부로만 검증한 결과가 아니다.
+- 검증 중 발견한 Codex editor lock과 process restart의 충돌은 별도의 process lock으로 수정했다. 실제 파일 잠금을 점유한 상태의 재시작 회귀 테스트가 통과했다.
+- Chromium 이동·reload 직후 컨텍스트 교체/화면 캡처 오류는 load 이벤트 대기, 제한된 context 재시도, CDP 전송 직렬화, Fetch 설정의 중복 변경 방지로 수정했다. 뒤로/앞으로/반복 reload 후 API 요청이 통과했다.
+- `STUDIO_TEST_FULL_UI=true node scripts/check-studio.mjs`: SSH Python 프로젝트의 전체 12단계 UI 흐름, 실제 Codex 파일 수정과 studio_browser/studio_api/studio_process 호출, 한글 저장, IME 조합 이벤트를 거친 Preview 텍스트 전달, 테스트·재시작·Git diff가 통과했다. Maven/Gradle/npm/pytest 테스트·빌드도 실제 Output 화면에서 성공했다.
+- 최종 `artifacts/studio-report.json`: console error 0, pageerror 0, failed request 0. 1600/1280/1024/390px에서 패널 중앙 열 배치·좌우 사이드바 높이·터미널 우측 제어·resize·접기·가로 overflow 검사를 통과했다. `artifacts/studio-codex-proof.json`은 실제 동적 도구 호출과 Codex 결과 증거다. fixture가 의도적으로 발생시키는 원격 페이지 console marker/404는 대시보드 오류와 구분한다.
+- 최종 Docker/Maven verify: Python 47개 통과, Java 191개 중 182개 통과·9개 외부 조건부 제외, 실패/오류 0. Monaco·Terminal·cURL·Codex chat/settings 회귀도 통과했다.
+- 운영 Compose dashboard/browser 및 같은 네트워크를 사용하는 서비스를 새 이미지로 반영했다. 운영 컨테이너 내부에서 실제 OWNER 로그인·CSRF, 임시 local 프로젝트의 run/ports, Chromium Preview·반복 reload, 실제 API 200/body, Terminal 생성/종료를 확인하고 임시 파일·프로세스를 정리했다. 운영 환경변수와 데이터 볼륨은 유지했다. 전체 Codex 수정 시나리오는 격리 SSH 프로젝트의 검증이며 운영 사용자 프로젝트를 수정한 것은 아니다.
+
+남는 경계: OS 물리 키보드/터치 자체는 수동 검사 대상이다. 한글은 전용 입력란에서 조합해 원격 필드로 전송하며 이미지 안에서 직접 IME 조합하는 방식은 아니다. 이전 Codex 대화에는 동적 도구가 없어 Studio에서 새 대화를 시작해야 한다. Rerun Failed는 명령 전체 단위이며, apt는 이미지 빌드 단계에서 설치한다. 기존 Samba 컨테이너의 재시작 상태는 이번 Studio 수정 전부터 있었으며 IDE 검증과 별개다.

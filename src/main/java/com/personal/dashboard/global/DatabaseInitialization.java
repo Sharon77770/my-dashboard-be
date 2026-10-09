@@ -43,5 +43,10 @@ public class DatabaseInitialization implements InitializingBean {
         .noneMatch(column -> "metadata".equals(column.get("name"))))
       jdbc.execute(
           "ALTER TABLE database_connections ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'");
+    if (jdbc.queryForList("PRAGMA table_info(database_connections)").stream()
+        .noneMatch(column -> "target_mode".equals(column.get("name"))))
+      new ResourceDatabasePopulator(
+              new ClassPathResource("db/migrations/V11__database_targets.sql"))
+          .execute(dataSource);
   }
 }

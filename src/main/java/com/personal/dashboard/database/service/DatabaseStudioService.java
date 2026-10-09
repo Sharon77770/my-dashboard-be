@@ -1,6 +1,7 @@
 package com.personal.dashboard.database.service;
 
 import com.personal.dashboard.database.adapter.DatabaseAdapter;
+import com.personal.dashboard.database.adapter.DatabaseTargetAdapter;
 import com.personal.dashboard.database.dto.DatabaseDto;
 import com.personal.dashboard.database.entity.DatabaseConnection;
 import com.personal.dashboard.database.repository.DatabaseRepository;
@@ -25,6 +26,7 @@ public class DatabaseStudioService {
   private final DatabaseRepository repository;
   private final DatabaseAdapter adapter;
   private final CredentialVault vault;
+  private final DatabaseTargetAdapter targets;
   private final ThreadPoolExecutor executor =
       new ThreadPoolExecutor(2, 2, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<>(8));
   private final ConcurrentMap<String, Execution> executions = new ConcurrentHashMap<>();
@@ -43,10 +45,18 @@ public class DatabaseStudioService {
   }
 
   public DatabaseStudioService(
-      DatabaseRepository repository, DatabaseAdapter adapter, CredentialVault vault) {
+      DatabaseRepository repository,
+      DatabaseAdapter adapter,
+      CredentialVault vault,
+      DatabaseTargetAdapter targets) {
     this.repository = repository;
     this.adapter = adapter;
     this.vault = vault;
+    this.targets = targets;
+  }
+
+  public List<DatabaseDto.Container> containers(String deviceId) {
+    return targets.containers(deviceId);
   }
 
   public List<DatabaseDto.ConnectionView> list() {
@@ -76,7 +86,13 @@ public class DatabaseStudioService {
         || !List.of("DISABLE", "REQUIRE").contains(ssl))
       throw new WorkspaceException(400, "DB 종류, 접근 모드 또는 SSL 모드를 확인해 주세요.");
     DatabaseConnection old = id == null ? null : require(id);
+    String targetMode = Objects.toString(request.targetMode(), "DIRECT");
+    String deviceId = Objects.toString(request.deviceId(), "").trim();
+    String containerId = Objects.toString(request.containerId(), "").trim();
+    targets.validate(targetMode, deviceId, containerId, type);
     String host = Objects.toString(request.host(), "").trim();
+    if (targetMode.equals("DOCKER") || (targetMode.equals("DEVICE") && host.isEmpty()))
+      host = "127.0.0.1";
     String database = request.databaseName().trim();
     String username = Objects.toString(request.username(), "").trim();
     int port =
@@ -123,7 +139,10 @@ public class DatabaseStudioService {
             mode,
             Map.copyOf(metadata),
             old == null ? now : old.createdAt(),
-            now);
+            now,
+            targetMode,
+            deviceId,
+            containerId);
     return value;
   }
 
@@ -336,7 +355,10 @@ public class DatabaseStudioService {
         item.accessMode(),
         item.metadata(),
         item.createdAt(),
-        item.updatedAt());
+        item.updatedAt(),
+        item.targetMode(),
+        item.deviceId(),
+        item.containerId());
   }
 
   private <T> T call(SqlCall<T> operation) {

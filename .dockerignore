@@ -6,5 +6,8 @@
 .env.*
 data
 target
+**/node_modules
+artifacts
+.playwright-mcp
 **/*.db*
 **/*.log

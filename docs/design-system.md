@@ -21,18 +21,18 @@
 
 | 위계 | 크기 | 용도 |
 | --- | --- | --- |
-| Page | 24px | 화면 제목 |
-| Subtitle / Body / Row | 14px | 설명·기본 내용·행 이름 |
-| Section | 16px | 구역 제목 |
-| Card | 17px | 주요 표면 제목 |
-| Secondary | 13px | 보조 내용·일반 버튼 |
+| Page | 20px | 화면 제목 |
+| Subtitle / Body / Row | 13px | 설명·기본 내용·행 이름 |
+| Section | 14px | 구역 제목 |
+| Card | 15px | 주요 표면 제목 |
+| Secondary | 12px | 보조 내용·일반 버튼 |
 | Metadata | 12px | 시각·경로·보조 수치 |
 | Badge | 11px | 짧은 상태 보조 표기 |
 | Code | 13px | 코드·SQL |
 
 AI 대화는 14–15px, Notes 본문은 Desktop 16px/Mobile 15px이다. Telemetry 핵심 수치는 28–40px이다. 모바일 입력창은 16px을 우선한다. 중요한 이름과 값을 metadata 크기로 축소하지 않는다.
 
-Radius는 tiny 6px, control 8px, panel 12px, floating 16px이다. 기존 radius 별칭은 호환을 위해 유지한다. 간격은 기존 2/4/6/8/12/16/20/24/32px 토큰을 사용한다. Desktop 기본 control은 36px, compact 32px, Mobile 주요 조작은 44px이다.
+Radius는 tiny 6px, control 8px, panel 12px, floating 16px이다. 기존 radius 별칭은 호환을 위해 유지한다. 간격은 기존 2/4/6/8/12/16/20/24/32px 토큰을 사용한다. Desktop 기본 control은 30px, compact 28px, Mobile 주요 조작은 44px이다.
 
 ## 표면과 조작
 
@@ -52,7 +52,7 @@ Motion은 120–240ms 범위의 opacity/background/pane 전환을 사용하며 r
 
 ## Shell과 Home
 
-Desktop은 52px global bar, 60px activity rail, 작업 본문으로 구성한다. Workspace → 이전/현재 작업 → 검색 → AI → 백그라운드 상태 → 시각/메뉴 순서다. Rail의 active는 선택 표면과 얇은 outline이다.
+Desktop은 44px global bar, 48px activity rail, 작업 본문으로 구성한다. Workspace → 이전/현재 작업 → 검색 → AI → 백그라운드 상태 → 시각/메뉴 순서다. Rail의 active는 선택 표면과 얇은 outline이다.
 
 700px 이하에서는 44px app bar와 48px 하단 내비게이션을 사용한다. Assistant, Device Codex, Studio, Notes, Database와 집중형 runtime에서는 하단 내비게이션을 접는다. 100dvh, VisualViewport와 safe area를 유지한다.
 
@@ -98,3 +98,19 @@ Home의 첫 정보는 **오늘 → 확인 필요 → 이어하기**다. 오늘�
 기본 selector는 동일 조건 안에서 한 정의로 모으고 media adaptation을 뒤에 둔다. Shell에서 기능 CSS를 다시 평탄화하지 않는다. 공통 component layer에서 모든 버튼과 입력 radius를 강제하던 규칙을 제거했다. Login도 같은 bundle만 읽는다. Notes vendor CSS는 Notes 기능 CSS 앞에서 동일 base layer로 가져온다. 별도 unlayered link를 두면 라이브러리의 제목·내부 여백이 제품 토큰보다 우선하므로 중복 로드하지 않는다. `vendor/workspace-ui.css`는 `npm run build --prefix tools/ui`로 생성하며 직접 편집하지 않는다.
 
 현재 검증과 외부 연결·실기기 제한은 [검증 기록](ui-redesign-verification.md)에 구분한다.
+
+## 전체 앱 밀도와 작업 흐름
+
+공통 토큰은 design-system.css, 앱 간 밀도와 반응형 조정은 compact-workspace.css에서 관리한다. 글·코드 편집 본문은 기존 가독성을 유지한다. 새로고침·종료·삭제 등 반복 동작은 공통 SVG 아이콘과 접근성 이름/툴팁을 제공하고, 작은 화면에서는 보조 레이블을 접는다. 터치 포인터의 아이콘 버튼은 44px 목표 영역을 유지한다. 동적 앱 화면은 ui.js에서 기존 버튼과 이벤트를 유지한 채 아이콘을 적용한다.
+
+Home은 오늘·확인 필요·이어하기, 앱 라이브러리는 고정 → 코드 작성·검증 → 운영·상태 확인 → 기록·일정 → 연결·설정 순서다. 라이브러리는 그룹별 두 열, 서비스는 상태 요약 → 검색/필터 → 대상 선택, 파일·문서·SQL은 탐색 → 편집 → 결과 흐름을 유지하며 도구 영역을 압축한다. Studio 하단 터미널은 중앙 열 안에서 출력 전체 높이와 우측 세션 사이드바를 유지한다.
+
+검증: scripts/check-ui.mjs는 격리 서버에서 21개 화면의 다크/라이트·1440/390px 탐색과 overflow/아이콘 이름, 로그인·라이브러리·설정 캡처를 수행한다. 결과는 artifacts/ui/report.json이다. 실제 외부 서비스 연결이나 운영 배포 성공을 뜻하지 않는다.
+
+## 드라이브 파일 탐색 레이아웃 (2026-10-09)
+
+드라이브는 compact 제목·breadcrumb·검색 헤더와 통합 작업 툴바 아래에 폴더 탐색/파일 목록을 배치한다. 목록이 기본 보기이며 행 높이는 데스크톱 34px, 작은 화면 40px이다. 유형·수정일은 좁은 화면에서 상세 정보로 확인한다. 일반 안내 문구는 목록 위에 표시하지 않고 비어 있는 폴더에서 업로드 안내만 제공한다. 파일 목록과 탐색 패널은 독립적으로 스크롤한다.
+
+800px 이하에서는 기존 드로어로 폴더 탐색을 열며 폴더 선택 후 닫힌다. 툴바는 아이콘 중심 작업 줄과 정렬·보기·선택 제어 줄로 구성한다. 하위 폴더는 펼칠 때 기존 cloud 조회 API를 사용하며 전체 디렉터리를 미리 순회하지 않는다. 업로드·생성·선택·다운로드·휴지통·편집 API 계약은 유지한다.
+
+`scripts/check-drive.mjs`는 격리 서버 18187에서 로컬 수정 JS/CSS를 Playwright route로 제공해 검증한다. 테스트 전용 폴더를 만들고 실제 목록·폴더 탐색·업로드·다운로드를 검사한 후 해당 폴더만 정리한다. 1440/1024/768/390px에서 파일 목록 높이는 드라이브 영역의 77~84%, 가로/툴바 넘침 없음. 모바일 드로어 선택 후 닫힘과 console/pageerror 0건도 확인했다. 결과·화면은 `artifacts/drive/`에 저장한다. 운영 배포 결과를 의미하지 않는다.

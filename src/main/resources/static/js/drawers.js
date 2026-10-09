@@ -35,11 +35,13 @@ window.WorkspaceDrawers=(()=>{
   if(disposed)return;
   addTrigger(document.querySelector('.cloud-header'),'.cloud-sidebar','드라이브');
   document.querySelectorAll('.file-layout').forEach(layout=>{if(layout.querySelector('aside'))addTrigger(layout.closest('.tool-view')?.querySelector('.tool-bar'),'.file-layout aside','파일 탐색');});
-  document.querySelectorAll('[data-notes-action="sidebar"],[data-pane="explorer"],[data-pane="inspector"]').forEach(button=>{button.setAttribute('aria-haspopup','dialog');if(!button.hasAttribute('aria-expanded'))button.setAttribute('aria-expanded','false');});
+  document.querySelectorAll('[data-notes-action="sidebar"],[data-pane="explorer"],[data-pane="inspector"]').forEach(button=>{if(button.closest('#studio'))return;button.setAttribute('aria-haspopup','dialog');if(!button.hasAttribute('aria-expanded'))button.setAttribute('aria-expanded','false');});
  }
  document.addEventListener('click',event=>{
   if(!mobile())return;
   const trigger=event.target.closest('[data-notes-action="sidebar"],[data-pane],[data-drawer-target]');if(!trigger)return;
+  // Studio owns its exclusive mobile panes; moving them into drawers breaks editor/terminal sizing.
+  if(trigger.matches('[data-pane]')&&trigger.closest('#studio'))return;
   const root=trigger.closest('.view,.runtime-pane')||document;
   let panel,title,side='left';
   if(trigger.matches('[data-notes-action="sidebar"]')){panel=root.querySelector('.notes-sidebar');title='문서와 폴더';}

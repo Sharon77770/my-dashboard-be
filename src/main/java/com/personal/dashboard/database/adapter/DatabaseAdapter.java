@@ -19,13 +19,43 @@ public class DatabaseAdapter {
   private static final Logger log = LoggerFactory.getLogger(DatabaseAdapter.class);
   private final CredentialVault vault;
   private final CatalogService catalog;
+  private final DatabaseTargetAdapter targets;
 
-  public DatabaseAdapter(CredentialVault vault, CatalogService catalog) {
+  public DatabaseAdapter(
+      CredentialVault vault, CatalogService catalog, DatabaseTargetAdapter targets) {
     this.vault = vault;
     this.catalog = catalog;
+    this.targets = targets;
   }
 
   public Connection open(DatabaseConnection item) throws SQLException {
+    var endpoint =
+        DatabaseTargetAdapter.DIRECT.equals(item.targetMode())
+            ? new DatabaseTargetAdapter.Endpoint(item.host(), item.port(), null, null, null)
+            : targets.open(item);
+    try {
+      Connection connection = openAt(item, endpoint.host(), endpoint.port());
+      return (Connection)
+          java.lang.reflect.Proxy.newProxyInstance(
+              Connection.class.getClassLoader(),
+              new Class<?>[] {Connection.class},
+              (proxy, method, args) -> {
+                try {
+                  return method.invoke(connection, args);
+                } catch (java.lang.reflect.InvocationTargetException error) {
+                  throw error.getCause();
+                } finally {
+                  if (method.getName().equals("close") || method.getName().equals("abort"))
+                    endpoint.close();
+                }
+              });
+    } catch (SQLException | RuntimeException error) {
+      endpoint.close();
+      throw error;
+    }
+  }
+
+  private Connection openAt(DatabaseConnection item, String address, int port) throws SQLException {
     String url;
     Properties properties = new Properties();
     if (item.type().equals("SQLITE")) {
@@ -41,25 +71,25 @@ public class DatabaseAdapter {
         throw new WorkspaceException(400, "SQLite 파일을 찾을 수 없습니다.");
       }
     } else {
-      String host = item.host();
+      String host = address;
       String database = item.databaseName();
       if (!host.matches("[A-Za-z0-9_.:-]{1,255}") || !database.matches("[A-Za-z0-9_-]{1,100}"))
         throw new WorkspaceException(400, "호스트와 데이터베이스 이름을 확인해 주세요.");
       if (item.type().equals("POSTGRESQL")) {
-        url = "jdbc:postgresql://" + host + ":" + item.port() + "/" + database;
+        url = "jdbc:postgresql://" + host + ":" + port + "/" + database;
         properties.setProperty("connectTimeout", "5");
         properties.setProperty("socketTimeout", "20");
         properties.setProperty("readOnlyMode", "transaction");
         properties.setProperty("sslmode", item.sslMode().equals("REQUIRE") ? "require" : "disable");
       } else if (item.type().equals("MYSQL")) {
-        url = "jdbc:mysql://" + host + ":" + item.port() + "/" + database;
+        url = "jdbc:mysql://" + host + ":" + port + "/" + database;
         properties.setProperty("connectTimeout", "5000");
         properties.setProperty("socketTimeout", "20000");
         properties.setProperty("readOnlyPropagatesToServer", "true");
         properties.setProperty(
             "sslMode", item.sslMode().equals("REQUIRE") ? "REQUIRED" : "DISABLED");
       } else if (item.type().equals("MARIADB")) {
-        url = "jdbc:mariadb://" + host + ":" + item.port() + "/" + database;
+        url = "jdbc:mariadb://" + host + ":" + port + "/" + database;
         properties.setProperty("connectTimeout", "5000");
         properties.setProperty("socketTimeout", "20000");
         properties.setProperty("allowLocalInfile", "false");
@@ -108,7 +138,11 @@ public class DatabaseAdapter {
           exception.getErrorCode());
       return new DatabaseDto.TestResult(false, "", elapsed(start), errorType(exception));
     } catch (WorkspaceException exception) {
-      return new DatabaseDto.TestResult(false, "", elapsed(start), "FILE_UNAVAILABLE");
+      return new DatabaseDto.TestResult(
+          false,
+          "",
+          elapsed(start),
+          item.type().equals("SQLITE") ? "FILE_UNAVAILABLE" : "TARGET_UNAVAILABLE");
     }
   }
 

@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 /** Shared presentation primitives. No application requests or credentials live here. */
 window.WorkspaceUI = (() => {
   const paths = {
@@ -130,13 +130,51 @@ window.WorkspaceUI = (() => {
       const label=target.getAttribute('aria-label')||target.textContent.trim();
       target.setAttribute('aria-label',label);
       target.title=label;
-      target.innerHTML=icon(name)+`<span class="ui-action-label">${escape(label)}</span>`;
+      target.innerHTML=icon(name)+`<span class="ui-action-label">${escape(target.textContent.trim())}</span>`;
     }
     const edit = document.querySelector('#home-edit');
     if (edit) {edit.innerHTML = `${icon('edit')}<span>홈 편집</span>`; edit.dataset.tooltip = '홈 편집';}
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hydrateIcons, {once:true});
   else hydrateIcons();
+  /** Decorate stable actions only; keep application handlers, state and accessible names intact. */
+  function compactActions() {
+    const actions = [
+      ['[data-notes-action=save],[data-studio=save]','save'],
+      ['[data-notes-action=reload],[data-studio=refresh],[data-studio=git-refresh],[data-cloud-action=reload],[data-port-refresh]','refresh'],
+      ['[data-notes-action=new-document]','filePlus'],['[data-notes-action=new-folder]','folderPlus'],
+      ['[data-notes-action=settings],[data-db-action=edit-connection]','settings'],
+      ['[data-db-action=test],[data-db-action=test-draft]','wifi'],
+      ['[data-db-action=delete-connection]','trash'],
+      ['[data-db-action=new-tab],[data-terminal-new]','plus'],
+      ['[data-db-side=explorer]','folder'],['[data-db-side=history]','recent'],['[data-db-side=favorites]','star'],
+      ['[data-studio=upload]','upload'],['[data-studio=download]','download'],
+      ['[data-studio=terminal]','terminal'],['[data-studio=git-fetch]','refresh'],
+      ['[data-studio=git-pull]','download'],['[data-studio=git-push]','upload'],
+      ['[data-run=stop]','stop'],['[data-run=restart]','refresh'],['[data-run=delete]','trash'],
+      ['[data-browser=reload]','refresh'],['[data-browser=close]','close'],['[data-browser=back]','back'],['[data-browser=forward]','arrowRight'],
+      ['#assistant-delete-open,#assistant-delete-current','trash'],
+      ['#assistant-settings-open','settings'],['#assistant-new','plus'],
+      ['#github-copy','clip'],['#home-edit','edit']
+    ];
+    for(const [selector,name] of actions)for(const button of document.querySelectorAll(selector)){
+      if(!button.matches('button')||button.querySelector('svg,input,select,textarea'))continue;
+      const text=button.textContent.trim(),label=button.getAttribute('aria-label')||button.title||text;
+      if(!text||!label)continue;
+      button.setAttribute('aria-label',label);button.title=label;
+      button.classList.add('ui-density-action');
+      if(['refresh','trash','stop','back','arrowRight'].includes(name))button.classList.add('ui-density-icon');
+      button.innerHTML=icon(name)+`<span class="ui-density-label">${escape(text.replace(/^[＋+⚙]\s*/,''))}</span>`;
+    }
+  }
+  function observeActions(){
+    compactActions();let scheduled=false;
+    new MutationObserver(records=>{
+      if(scheduled||!records.some(record=>record.type==='childList'&&(record.target.parentElement?.closest('button')||[...record.addedNodes].some(node=>node.nodeType===1&&(node.matches('button')||node.querySelector('button'))))))return;
+      scheduled=true;window.setTimeout(()=>{scheduled=false;if(window.document?.body)compactActions();},0);
+    }).observe(document.body,{childList:true,subtree:true});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',observeActions,{once:true});else observeActions();
   document.addEventListener('click', event => document.querySelectorAll('.ui-menu[open]').forEach(menu => {if (!menu.contains(event.target)) menu.open=false;}));
   document.addEventListener('keydown', event => {if(event.key==='Escape')document.querySelectorAll('.ui-menu[open]').forEach(menu=>{menu.open=false;menu.querySelector('summary').focus();});});
   let tooltip;

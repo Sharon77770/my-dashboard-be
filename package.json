@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "scripts": { "check:studio": "node scripts/check-studio.mjs" },
+  "devDependencies": {
+    "playwright": "^1.64.0"
+  }
+}

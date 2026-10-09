@@ -408,7 +408,10 @@ def handle(request):
     # Serialize editor/Git/Codex mutations across HTTP sessions on this SSH account.
     lockdir = Path.home() / '.cache/personal-workspace'
     lockdir.mkdir(parents=True, exist_ok=True, mode=0o700)
-    lock = (lockdir / (hashlib.sha256(str(root).encode()).hexdigest() + '.lock')).open('w')
+    # Process lifecycle has its own serialization: a Codex turn holds the editor
+    # lock while invoking its process tool, so reusing that lock deadlocks restart.
+    suffix = '.process.lock' if action.startswith('run-') else '.lock'
+    lock = (lockdir / (hashlib.sha256(str(root).encode()).hexdigest() + suffix)).open('w')
     try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError: raise Failure('이 작업 폴더에서 다른 작업이 진행 중입니다.', 409)
     with lock:

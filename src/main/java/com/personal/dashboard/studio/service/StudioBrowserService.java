@@ -48,9 +48,23 @@ public class StudioBrowserService {
 
   @PreAuthorize("hasRole('OWNER')")
   public synchronized Map<String, Object> action(String owner, Input input) {
+    return action(owner, input, false);
+  }
+
+  @PreAuthorize("hasRole('OWNER')")
+  public synchronized Map<String, Object> toolAction(String owner, Input input) {
+    return action(owner, input, true);
+  }
+
+  private Map<String, Object> action(String owner, Input input, boolean projectOnly) {
     var device = catalog.requireDevice(input.deviceId());
     var key = new Key(owner, device.id(), input.root());
     var entry = pages.get(key);
+    if (entry != null && !entry.page.connected()) {
+      entry.page.close();
+      pages.remove(key);
+      entry = null;
+    }
     if (input.action().equals("close")) {
       if (entry != null) {
         entry.page.close();
@@ -73,11 +87,12 @@ public class StudioBrowserService {
     }
     entry.touched = System.currentTimeMillis();
     var page = entry.page;
+    if (projectOnly || input.action().equals("open")) page.projectOnly(projectOnly);
     switch (input.action()) {
       case "open" -> page.navigate(device, input.url());
       case "back" -> page.history(-1);
       case "forward" -> page.history(1);
-      case "reload" -> page.command("Page.reload", Map.of());
+      case "reload" -> page.navigateCommand("Page.reload", Map.of());
       case "click" -> {
         if (input.x() == null || input.y() == null)
           throw new WorkspaceException(400, "클릭 좌표가 필요합니다.");

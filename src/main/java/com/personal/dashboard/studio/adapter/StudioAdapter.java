@@ -31,7 +31,31 @@ public class StudioAdapter {
       String url,
       String code,
       AssistantDto.Event assistant,
-      Long sequence) {}
+      Long sequence,
+      ToolCall tool) {}
+
+  public record ToolCall(String id, String name, JsonNode arguments) {}
+
+  /** Sends a host-validated dynamic tool result over the existing private helper channel. */
+  public void replyTool(Execution execution, String id, boolean success, Object output)
+      throws IOException {
+    String encoded = json.writeValueAsString(output);
+    if (encoded.length() > 64000)
+      output = java.util.Map.of("truncated", true, "text", encoded.substring(0, 64000));
+    execution.send(
+        (json.writeValueAsString(
+                    java.util.Map.of(
+                        "type",
+                        "tool-result",
+                        "requestId",
+                        id,
+                        "success",
+                        success,
+                        "output",
+                        output))
+                + "\n")
+            .getBytes(StandardCharsets.UTF_8));
+  }
 
   private final SshAdapter ssh;
   private final ObjectMapper json;

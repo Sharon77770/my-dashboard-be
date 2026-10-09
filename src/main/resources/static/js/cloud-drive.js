@@ -39,7 +39,7 @@ window.WorkspaceCloud=(()=>{
    if(sort==='size')return (b.size||0)-(a.size||0);
    return name(a.path).localeCompare(name(b.path),'ko',{numeric:true});
   });
-  $('[data-cloud-location]').textContent=trash?'휴지통':path==='/'?'내 드라이브':name(path);
+  $('[data-cloud-location]').textContent=trash?'휴지통':'내 드라이브';
   root.classList.toggle('cloud-at-root',!trash&&path==='/');
   const crumbs=[{path:'/',label:'내 드라이브'}];let cursor='';for(const part of path.split('/').filter(Boolean)){cursor+='/'+part;crumbs.push({path:cursor,label:part});}
   $('[data-cloud-crumbs]').innerHTML=trash?'휴지통':crumbs.map(part=>`<button data-cloud-path="${esc(part.path)}">${esc(part.label)}</button>`).join('<span aria-hidden="true">/</span>');
@@ -52,9 +52,9 @@ window.WorkspaceCloud=(()=>{
    const id=trash?entry.id:entry.path,fileName=name(entry.path);
    const type=trash?entry.path:entry.directory?'폴더':fileName.split('.').pop().toUpperCase()+' 파일';
    const modified=date(entry.modified||entry.deletedAt),mobileDate=shortDate(entry.modified||entry.deletedAt);
-   return `<article class="cloud-item ${selected.has(id)?'selected':''}" data-live-key="${esc(id)}" data-cloud-item="${esc(id)}"><label class="cloud-select-hit"><input type="checkbox" data-cloud-select="${esc(id)}" aria-label="${esc(fileName)} 선택" ${selected.has(id)?'checked':''}></label><button class="cloud-item-open" data-cloud-open="${esc(id)}"><span class="cloud-icon ${entry.directory?'cloud-folder-icon':'cloud-file-icon'}" aria-hidden="true">${window.WorkspaceUI.icon(entry.directory?'folder':'file')}</span><span><b>${esc(fileName)}</b><small class="cloud-item-type">${esc(type)}</small><small class="cloud-mobile-meta">${esc(type)}${entry.directory?'':' · '+bytes(entry.size||0)} · ${mobileDate}</small></span></button><span class="cloud-item-size">${entry.directory?'—':bytes(entry.size||0)}</span><time>${modified}</time><button class="ghost cloud-item-info" data-cloud-info="${esc(id)}" aria-label="${esc(fileName)} 상세 정보">${window.WorkspaceUI.icon('info')}</button></article>`;
+   return `<article class="cloud-item ${selected.has(id)?'selected':''}" data-live-key="${esc(id)}" data-cloud-item="${esc(id)}"><label class="cloud-select-hit"><input type="checkbox" data-cloud-select="${esc(id)}" aria-label="${esc(fileName)} 선택" ${selected.has(id)?'checked':''}></label><button class="cloud-item-open" data-cloud-open="${esc(id)}"><span class="cloud-icon ${entry.directory?'cloud-folder-icon':'cloud-file-icon'}" aria-hidden="true">${window.WorkspaceUI.icon(entry.directory?'folder':'file')}</span><span><b>${esc(fileName)}</b><small class="cloud-item-type">${esc(type)}</small><small class="cloud-mobile-meta">${esc(type)}${entry.directory?'':' · '+bytes(entry.size||0)} · ${mobileDate}</small></span></button><span class="cloud-type-column">${esc(type)}</span><span class="cloud-item-size">${entry.directory?'—':bytes(entry.size||0)}</span><time>${modified}</time><button class="ghost cloud-item-info" data-cloud-info="${esc(id)}" aria-label="${esc(fileName)} 상세 정보">${window.WorkspaceUI.icon('info')}</button></article>`;
   }).join('')||window.WorkspaceUI.emptyState(trash?'휴지통이 비어 있습니다.':query?'검색 결과가 없습니다.':'폴더가 비어 있습니다.',trash?'':'파일을 끌어 놓아 업로드할 수 있습니다.','files'),options);
-  buttons();
+  drawFolders();buttons();
  }
  async function refresh(options={}){
   const version=++generation;if(!options.quiet){page=0;selected.clear();$('[data-cloud-items]').innerHTML=window.WorkspaceUI.skeleton(3);tell('');}
@@ -62,12 +62,13 @@ window.WorkspaceCloud=(()=>{
    const result=await ui.api(trash?'/cloud/trash':`/cloud?path=${encodeURIComponent(path)}&query=${encodeURIComponent($('[data-cloud-filter]').value)}`,'GET',undefined,options);
    if(version!==generation)return;
    entries=trash?result:result.entries;
+   if(!trash&&!$('[data-cloud-filter]').value)folderCache.set(path,entries.filter(entry=>entry.directory));
    if(options.quiet){const ids=new Set(entries.map(entry=>trash?entry.id:entry.path));for(const id of selected)if(!ids.has(id))selected.delete(id);}
    if(!trash)$('[data-cloud-space]').textContent='서버 저장 공간: '+bytes(result.usableSpace)+' 여유 / '+bytes(result.totalSpace);
    draw(options);if(!options.quiet)tell(result.truncated?'처리 한도에 도달했습니다. 더 작은 폴더에서 검색하세요.':'');
   }catch(error){if(options.quiet)throw error;if(version===generation){$('[data-cloud-items]').innerHTML=window.WorkspaceUI.emptyState('파일을 불러오지 못했습니다.',error.message,'warning');tell(error.message);}}
  }
-  async function navigate(target){if(busy){tell('진행 중인 작업이 끝난 뒤 이동하세요.');return;}trash=false;path=target;$('[data-cloud-filter]').value='';root.classList.remove('cloud-search-open','cloud-selection-open');$('[data-cloud-action="search-toggle"]').setAttribute('aria-expanded','false');await refresh();}
+  async function navigate(target){if(busy){tell('진행 중인 작업이 끝난 뒤 이동하세요.');return;}window.WorkspaceDrawers?.close();trash=false;path=target;$('[data-cloud-filter]').value='';root.classList.remove('cloud-search-open','cloud-selection-open');$('[data-cloud-action="search-toggle"]').setAttribute('aria-expanded','false');await refresh();}
  async function batch(ids,operation){
   if(busy)return;busy=true;buttons();const failures=[];let completed=0;
   try{for(const id of ids){try{await operation(id);completed++;}catch(error){failures.push(name(id)+': '+error.message);}tell(`${completed} / ${ids.length} 처리 중…`);}}
@@ -187,6 +188,7 @@ window.WorkspaceCloud=(()=>{
  }
  async function click(event){
   const button=event.target.closest('button');if(!button)return;
+  if(button.dataset.cloudExpand!==undefined)return expandFolder(button.dataset.cloudExpand);
   if(button.dataset.cloudPath!==undefined)return navigate(button.dataset.cloudPath);
   if(button.dataset.cloudOpen!==undefined){if(trash){selected=new Set([button.dataset.cloudOpen]);draw();return;}return preview(button.dataset.cloudOpen);}
   if(button.dataset.cloudInfo!==undefined){const item=entries.find(entry=>(trash?entry.id:entry.path)===button.dataset.cloudInfo);ui.editor('상세 정보',`<dl><dt>경로</dt><dd>${esc(item.path)}</dd><dt>종류</dt><dd>${item.directory?'폴더':'파일'}</dd><dt>크기</dt><dd>${item.directory?'폴더 다운로드는 ZIP으로 제공됩니다.':bytes(item.size||0)}</dd><dt>${trash?'삭제':'수정'} 시각</dt><dd>${date(item.modified||item.deletedAt)}</dd></dl>`,async()=>{},'닫기');return;}
@@ -231,6 +233,36 @@ window.WorkspaceCloud=(()=>{
   if(action==='restore')return batch([...selected],id=>ui.api('/cloud/trash/'+id+'/restoration','POST'));
   if(action==='purge'||action==='empty'){const ids=action==='empty'?entries.map(item=>item.id):[...selected];ui.confirmAction('영구 삭제',ids.length+'개 항목을 영구 삭제합니다. 복구할 수 없습니다.',()=>batch(ids,id=>ui.api('/cloud/trash/'+id,'DELETE')));}
  }
+ // Cache only folders the user has visited or expanded; never crawl the drive recursively.
+ const folderCache=new Map(),expandedFolders=new Set(['/']);
+ function drawFolders(){
+  const tree=$('[data-cloud-tree]');if(!tree)return;
+  function branch(parent,depth){return (folderCache.get(parent)||[]).map(entry=>{
+   const expanded=expandedFolders.has(entry.path);
+   return `<div class="cloud-tree-row" style="--tree-depth:${depth}"><button data-cloud-expand="${esc(entry.path)}" aria-expanded="${expanded}" aria-label="${esc(name(entry.path))} 하위 폴더">${window.WorkspaceUI.icon('chevron')}</button><button data-cloud-path="${esc(entry.path)}" aria-current="${!trash&&path===entry.path}" title="${esc(entry.path)}">${window.WorkspaceUI.icon('folder')}<span>${esc(name(entry.path))}</span></button></div>${expanded?branch(entry.path,depth+1):''}`;
+  }).join('');}
+  tree.innerHTML=branch('/',0);
+ }
+ async function expandFolder(target){
+  if(expandedFolders.has(target)){expandedFolders.delete(target);drawFolders();return;}
+  const result=await ui.api('/cloud?path='+encodeURIComponent(target));
+  folderCache.set(target,result.entries.filter(entry=>entry.directory));expandedFolders.add(target);drawFolders();
+ }
+ function configureExplorer(){
+  root.classList.add('cloud-explorer');
+  const header=$('.cloud-header'),create=$('.cloud-create'),selection=$('.cloud-selection'),options=$('.cloud-view-options');
+  header.insertBefore($('[data-cloud-crumbs]'),$('[data-cloud-search]'));
+  options.querySelector('.section-hint')?.remove();
+  const toolbar=document.createElement('div');toolbar.className='cloud-commandbar';header.after(toolbar);
+  toolbar.append(create,selection,options);
+  options.prepend($('[data-cloud-action="all"]'));
+  const menu=$('.cloud-selection [data-cloud-normal] .ui-menu-content');menu.append($('[data-cloud-overwrite]').closest('label'));
+  const columns=document.createElement('div');columns.className='cloud-list-columns';
+  columns.innerHTML='<span></span><span>이름</span><span>유형</span><span>크기</span><span>수정일</span><span></span>';
+  $('[data-cloud-items]').before(columns);
+  const folders=document.createElement('nav');folders.dataset.cloudTree='';folders.setAttribute('aria-label','폴더 탐색');
+  $('.cloud-sidebar [data-cloud-action="home"]').after(folders);
+ }
  return {
   init(helpers){
    ui=helpers;root=document.getElementById('cloud');if(!root)return;
@@ -263,6 +295,7 @@ window.WorkspaceCloud=(()=>{
    root.querySelectorAll('.cloud-action-menu>summary').forEach(control=>{
     control.innerHTML=window.WorkspaceUI.icon('more')+'<span class="cloud-action-label">더 보기</span>';
    });
+   configureExplorer();
    $('[data-cloud-overwrite]').setAttribute('aria-label','같은 이름 업로드 덮어쓰기');
    root.addEventListener('click',event=>Promise.resolve(click(event)).catch(error=>tell(error.message)));
    root.addEventListener('change',event=>{const id=event.target.dataset.cloudSelect;if(id!==undefined){if(event.target.checked)selected.add(id);else selected.delete(id);event.target.closest('.cloud-item').classList.toggle('selected',event.target.checked);buttons();}});

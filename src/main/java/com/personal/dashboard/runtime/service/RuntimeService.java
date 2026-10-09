@@ -27,6 +27,8 @@ public class RuntimeService {
     public volatile AutoCloseable connection;
     public volatile boolean attached;
     public String root;
+    public volatile long detachedAt;
+    public volatile RetainedTerminal terminal;
 
     RuntimeSession(
         String ownerId, DeviceRecord device, String kind, String label, int width, int height) {
@@ -118,11 +120,42 @@ public class RuntimeService {
     return runtime;
   }
 
+  /** Restores discoverable Studio handles only within the current authenticated login. */
+  @PreAuthorize("hasRole('OWNER')")
+  public synchronized List<StudioSessionView> studioSessions(
+      String ownerId, String deviceId, String root) {
+    expirePending();
+    return sessions.values().stream()
+        .filter(
+            runtime ->
+                runtime.ownerId.equals(ownerId)
+                    && runtime.root != null
+                    && runtime.device.id().equals(deviceId)
+                    && runtime.root.equals(root)
+                    && runtime.terminal != null)
+        .sorted(Comparator.comparingLong(runtime -> runtime.createdAt))
+        .map(
+            runtime ->
+                new StudioSessionView(
+                    runtime.id, runtime.device.id(), runtime.root, runtime.attached))
+        .toList();
+  }
+
   public RuntimeSession owned(String id, String ownerId) {
     RuntimeSession runtime = sessions.get(id);
     if (runtime == null || !runtime.ownerId.equals(ownerId))
       throw new WorkspaceException(404, "실행 세션을 찾을 수 없습니다.");
     return runtime;
+  }
+
+  /**
+   * Retains only Studio project shells, bounded by the login session and a 30 minute idle lease.
+   */
+  public synchronized void detachTerminal(RuntimeSession runtime) {
+    if (sessions.get(runtime.id) != runtime) return;
+    if (runtime.terminal != null) runtime.terminal.detach();
+    runtime.attached = false;
+    runtime.detachedAt = System.currentTimeMillis();
   }
 
   public void closeOwned(String id, String ownerId) {
@@ -160,7 +193,11 @@ public class RuntimeService {
   public void expirePending() {
     sessions.values().stream()
         .filter(
-            runtime -> !runtime.attached && System.currentTimeMillis() - runtime.createdAt > 60000)
+            runtime ->
+                !runtime.attached
+                    && (runtime.terminal == null
+                        ? System.currentTimeMillis() - runtime.createdAt > 60000
+                        : System.currentTimeMillis() - runtime.detachedAt > 1800000))
         .map(runtime -> runtime.id)
         .toList()
         .forEach(this::close);

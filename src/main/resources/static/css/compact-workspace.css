@@ -1,0 +1,119 @@
+/* Shared density and task hierarchy. Content editors retain their own type scale. */
+.page-head{gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.page-head h1,.launcher-head h1{font-size:var(--type-page);line-height:1.25}
+.page-head .eyebrow{display:none}
+.page-head .actions{margin-left:auto;gap:4px;flex-wrap:wrap}
+.section-hint{font-size:12px;line-height:1.5;margin-block:8px}
+.view :is(.panel h2,.panel h3){font-size:var(--type-section)}
+.view :is(.tool-bar,.terminal-head,.planner-toolbar,.cloud-toolbar,.db-toolbar,.studio-toolbar){gap:4px}
+.ui-density-action{gap:5px;white-space:nowrap}
+.ui-density-action>.ui-icon{width:15px;height:15px}
+.ui-density-label{overflow:hidden;text-overflow:ellipsis}
+.ui-density-action.ui-density-icon{width:30px;min-width:30px;padding:4px}
+.ui-density-icon>.ui-density-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+
+/* Home: resume work first, with quiet status summaries alongside it. */
+.launcher-home{padding:20px 24px 28px}
+.launcher-head{margin-bottom:14px;gap:12px}
+.home-command{min-height:36px;margin-bottom:18px;padding:6px 10px;font-size:12px}
+.home-overview{gap:12px;margin-bottom:18px}
+.overview-module{padding:12px}
+.overview-module>header{margin-bottom:8px}
+.launcher-shortcut .launcher-icon{width:36px;height:36px}
+.app-library-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;padding-block:10px}
+.app-library-group>h3{grid-column:1/-1;margin:0 4px 4px}
+.app-library-group>div{min-width:0;min-height:40px}
+.app-library-group .launcher-shortcut{min-width:0;padding:4px;gap:8px}
+.app-library-group .launcher-label{font-size:12px}
+.app-library-group .launcher-icon{width:28px;height:28px}
+.recent-list button,.device-mini button{min-height:42px;padding:6px 4px}
+.main-copy b,.device-mini b{font-size:13px}
+.clip-item>button:first-child{padding:10px 8px}
+
+/* Infrastructure: scan health, select a resource, then inspect its details. */
+.service-list-summary{padding:12px 16px;gap:20px;flex-wrap:wrap}
+.service-list-summary strong{font-size:24px}
+.service-list-controls{padding:12px 0;gap:6px}
+.service-detail-head h2{font-size:20px}
+.service-tile{min-height:64px;padding:10px 12px}
+.service-actions{gap:6px}
+.service-actions button,.service-actions a{font-size:12px;padding:5px 8px}
+.telemetry-card{padding:12px}
+.telemetry-toolbar{gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.device-card{padding:14px}
+.device-card header b{font-size:14px}
+.device-card footer{gap:4px;flex-wrap:wrap}
+.github-layout{gap:12px;margin-top:12px}
+.github-layout .panel{padding:12px}
+.github-layout h2{font-size:14px}
+.github-tabs{gap:4px}
+
+/* Files, SQL and documents: compact navigation around the working surface. */
+.cloud-header{gap:8px;padding:10px 12px}
+.cloud-header h1{font-size:18px}
+.cloud-toolbar{padding:6px 10px;gap:4px}
+.notes-toolbar{padding:6px 10px;gap:6px}
+.notes-welcome{padding:24px 20px}
+.notes-welcome h1{font-size:22px}
+.notes-welcome p{font-size:13px}
+.db-sidebar{padding:10px 8px;gap:4px}
+.db-main{padding-inline:12px}
+.db-sidebar-actions{flex-wrap:wrap;gap:4px}
+.db-sidebar-actions button{font-size:11px;padding:4px 6px}
+.db-toolbar,.db-result-head{gap:6px}
+.planner-toolbar{margin-bottom:8px;gap:8px}
+.planner-toolbar h2{font-size:14px}
+.military-welcome{padding:32px 12px}
+.military-welcome h2{font-size:22px}
+.assistant-window-head{padding:10px 14px}
+.assistant-sidebar-head{padding:10px 12px}
+.assistant-welcome h2{font-size:22px}
+.assistant-welcome p{font-size:13px}
+.assistant-message{font-size:14px}
+.studio-tool-actions{gap:4px}
+#logs.active{gap:6px}
+.log-toolbar{gap:6px}
+.log-toolbar h1{font-size:16px}
+.log-display-options{padding:6px 8px}
+
+@media(min-width:701px){
+ .main{grid-template-columns:48px minmax(0,1fr);grid-template-rows:44px minmax(0,1fr)}
+ .workspace-bar{padding-inline:10px;gap:6px}
+ .workspace-bar .home-button{font-size:12px;gap:6px;min-height:30px}
+ .workspace-bar .workspace-search{min-height:28px;font-size:12px;min-width:180px}
+ .activity-rail{padding-inline:4px}
+ .activity-rail button{width:36px;min-width:36px;min-height:36px;padding:6px}
+ .view:not(.launcher-home):not(#studio):not(#assistant):not(#device-codex):not(#notes):not(#cloud){padding:20px}
+ .view :is(.tool-bar,.terminal-head,.planner-toolbar,.cloud-toolbar,.db-toolbar,.studio-toolbar) button{min-height:28px;font-size:12px;padding:4px 7px}
+ .github-layout{grid-template-columns:minmax(190px,240px) minmax(0,1fr)}
+}
+@media(max-width:1000px){
+ .page-head .ui-action-label,.ui-density-action:not(.primary)>.ui-density-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .ui-density-action:not(.primary){padding-inline:7px;min-width:30px}
+ .service-list-controls{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ .service-list-controls>label:first-child{grid-column:1/-1}
+}
+@media(max-width:700px){
+ .launcher-home{padding:14px 12px 20px}
+ .launcher-head h1,.page-head h1{font-size:18px}
+ .app-library-group{gap:4px}
+ .app-library-group .drawer-add{width:28px;min-width:28px}
+ .page-head{margin-bottom:12px;gap:8px}
+ .page-head>.actions{max-width:100%;flex-wrap:nowrap}
+ .view .page-head button,.ui-density-action.ui-density-icon,.view .ui-density-action{min-height:40px;min-width:40px}
+ .ui-density-action>.ui-icon{width:17px;height:17px}
+ .home-command{min-height:40px}
+ .overview-module{padding:10px}
+ .service-list-summary{padding:10px 12px;gap:14px}
+ .service-list-summary strong{font-size:20px}
+ .github-layout{grid-template-columns:minmax(0,1fr)}
+ .github-layout .panel{padding:10px}
+ .cloud-header{padding:8px}
+ .db-main{padding-inline:8px}
+ .notes-welcome{padding:20px 12px}
+ .planner-toolbar{align-items:flex-start}
+ .planner-toolbar>.actions{max-width:100%;gap:4px}
+}
+@media(pointer:coarse){
+ .view .ui-density-action,.ui-density-action.ui-density-icon{min-height:44px;min-width:44px}
+}

@@ -1,4 +1,6 @@
-#studio .studio-bottom{flex:0 0 var(--bottom-height,280px);min-height:0;display:flex;flex-direction:column;border-top:1px solid var(--border-default);overflow:hidden}
+#studio .studio-editor{overflow:hidden}
+#studio #studio-folder-status{height:3.2em;line-height:1.6;overflow:auto}
+#studio .studio-editor>.studio-bottom{flex:0 1 var(--bottom-height,280px);min-height:0;min-width:0;display:flex;flex-direction:column;border-top:1px solid var(--border-default);overflow:hidden}
 #studio .studio-bottom[hidden]{display:none}
 #studio .studio-bottom.collapsed{flex-basis:38px}
 #studio .studio-bottom.collapsed .studio-bottom-body{display:none}
@@ -8,12 +10,12 @@
 #studio .studio-bottom-tabs button[aria-selected=true]{color:var(--accent);border-bottom:2px solid var(--accent)}
 #studio .studio-bottom-body{flex:1;min-height:0;overflow:hidden}
 #studio [data-bottom-page]{height:100%;overflow:auto;min-width:0}
-#studio [data-bottom-page=Terminal]{display:flex;flex-direction:column}
+#studio [data-bottom-page=Terminal]{display:flex;overflow:hidden}
 #studio [data-bottom-page][hidden]{display:none}
 #studio .studio-tool-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 8px;flex:none}
 #studio .studio-tool-actions button{font-size:12px}
 #studio .studio-tool-actions input{min-width:90px;flex:1}
-#studio .studio-terminals{flex:1;min-height:0}
+#studio .studio-terminals{flex:1;min-width:0;min-height:0;height:100%}
 #studio .studio-terminal-session{height:100%;display:flex;flex-direction:column}
 #studio .studio-terminal-session[hidden]{display:none}
 #studio .studio-terminal-screen{flex:1;min-height:0;padding:4px 8px;overflow:hidden}
@@ -33,3 +35,14 @@
 #studio [data-env-list]{display:flex;flex-wrap:wrap;gap:8px;padding:8px;font-size:12px}
 #studio .studio-api-response{padding:8px;border-top:1px solid var(--border-subtle)}
 @media(max-width:700px){#studio .studio-api-fields{grid-template-columns:1fr}#studio .studio-bottom-tabs button{padding:6px}}
+
+/* Session controls share a narrow right rail; no toolbar consumes terminal rows. */
+#studio .studio-terminal-sidebar{flex:0 0 112px;max-width:30%;min-width:0;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:6px;border-left:1px solid var(--border-subtle)}
+#studio .studio-terminal-sidebar button{width:100%;min-width:0;padding:6px 4px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#studio .studio-terminal-tabs{display:flex;flex-direction:column;gap:4px}
+#studio .studio-terminal-tabs button[aria-pressed=true]{color:var(--accent);background:var(--bg-active);border-color:var(--accent)}
+#studio .studio-terminal-controls{margin-top:auto}
+#studio .studio-terminal-control{display:flex;flex-direction:column;gap:4px}
+#studio .studio-terminal-control[hidden]{display:none}
+#studio .studio-terminal-control [role=status]{font-size:10px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:4px 0}
+@media(max-width:700px){#studio .studio-terminal-sidebar{flex-basis:84px;padding:4px}}

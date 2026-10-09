@@ -1,12 +1,12 @@
 const {JSDOM}=require('jsdom'),fs=require('node:fs'),assert=require('node:assert/strict');
-const dom=new JSDOM('<div id="studio"><details class="studio-output"></details></div>',{url:'http://localhost',runScripts:'outside-only'}),w=dom.window;
+const dom=new JSDOM('<div id="studio"><div class="studio-workbench"><aside class="studio-explorer"></aside><section class="studio-editor"><div class="studio-editor-foot"></div></section><aside class="studio-inspector"></aside></div><details class="studio-output"></details></div>',{url:'http://localhost',runScripts:'outside-only'}),w=dom.window;
 w.ResizeObserver=class{observe(){}};let closed=0;const calls=[];
 w.WebSocket=class{constructor(){this.readyState=1;}close(){closed++;}send(){}};
-w.Terminal=class{loadAddon(){}open(){}onData(){}onResize(){}write(){}focus(){}dispose(){}};w.FitAddon={FitAddon:class{fit(){}}};
+w.Terminal=class{loadAddon(){}open(){}onData(){}onResize(){}write(){}reset(){}focus(){}dispose(){}};w.FitAddon={FitAddon:class{fit(){}}};
 w.eval(fs.readFileSync('src/main/resources/static/js/studio-workbench.js','utf8'));
 let project={deviceId:'local',root:'/app/data/files/demo'};
-const bench=w.StudioWorkbench(w.document.querySelector('#studio'),{project:()=>project,api:async(path,method,body)=>{calls.push({path,method,body});return{id:'s'+calls.length};},confirm:async()=>true,input(){},toast:message=>{throw Error(message);}});
-(async()=>{bench.projectChanged();await bench.newTerminal();await bench.newTerminal();assert.equal(calls.length,2);assert.equal(calls[0].body.root,project.root);
+const bench=w.StudioWorkbench(w.document.querySelector('#studio'),{project:()=>project,api:async(path,method,body)=>{if(method==='GET')return [];calls.push({path,method,body});return{id:'s'+calls.length};},confirm:async()=>true,input(){},toast:message=>{throw Error(message);}});
+(async()=>{assert.equal(w.document.querySelector('.studio-bottom').parentElement,w.document.querySelector('.studio-editor'));bench.projectChanged();await bench.newTerminal();await bench.newTerminal();assert.equal(calls.length,2);assert.equal(calls[0].body.root,project.root);
 bench.show('Output');w.document.querySelector('[data-bottom-fold]').click();bench.show('Terminal');assert.equal(closed,0,'hiding panels must not close shells');
 project={deviceId:'ssh',root:'/home/user/demo'};bench.projectChanged();await bench.newTerminal();assert.equal(calls[2].body.targetId,'ssh');assert.equal(calls[2].body.root,project.root);assert.equal(closed,0);
 console.log('PASS Studio embedded terminal: scoped sessions, multiple terminals and retained sockets on panel/project switches');dom.window.close();})().catch(error=>{console.error(error);process.exitCode=1;dom.window.close();});

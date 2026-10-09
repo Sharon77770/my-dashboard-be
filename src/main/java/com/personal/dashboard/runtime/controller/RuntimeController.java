@@ -28,4 +28,10 @@ public class RuntimeController {
     service.closeOwned(id, session.getId());
     return ResponseEntity.noContent().build();
   }
+
+  @GetMapping
+  public java.util.List<StudioSessionView> list(
+      @RequestParam String deviceId, @RequestParam String root, HttpSession session) {
+    return service.studioSessions(session.getId(), deviceId, root);
+  }
 }

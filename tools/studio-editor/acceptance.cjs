@@ -37,10 +37,17 @@ async function main(){
   await save('app.py',app);await save('test_app.py',"import unittest\nfrom app import message\nclass AppTest(unittest.TestCase):\n    def test_message(self):self.assertEqual('fixed',message())\n");
   await job('git-init');await job('git-identity',{name:'IDE fixture',email:'fixture@example.invalid'});for(const path of ['app.py','test_app.py'])await job('git-stage',{path});await job('git-commit',{message:'Isolated acceptance baseline'});
   const runtime=await api('/sessions',{kind:'TERMINAL',targetId:project.deviceId,root:project.root,width:1200,height:480});
-  const ws=new WebSocket(base.replace('http','ws')+'/ws/runtime/'+runtime.id,{headers:{Cookie:[...cookies].map(([k,v])=>k+'='+v).join('; '),Origin:base}});let output='';
+  let ws=new WebSocket(base.replace('http','ws')+'/ws/runtime/'+runtime.id,{headers:{Cookie:[...cookies].map(([k,v])=>k+'='+v).join('; '),Origin:base}});let output='';
   await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('PTY ready timeout')),15000);ws.on('error',reject);ws.on('message',data=>{const text=data.toString();output+=text;if(text==='{"type":"ready"}'){clearTimeout(timeout);resolve();}});});
   ws.send(JSON.stringify({type:'input',data:'pwd; python3 app.py\r'}));
   await until(()=>job('ports'),value=>value.tools.ports.some(port=>port.port===18765&&port.protocol==='HTTP'&&port.project));assert(output.includes(project.root));console.log('PASS actual embedded-terminal backend: project cwd, dev server, automatic HTTP port detection');
+  if(process.env.STUDIO_TEST_RECONNECT==='true'){
+    const before=(await job('ports')).tools.ports.find(port=>port.port===18765&&port.project).pids;
+    await new Promise(resolve=>{ws.once('close',resolve);ws.close();});await pause(500);
+    ws=new WebSocket(base.replace('http','ws')+'/ws/runtime/'+runtime.id,{headers:{Cookie:[...cookies].map(([k,v])=>k+'='+v).join('; '),Origin:base}});
+    await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('PTY reconnect timeout')),15000);ws.on('error',reject);ws.on('message',data=>{if(data.toString()==='{"type":"ready"}'){clearTimeout(timeout);resolve();}});});
+    assert.deepEqual((await job('ports')).tools.ports.find(port=>port.port===18765&&port.project).pids,before);console.log('PASS disconnected PTY reconnect retains same dev server PID');
+  }
   const browser=async(action,extra={})=>api('/studio/browser',{...project,action,...extra});
   await browser('open',{url:'http://127.0.0.1:18765/'});let preview=await until(()=>browser('snapshot'),value=>value.title==='IDE fixture'&&value.text.includes('broken')&&value.consoleErrors.some(error=>error.includes('fixture console marker'))&&value.networkFailures.length>0);
   assert(preview.image.startsWith('/9j/'));console.log('PASS actual Chromium screen, title/text, console error and failed HTTP request');
@@ -71,5 +78,6 @@ async function main(){
   await browser('reload');preview=await until(()=>browser('snapshot'),value=>value.text.includes('fixed'));exchange=await api('/studio/api/send',request);assert.equal(JSON.parse(exchange.response.body).message,'fixed');
   const diff=await job('git-diff',{path:'app.py'});assert(diff.diff.includes('fixed'));console.log('PASS tests, process restart, Chromium/API revalidation, actual git diff');
   await job('run-stop',{path:run.id});await browser('close');console.log('Fixture project:',project.root);
+  if(process.env.STUDIO_TEST_LANGUAGES==='true')await require('./language-fixtures.cjs')({job,save,until,getProject:()=>project,setProject:value=>{project=value;}});
 }
 main().then(()=>process.exit(0)).catch(error=>{console.error('FAIL',error.message);process.exit(1);});

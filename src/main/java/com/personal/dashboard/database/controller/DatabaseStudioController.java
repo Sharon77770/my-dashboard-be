@@ -24,6 +24,11 @@ public class DatabaseStudioController {
     return studio.list();
   }
 
+  @GetMapping("/devices/{deviceId}/containers")
+  public List<DatabaseDto.Container> containers(@PathVariable String deviceId) {
+    return studio.containers(deviceId);
+  }
+
   @PostMapping
   public ResponseEntity<DatabaseDto.ConnectionView> create(
       @Valid @RequestBody DatabaseDto.ConnectionRequest request) {

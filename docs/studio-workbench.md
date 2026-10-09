@@ -4,9 +4,9 @@
 
 ## 하단 패널
 
-Terminal / Problems / Output / Tests / Ports / Browser / API 탭을 제공한다. 경계선을 드래그하거나 키보드 방향키로 높이를 조절한다. 접기 및 프로젝트 전환은 터미널 WebSocket을 닫지 않는다. 명시적인 터미널 닫기, 페이지 새로고침, 네트워크 연결 종료, 로그아웃 시 PTY는 종료된다. 네트워크 재연결은 새 셸이다.
+Terminal / Problems / Output / Tests / Ports / Browser / API 탭은 중앙 에디터 열의 하단에 배치한다. 좌우 Files/Git/Codex 영역은 전체 높이를 유지한다. 경계선을 드래그하거나 키보드 방향키로 높이를 조절하며 중앙 에디터에 최소 공간을 남긴다. 접기 및 프로젝트 전환은 터미널 WebSocket을 닫지 않는다. Studio 프로젝트 터미널은 네트워크 단절 후 30분 동안 같은 셸을 유지하며 기존 핸들로 재연결하면 최근 65,536자 출력을 재생한다. 명시적인 닫기, 셸 종료, 로그아웃, 서버 종료, 재연결 유예 만료 시 정리한다. 같은 로그인 세션에서 새로고침하거나 프로젝트를 다시 열면 서버 목록으로 기존 핸들을 복원한다. 다른 탭이 연결 중인 셸은 자동으로 빼앗지 않으며 해당 탭을 닫은 뒤 재연결할 수 있다.
 
-Terminal은 기존 `/sessions`와 `/ws/runtime/{id}`를 사용한다. 선택한 프로젝트 root를 기존 FileAdapter 경계로 검증한 다음 local Linux PTY의 cwd 또는 SSH 셸의 작업 디렉터리로 지정한다. 다른 장비의 같은 경로는 별도 세션이다.
+Terminal은 기존 `/sessions`와 `/ws/runtime/{id}`를 사용한다. 선택한 프로젝트 root를 기존 FileAdapter 경계로 검증한 다음 local Linux PTY의 cwd 또는 SSH 셸의 작업 디렉터리로 지정한다. 다른 장비의 같은 경로는 별도 세션이다. 세션 목록·생성·이름 변경·재연결·종료는 터미널 내부 우측의 작은 사이드바에 배치한다. 출력 화면은 탭 본문의 전체 높이를 사용하고 사이드바는 별도로 스크롤한다.
 
 ## Run / Tests / Problems / Output
 
@@ -20,7 +20,7 @@ Problems는 Monaco 진단과 출력에서 해석할 수 있는 파일/라인을 
 
 Linux `/proc/net/tcp{,6}`의 listening 포트를 탐지하고 읽을 수 있는 프로세스 cwd/FD를 대조한다. 최대 64개 포트에 짧은 HTTP HEAD를 보내 응답이 HTTP인 경우에만 Preview를 제공한다. 권한상 PID를 읽지 못하거나 IPv6-only/TLS 포트가 HTTP로 확인되지 않으면 TCP로 남는다. 복사 URL은 **대상 장비의 localhost 기준**으로 IDE Browser/API에 사용한다.
 
-Browser는 `workspace.browser-host`/`workspace.browser-port`의 기존 Chromium CDP 서버에 프로젝트 전용 탭을 생성한다. JPEG 실제 화면을 주기적으로 갱신하고 클릭, 기본 키 입력, 스크롤, 뒤로/앞으로/새로고침을 전달한다. 별도 프레임 임베드가 아니므로 대상 사이트의 frame 제한과 무관하다. 콘솔 오류, 실패한 네트워크 요청, title 및 최대 24 KB page text를 수집한다. 파일 업로드/다운로드, 복합 IME 편집, 전체 DevTools UI는 제공하지 않는다.
+Browser는 `workspace.browser-host`/`workspace.browser-port`의 기존 Chromium CDP 서버에 프로젝트 전용 탭을 생성한다. JPEG 실제 화면을 주기적으로 갱신하고 클릭, 기본 키 입력, 스크롤, 뒤로/앞으로/새로고침을 전달한다. 별도 프레임 임베드가 아니므로 대상 사이트의 frame 제한과 무관하다. 콘솔 오류, 실패한 네트워크 요청, title 및 최대 24 KB page text를 수집한다. 한글 IME는 별도 텍스트 입력란에서 조합한 결과를 전송한다. 원격 필드 안의 직접 조합 편집, 파일 업로드/다운로드, 전체 DevTools UI는 제공하지 않는다.
 
 Chromium은 대시보드와 같은 네트워크 namespace를 사용하는 기존 Compose 구성을 전제로 한다. SSH localhost 미리보기는 지문 검증된 기존 SshAdapter로 서버 loopback 터널을 연다. 서버를 외부로 공개하는 포트 포워딩은 생성하지 않는다. TLS 검증을 끄지 않으므로 터널 URL과 일치하지 않는 인증서는 실패할 수 있다. 로그인 세션별/프로젝트별 탭이며 전체 최대 8개, 30분 유휴 정리한다. Chromium 프로필의 쿠키는 기존 서버 브라우저와 공유된다.
 
@@ -40,6 +40,12 @@ GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS, Params, Headers, JSON/text/form/multipar
 
 local 프로젝트의 CODEX_HOME은 `~/.local/share/personal-workspace/project-codex`이며 assistant 로그인과 분리한다. Linux sandbox용 `bubblewrap`은 dashboard 이미지에 포함한다. SSH 계정에서는 배포 환경에 맞게 설치해야 한다. 실제 기본 컨테이너 권한으로 workspace-write 실행을 검증했으며, 호스트별 user namespace 정책 차이는 별도 확인한다. [공식 sandbox 조건](https://learn.chatgpt.com/docs/sandboxing).
 
-Studio에서 전송한 메시지에는 최근 관리 프로세스/port/tool output, Browser URL/title/text/console/network, API request 개요와 마스킹된 response를 최대 64 KB의 tool observation으로 첨부한다. 외부 페이지/API/출력은 신뢰할 수 없는 데이터다. 이는 관찰 시점의 스냅샷이며 실시간 브라우저 제어 MCP를 새로 제공하는 것은 아니다. 대상 계정에 실제 Codex 로그인이 필요하고 파일 수정은 사용자가 선택한 실행 권한을 따른다.
+Studio에서 전송한 메시지에는 최근 관리 프로세스/port/tool output, Browser URL/title/text/console/network, API request 개요와 마스킹된 response를 최대 64 KB의 tool observation으로 첨부한다. 외부 페이지/API/출력은 신뢰할 수 없는 데이터다. 첨부는 관찰 시점의 스냅샷이고, 아래 동적 도구가 실행 중 최신 Browser/API 결과를 추가로 조회한다. 대상 계정에 실제 Codex 로그인이 필요하고 파일 수정은 사용자가 선택한 실행 권한을 따른다.
+
+새 Studio Codex 대화에는 App Server dynamic tools인 `studio_browser`, `studio_api`, `studio_process`를 등록한다. Browser는 open/snapshot/reload/back/forward/click/text/key/scroll, API는 GET/HEAD/OPTIONS/POST/PUT/PATCH/DELETE와 none/json/text 본문, Process는 list/ports/logs/stop/restart를 제공한다. 현재 job의 로그인 소유자·장비·root로 고정하며 모델이 다른 프로젝트를 지정할 수 없다. 파일 수정 허용 모드에서만 실행하고, Browser/API URL은 현재 프로젝트 프로세스가 실제 사용하는 loopback listening port로 제한한다. Browser 도구 제어 중 다른 origin의 네트워크 요청은 차단한다. 도구 응답은 64,000자로 제한하며 외부 출력은 신뢰할 수 없는 관찰이다. 임의 셸 명령 도구를 추가하지 않고 파일/명령 실행은 기존 Codex sandbox를 사용한다. 기존 관리 프로세스를 재시작할 수 있다.
+
+업데이트 이전 Codex 대화에는 동적 도구가 등록되어 있지 않으므로 실시간 도구를 사용하려면 Studio에서 새 대화를 시작한다. 기존 대화와 기록은 삭제하지 않는다. 서버 Chromium이 재시작되면 끊어진 탭을 정리하고 URL 열기로 다시 연결한다. 이미지 미리보기의 입력칸에 포커스를 둔 후 전용 텍스트 입력란으로 한글 조합·붙여넣기 결과를 전송할 수 있다.
+
+브라우저 이미지는 profile volume의 exclusive flock을 확보한 뒤 이전 컨테이너의 Singleton 잠금 3종만 제거한다. 프로필·로그인은 보존한다. CDP 기동 실패는 컨테이너 실패로 처리하며 9223 `/json/version` healthcheck를 제공한다.
 
 실제 검증 결과와 아직 검증하지 못한 항목은 `studio-ide-validation.md`에 별도로 기록한다.

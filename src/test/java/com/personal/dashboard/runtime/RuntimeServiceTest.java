@@ -83,4 +83,32 @@ class RuntimeServiceTest {
     assertThat(service.owned(second.id(), "second")).isNotNull();
     service.shutdown();
   }
+
+  @Test
+  void detachedStudioShellRetainsOwnershipAndExpires() throws Exception {
+    RuntimeService service = service();
+    var handle = service.create(new SessionRequest("TERMINAL", "local", 800, 600, "/tmp"), "owner");
+    var runtime = service.attach(handle.id(), "owner");
+    var connection = mock(com.personal.dashboard.runtime.adapter.TerminalAdapter.Connection.class);
+    runtime.terminal = new com.personal.dashboard.runtime.adapter.RetainedTerminal(connection);
+    service.bind(runtime, runtime.terminal);
+    service.detachTerminal(runtime);
+    service.expirePending();
+    verify(connection, never()).close();
+    assertThat(service.studioSessions("owner", "local", "/tmp"))
+        .extracting(item -> item.id())
+        .containsExactly(handle.id());
+    assertThat(service.studioSessions("other", "local", "/tmp")).isEmpty();
+    assertThat(service.studioSessions("owner", "local", "/other")).isEmpty();
+    assertThatThrownBy(() -> service.attach(handle.id(), "other"))
+        .isInstanceOf(WorkspaceException.class);
+    assertThat(service.attach(handle.id(), "owner")).isSameAs(runtime);
+    service.detachTerminal(runtime);
+    runtime.detachedAt -= 1800001;
+    service.expirePending();
+    verify(connection).close();
+    assertThat(service.studioSessions("owner", "local", "/tmp")).isEmpty();
+    assertThatThrownBy(() -> service.owned(handle.id(), "owner"))
+        .isInstanceOf(WorkspaceException.class);
+  }
 }

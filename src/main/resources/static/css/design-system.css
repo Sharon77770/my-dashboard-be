@@ -70,15 +70,15 @@
   --radius-md: 10px;
   --radius-lg: var(--radius-panel);
   --radius-xl: var(--radius-floating);
-  --control-md: 36px;
-  --control-sm: 32px;
-  --type-page: 24px;
-  --type-subtitle: 14px;
-  --type-section: 16px;
-  --type-card: 17px;
-  --type-row: 14px;
-  --type-body: 14px;
-  --type-secondary: 13px;
+  --control-md: 30px;
+  --control-sm: 28px;
+  --type-page: 20px;
+  --type-subtitle: 13px;
+  --type-section: 14px;
+  --type-card: 15px;
+  --type-row: 13px;
+  --type-body: 13px;
+  --type-secondary: 12px;
   --type-meta: 12px;
   --type-badge: 11px;
   --type-code: 13px;
@@ -213,7 +213,7 @@ button,.button,.upload-button {
   line-height: 1.4;
   transition: background-color var(--motion-fast) var(--motion-ease),border-color var(--motion-fast) var(--motion-ease),color var(--motion-fast) var(--motion-ease);
   font-size: var(--type-secondary);
-  padding: 6px 12px;
+  padding: 4px 9px;
   border-radius: var(--radius-control);
   border: 1px solid transparent;
   background: var(--bg-secondary)

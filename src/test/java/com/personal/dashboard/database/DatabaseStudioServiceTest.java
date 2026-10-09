@@ -20,7 +20,11 @@ class DatabaseStudioServiceTest {
   private final DatabaseAdapter adapter = mock(DatabaseAdapter.class);
   private final CredentialVault vault = mock(CredentialVault.class);
   private final DatabaseStudioService studio =
-      new DatabaseStudioService(repository, adapter, vault);
+      new DatabaseStudioService(
+          repository,
+          adapter,
+          vault,
+          mock(com.personal.dashboard.database.adapter.DatabaseTargetAdapter.class));
 
   @AfterEach
   void close() {

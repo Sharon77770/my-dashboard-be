@@ -75,13 +75,19 @@ public class StudioService {
   private final CatalogService catalog;
   private final StudioAdapter adapter;
   private final WorkspaceEvents events;
+  private final StudioToolService tools;
   private final Map<String, Job> jobs = new LinkedHashMap<>();
   private final ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
 
-  public StudioService(CatalogService catalog, StudioAdapter adapter, WorkspaceEvents events) {
+  public StudioService(
+      CatalogService catalog,
+      StudioAdapter adapter,
+      WorkspaceEvents events,
+      StudioToolService tools) {
     this.catalog = catalog;
     this.adapter = adapter;
     this.events = events;
+    this.tools = tools;
   }
 
   public synchronized JobView start(String owner, Request input) {
@@ -162,19 +168,49 @@ public class StudioService {
     var job = new Job(owner, input.action(), assistant, deviceScope, events);
     jobs.put(job.id, job);
     workers.submit(
-        () -> {
-          try {
-            if (deviceScope != null)
-              adapter.executeDeviceCodex(device, input, job.execution, job::accept);
-            else if (assistant) adapter.executeAssistant(device, input, job.execution, job::accept);
-            else adapter.execute(device, input, job.execution, job::accept);
-            job.finish();
-          } catch (WorkspaceException exception) {
-            job.fail(exception.getMessage(), exception.status());
-          } catch (Exception exception) {
-            job.fail("작업 실패: 실행 환경·도구 설치·입력값을 확인해 주세요.", 502);
-          }
-        });
+        new org.springframework.security.concurrent.DelegatingSecurityContextRunnable(
+            () -> {
+              try {
+                if (deviceScope != null)
+                  adapter.executeDeviceCodex(device, input, job.execution, job::accept);
+                else if (assistant)
+                  adapter.executeAssistant(device, input, job.execution, job::accept);
+                else
+                  adapter.execute(
+                      device,
+                      input,
+                      job.execution,
+                      message -> {
+                        if (message.tool() == null) {
+                          job.accept(message);
+                          return;
+                        }
+                        try {
+                          Object result = tools.execute(owner, input, message.tool());
+                          adapter.replyTool(job.execution, message.tool().id(), true, result);
+                        } catch (Exception error) {
+                          try {
+                            adapter.replyTool(
+                                job.execution,
+                                message.tool().id(),
+                                false,
+                                Map.of(
+                                    "error",
+                                    error instanceof WorkspaceException
+                                        ? error.getMessage()
+                                        : "Studio 도구 실행에 실패했습니다."));
+                          } catch (java.io.IOException ignored) {
+                            job.cancel();
+                          }
+                        }
+                      });
+                job.finish();
+              } catch (WorkspaceException exception) {
+                job.fail(exception.getMessage(), exception.status());
+              } catch (Exception exception) {
+                job.fail("작업 실패: 실행 환경·도구 설치·입력값을 확인해 주세요.", 502);
+              }
+            }));
     return job.view();
   }
 

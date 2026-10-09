@@ -1050,3 +1050,98 @@
 #cloud .cloud-view-options select {
   font-size: 12px
 }}
+
+/* Explorer layout: fixed compact chrome, independently scrolling navigation and files. */
+#cloud.cloud-explorer.active { grid-template-columns:190px minmax(0,1fr); padding:0; overflow:hidden; }
+#cloud.cloud-explorer .cloud-main { padding:0 10px; gap:0; }
+#cloud.cloud-explorer .cloud-sidebar { padding:12px 8px; gap:4px; overflow:auto; }
+#cloud.cloud-explorer .cloud-sidebar h2 { font-size:13px; margin:0 0 8px; }
+#cloud.cloud-explorer .cloud-sidebar>button { min-height:30px; padding:4px 8px; font-size:12px; }
+#cloud.cloud-explorer .cloud-sidebar p { font-size:11px; padding:8px; }
+#cloud.cloud-explorer .cloud-header { display:flex; flex:none; min-height:44px; padding:4px 0; gap:10px; border-bottom:1px solid var(--border-subtle); }
+#cloud.cloud-explorer .cloud-header h1 { font-size:14px; flex:none; max-width:160px; }
+#cloud.cloud-explorer [data-cloud-crumbs] { display:flex; flex:1; min-width:0; flex-wrap:nowrap; overflow:auto; white-space:nowrap; border:0; min-height:0; }
+#cloud.cloud-explorer [data-cloud-crumbs] button { flex:none; min-height:28px; max-width:180px; overflow:hidden; text-overflow:ellipsis; }
+#cloud.cloud-explorer .cloud-header form { flex:0 1 250px; margin-left:auto; }
+#cloud.cloud-explorer .cloud-header input { width:100%; min-height:28px; padding:4px 8px; font-size:12px; }
+#cloud.cloud-explorer .cloud-header form button { min-height:28px; padding:4px 8px; }
+#cloud.cloud-explorer .cloud-commandbar { display:flex; align-items:center; gap:6px; flex:none; min-height:40px; border-bottom:1px solid var(--border-subtle); }
+#cloud.cloud-explorer .cloud-commandbar .cloud-toolbar { display:flex; min-height:0; padding:3px 0; gap:3px; flex-wrap:nowrap; border:0; }
+#cloud.cloud-explorer .cloud-commandbar button,#cloud.cloud-explorer .cloud-commandbar summary { min-height:28px; padding:4px 6px; font-size:12px; white-space:nowrap; }
+#cloud.cloud-explorer .cloud-selection>span { display:flex; gap:3px; align-items:center; }
+#cloud.cloud-explorer .cloud-selected-count,#cloud.cloud-explorer .cloud-select-trigger,#cloud.cloud-explorer .cloud-search-trigger,#cloud.cloud-explorer .cloud-create-trigger { display:none; }
+#cloud.cloud-explorer .cloud-view-options { margin-left:auto; }
+#cloud.cloud-explorer .cloud-view-options label { font-size:0; gap:0; }
+#cloud.cloud-explorer .cloud-view-options select { font-size:12px; min-height:28px; padding:3px 5px; width:90px; }
+#cloud.cloud-explorer .cloud-view-select { display:none; }
+#cloud.cloud-explorer [data-cloud-count] { font-size:11px; color:var(--text-muted); white-space:nowrap; }
+#cloud.cloud-explorer .cloud-view-options .cloud-action-label { display:none; }
+#cloud.cloud-explorer .cloud-commandbar .ui-icon { width:15px; height:15px; }
+#cloud.cloud-explorer .cloud-action-menu .ui-menu-content { z-index:30; }
+#cloud.cloud-explorer .cloud-action-menu .ui-menu-content button { width:100%; justify-content:flex-start; }
+#cloud.cloud-explorer .cloud-action-menu label { display:flex; gap:6px; padding:8px; font-size:12px; }
+#cloud.cloud-explorer .cloud-action-menu input { width:14px; min-height:14px; }
+#cloud.cloud-explorer [hidden] { display:none!important; }
+#cloud.cloud-explorer [data-cloud-status] { flex:none; margin:0; font-size:12px; padding:4px 0; }
+#cloud.cloud-explorer [data-cloud-status]:empty { display:none; }
+#cloud.cloud-explorer .cloud-items { flex:1 1 0; min-height:0; overflow:auto; border:0; border-radius:0; scrollbar-gutter:stable; }
+#cloud.cloud-explorer .cloud-list-columns,#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item { display:grid; grid-template-columns:28px minmax(120px,1fr) 90px 80px 155px 30px; gap:6px; align-items:center; }
+#cloud.cloud-explorer .cloud-list-columns { flex:none; min-height:28px; padding:0 6px; border-bottom:1px solid var(--border-subtle); color:var(--text-muted); font-size:11px; }
+#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item { height:34px; min-height:34px; padding:0 6px; border:0; border-bottom:1px solid var(--border-subtle); border-radius:0; }
+#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-select-hit { display:grid; grid-column:auto; grid-row:auto; min-height:32px; min-width:0; place-items:center; }
+#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-select-hit input { width:14px; height:14px; min-height:0; margin:0; }
+#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item-open { grid-column:auto; grid-row:auto; display:flex; gap:7px; min-height:32px; padding:0; min-width:0; }
+#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item-open>span:last-child { min-width:0; }
+#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item-open b { display:block; font-size:12px; line-height:1.3; font-weight:500; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item-type,#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-mobile-meta { display:none; }
+#cloud.cloud-explorer .cloud-icon,#cloud.cloud-explorer .cloud-icon .ui-icon { width:18px; height:18px; flex:none; }
+#cloud.cloud-explorer .cloud-type-column,#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item-size,#cloud.cloud-explorer .cloud-items[data-layout=list] time { display:block; font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item-info { grid-column:auto; grid-row:auto; min-height:28px; min-width:0; padding:3px; }
+#cloud.cloud-explorer .cloud-items[data-layout=grid] .cloud-type-column { display:none; }
+#cloud.cloud-explorer .cloud-main:has(.cloud-items[data-layout=grid]) .cloud-list-columns { display:none; }
+#cloud.cloud-explorer .cloud-tree-row { display:flex; min-width:0; padding-left:calc(var(--tree-depth)*12px); }
+#cloud.cloud-explorer .cloud-tree-row button { min-height:28px; padding:3px; border:0; background:transparent; display:flex; align-items:center; gap:5px; min-width:0; font-size:12px; }
+#cloud.cloud-explorer .cloud-tree-row button:first-child { flex:none; width:22px; }
+#cloud.cloud-explorer .cloud-tree-row button:last-child { flex:1; }
+#cloud.cloud-explorer .cloud-tree-row span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#cloud.cloud-explorer .cloud-tree-row .ui-icon { width:14px; height:14px; flex:none; }
+#cloud.cloud-explorer .cloud-tree-row button:hover,#cloud.cloud-explorer .cloud-tree-row [aria-current=true] { background:var(--accent-subtle); color:var(--accent); }
+@media(max-width:1200px) {
+ #cloud.cloud-explorer .cloud-commandbar .cloud-action-label { display:none; }
+ #cloud.cloud-explorer.active { grid-template-columns:165px minmax(0,1fr); }
+}
+@media(max-width:800px) {
+ #cloud.cloud-explorer.active { grid-template-columns:minmax(0,1fr); }
+ #cloud.cloud-explorer .cloud-main { padding:0 6px; }
+ #cloud.cloud-explorer .cloud-header { gap:4px; min-height:42px; }
+ #cloud.cloud-explorer .cloud-header h1 { font-size:13px; max-width:90px; }
+ #cloud.cloud-explorer .cloud-header .ui-drawer-trigger { display:grid; min-width:30px; min-height:32px; padding:4px; }
+ #cloud.cloud-explorer .cloud-header form { display:flex; position:static; flex:1; padding:0; border:0; box-shadow:none; background:transparent; }
+ #cloud.cloud-explorer .cloud-header form input { min-height:30px; font-size:12px; }
+ #cloud.cloud-explorer .cloud-header form button { display:none; }
+ #cloud.cloud-explorer [data-cloud-crumbs] { flex:0 1 90px; }
+ #cloud.cloud-explorer.cloud-at-root [data-cloud-crumbs] { display:none; }
+ #cloud.cloud-explorer .cloud-commandbar { gap:2px; min-height:38px; }
+ #cloud.cloud-explorer .cloud-commandbar button,#cloud.cloud-explorer .cloud-commandbar summary { display:grid; place-items:center; min-width:28px; width:28px; min-height:32px; padding:3px; }
+ #cloud.cloud-explorer .cloud-commandbar .cloud-toolbar { gap:1px; }
+ #cloud.cloud-explorer [data-cloud-count],#cloud.cloud-explorer .cloud-selected-count { display:none; }
+ #cloud.cloud-explorer .cloud-view-options select { width:62px; font-size:11px; }
+ #cloud.cloud-explorer .cloud-view-options .cloud-select-trigger { display:none; }
+ #cloud.cloud-explorer .cloud-list-columns,#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item { grid-template-columns:26px minmax(0,1fr) 58px 28px; gap:3px; }
+ #cloud.cloud-explorer .cloud-list-columns>span:nth-child(3),#cloud.cloud-explorer .cloud-list-columns>span:nth-child(5),#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-type-column,#cloud.cloud-explorer .cloud-items[data-layout=list] time { display:none; }
+ #cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item { height:40px; min-height:40px; padding:0 2px; }
+ #cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-select-hit,#cloud.cloud-explorer .cloud-items[data-layout=list] .cloud-item-open { min-height:38px; }
+ #cloud.cloud-explorer .cloud-action-menu .ui-menu-content button { display:flex; width:100%; }
+ #cloud.cloud-explorer .cloud-action-menu .ui-menu-content .cloud-action-label { display:inline; }
+}
+#cloud.cloud-explorer [data-cloud-expand][aria-expanded=false] .ui-icon { transform:rotate(-90deg); }
+#cloud.cloud-explorer .cloud-selection .cloud-selected-count { display:none; }
+#cloud.cloud-explorer .cloud-view-options .cloud-view-trigger { display:grid; place-items:center; }
+#cloud.cloud-explorer .cloud-header form button { flex:none; white-space:nowrap; }
+@media(max-width:800px) {
+ #cloud.cloud-explorer .cloud-commandbar { flex-wrap:wrap; justify-content:space-between; }
+ #cloud.cloud-explorer .cloud-commandbar .cloud-view-options { flex-basis:100%; justify-content:flex-end; padding:0; }
+ #cloud.cloud-explorer .cloud-commandbar .cloud-view-options [data-cloud-count] { display:block; margin-right:auto; overflow:hidden; text-overflow:ellipsis; }
+}
+
+#cloud.cloud-explorer.cloud-editing.active { grid-template-columns:minmax(0,1fr); }

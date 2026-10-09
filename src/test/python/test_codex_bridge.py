@@ -112,6 +112,27 @@ class CodexBridgeTest(unittest.TestCase):
         self.assertEqual(result['assistant']['models'][0]['id'], 'fixture')
         self.assertEqual(result['assistant']['models'][0]['efforts'][0]['reasoningEffort'], 'medium')
 
+    def test_studio_tool_request_and_response_are_correlated(self):
+        import queue
+        bridge = remote.CodexBridge.__new__(remote.CodexBridge)
+        bridge.studio_tools = True
+        bridge.pending = {}
+        bridge.frames = queue.Queue()
+        replies = []
+        bridge.write = replies.append
+        bridge.frames.put(dict(id=73, method='item/tool/call', params=dict(
+            tool='studio_api', arguments=dict(method='GET', url='http://127.0.0.1:3000/api'))))
+        bridge.pump()
+        call = self.events[-1]['tool']
+        self.assertEqual(call['name'], 'studio_api')
+        bridge.control(dict(type='tool-result', requestId='unknown', success=True, output={}))
+        self.assertEqual(replies, [])
+        bridge.control(dict(type='tool-result', requestId=call['id'], success=True, output=dict(status=200)))
+        self.assertEqual(replies[0]['id'], 73)
+        self.assertTrue(replies[0]['result']['success'])
+        self.assertEqual(json.loads(replies[0]['result']['contentItems'][0]['text']), dict(status=200))
+        self.assertEqual(bridge.pending, {})
+
     def test_never_policy_and_permissions_apply_to_new_and_resumed_turns(self):
         for mode in ('read-only', 'workspace-write', 'danger-full-access'):
             for thread_id in (None, 'thread-1'):

@@ -50,12 +50,15 @@ public class DatabaseRepository {
         row.getString("access_mode"),
         metadata(row.getString("metadata")),
         row.getLong("created_at"),
-        row.getLong("updated_at"));
+        row.getLong("updated_at"),
+        row.getString("target_mode"),
+        row.getString("device_id"),
+        row.getString("container_id"));
   }
 
   public void save(DatabaseConnection value) {
     jdbc.update(
-        "INSERT INTO database_connections(id,name,type,host,port,database_name,username,credential_cipher,ssl_mode,access_mode,metadata,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,type=excluded.type,host=excluded.host,port=excluded.port,database_name=excluded.database_name,username=excluded.username,credential_cipher=excluded.credential_cipher,ssl_mode=excluded.ssl_mode,access_mode=excluded.access_mode,metadata=excluded.metadata,updated_at=excluded.updated_at",
+        "INSERT INTO database_connections(id,name,type,host,port,database_name,username,credential_cipher,ssl_mode,access_mode,metadata,created_at,updated_at,target_mode,device_id,container_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,type=excluded.type,host=excluded.host,port=excluded.port,database_name=excluded.database_name,username=excluded.username,credential_cipher=excluded.credential_cipher,ssl_mode=excluded.ssl_mode,access_mode=excluded.access_mode,metadata=excluded.metadata,updated_at=excluded.updated_at,target_mode=excluded.target_mode,device_id=excluded.device_id,container_id=excluded.container_id",
         value.id(),
         value.name(),
         value.type(),
@@ -68,7 +71,10 @@ public class DatabaseRepository {
         value.accessMode(),
         serialize(value.metadata()),
         value.createdAt(),
-        value.updatedAt());
+        value.updatedAt(),
+        value.targetMode(),
+        value.deviceId(),
+        value.containerId());
   }
 
   private Map<String, String> metadata(String value) throws java.sql.SQLException {

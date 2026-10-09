@@ -15,6 +15,10 @@ input.dispatchEvent(new w.Event('input',{bubbles:true}));assert.equal(delegated,
 dialog.close();assert.equal(panel.parentNode,owner);assert.equal(input.value,'unsaved text');assert.equal(d.activeElement,trigger);assert.equal(d.body.style.overflow,'');
 trigger.click();resize();assert.equal(d.querySelector('dialog'),null);
 d.querySelector('[data-pane]').click();dialog=d.querySelector('dialog');assert.equal(dialog.dataset.side,'right');w.WorkspaceDrawers.close();
+const studio=d.createElement('section');studio.id='studio';studio.innerHTML='<button data-pane="editor">Editor</button><button data-pane="inspector">Codex</button><aside class="studio-inspector"></aside>';d.body.append(studio);
+let studioClicks=0;studio.addEventListener('click',()=>studioClicks++);
+studio.querySelector('[data-pane=editor]').click();studio.querySelector('[data-pane=inspector]').click();
+assert.equal(studioClicks,2,'Studio must own its mobile pane clicks');assert.equal(d.querySelector('dialog'),null);
 mobile=false;trigger.click();assert.equal(d.querySelector('dialog'),null);
 w.dispatchEvent(new w.Event('pagehide'));dom.window.close();
 console.log('PASS drawers: mobile overlay, owning app events, draft preservation, focus/scroll restoration, resize, right panel, desktop');

@@ -18,7 +18,37 @@ public final class DatabaseDto {
       @Size(max = 500) String credential,
       @NotBlank String sslMode,
       @NotBlank String accessMode,
-      Map<String, String> metadata) {}
+      Map<String, String> metadata,
+      @Pattern(regexp = "DIRECT|DEVICE|DOCKER") String targetMode,
+      @Size(max = 100) String deviceId,
+      @Pattern(regexp = "[A-Za-z0-9][A-Za-z0-9_.-]{0,127}|^$") String containerId) {
+    public ConnectionRequest(
+        String name,
+        String type,
+        String host,
+        Integer port,
+        String databaseName,
+        String username,
+        String credential,
+        String sslMode,
+        String accessMode,
+        Map<String, String> metadata) {
+      this(
+          name,
+          type,
+          host,
+          port,
+          databaseName,
+          username,
+          credential,
+          sslMode,
+          accessMode,
+          metadata,
+          "DIRECT",
+          "",
+          "");
+    }
+  }
 
   public record ConnectionView(
       String id,
@@ -33,7 +63,45 @@ public final class DatabaseDto {
       String accessMode,
       Map<String, String> metadata,
       long createdAt,
-      long updatedAt) {}
+      long updatedAt,
+      String targetMode,
+      String deviceId,
+      String containerId) {
+    public ConnectionView(
+        String id,
+        String name,
+        String type,
+        String host,
+        int port,
+        String databaseName,
+        String username,
+        boolean passwordConfigured,
+        String sslMode,
+        String accessMode,
+        Map<String, String> metadata,
+        long createdAt,
+        long updatedAt) {
+      this(
+          id,
+          name,
+          type,
+          host,
+          port,
+          databaseName,
+          username,
+          passwordConfigured,
+          sslMode,
+          accessMode,
+          metadata,
+          createdAt,
+          updatedAt,
+          "DIRECT",
+          "",
+          "");
+    }
+  }
+
+  public record Container(String id, String name, String image, String ports) {}
 
   public record TestResult(boolean connected, String version, long latencyMs, String errorType) {}
 

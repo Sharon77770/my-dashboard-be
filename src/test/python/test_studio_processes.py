@@ -58,3 +58,17 @@ class StudioProcessesTest(unittest.TestCase):
         self.assertEqual(7,state['exitCode'])
         self.assertIn('app.py:2',self.action('run-logs',dict(path=identity))['tools']['output'])
         with self.assertRaises(self.remote.Failure):self.action('run-stop',dict(path='../outside'))
+
+    def test_process_restart_while_codex_owns_editor_lock(self):
+        import fcntl, hashlib
+        lockdir=Path.home()/'.cache/personal-workspace'
+        lockdir.mkdir(parents=True,exist_ok=True)
+        path=lockdir/(hashlib.sha256(str(self.project).encode()).hexdigest()+'.lock')
+        def handle(action,args):
+            return self.remote.handle(dict(base=str(self.project),root=str(self.project),action=action,args=args))
+        with path.open('w') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            first=handle('run-start',dict(name='live',content='sleep 30',mode='run'))['tools']['processes'][0]
+            restarted=handle('run-restart',dict(path=first['id']))['tools']['processes'][0]
+            self.assertNotEqual(first['pid'],restarted['pid'])
+            self.assertEqual('RUNNING',restarted['state'])

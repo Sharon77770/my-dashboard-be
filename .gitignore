@@ -18,3 +18,6 @@
 .DS_Store
 
 /tools/ui/node_modules/
+/node_modules/
+/artifacts/
+/.playwright-mcp/

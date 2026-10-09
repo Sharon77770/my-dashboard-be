@@ -155,7 +155,10 @@ class StudioServiceTest {
                 "",
                 false));
     return new StudioService(
-        catalog, adapter, new com.personal.dashboard.realtime.service.WorkspaceEvents());
+        catalog,
+        adapter,
+        new com.personal.dashboard.realtime.service.WorkspaceEvents(),
+        mock(com.personal.dashboard.studio.service.StudioToolService.class));
   }
 
   private Request request(String action) {
@@ -186,7 +189,10 @@ class StudioServiceTest {
     var adapter = mock(StudioAdapter.class);
     var service =
         new StudioService(
-            catalog, adapter, new com.personal.dashboard.realtime.service.WorkspaceEvents());
+            catalog,
+            adapter,
+            new com.personal.dashboard.realtime.service.WorkspaceEvents(),
+            mock(com.personal.dashboard.studio.service.StudioToolService.class));
     try {
       var job =
           service.start("owner", new Request("local", "/app/data/files", "codex-models", null));
@@ -222,7 +228,10 @@ class StudioServiceTest {
     var adapter = mock(StudioAdapter.class);
     var service =
         new StudioService(
-            catalog, adapter, new com.personal.dashboard.realtime.service.WorkspaceEvents());
+            catalog,
+            adapter,
+            new com.personal.dashboard.realtime.service.WorkspaceEvents(),
+            mock(com.personal.dashboard.studio.service.StudioToolService.class));
     try {
       var request =
           new ObjectMapper()

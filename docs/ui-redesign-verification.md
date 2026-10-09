@@ -117,3 +117,12 @@ jsdom 검사는 layout engine, 실제 터치, virtual keyboard 또는 screenshot
 - `tools/launcher/military-test.cjs`: 신규 진입·실시간 수치·DOM 유지·편집 충돌 초안 보존·캘린더 왕복·지연 응답 방어 통과.
 - launcher/planner/workspace-apps, responsive 9개 너비, theme 및 `npm run build --prefix tools/ui` 통과.
 - 현재 제어 가능한 브라우저 목록이 비어 있어 실제 렌더링·모바일 터치·운영 배포 검증은 수행하지 않았다. 위 결과는 서버와 jsdom/CSS 검사 결과다.
+
+## 2026-10-09 전체 UI 밀도 조정
+
+- 공통 본문 13px, 버튼 30px/compact 28px, 데스크톱 상단 44px·탐색 레일 48px. 편집 본문·터치 목표 크기는 유지한다.
+- 앱별 도구 영역과 상태 요약을 압축하고 라이브러리를 작업별 두 열로 구성했다. 아이콘 버튼은 접근성 이름과 툴팁을 보존한다.
+- scripts/check-ui.mjs의 실제 Chromium 검사: 내부 앱 21개 × 다크/라이트 × 1440/390px = 84개 화면에서 가로 overflow·잘못된 화면 폭·이름 없는 아이콘·pageerror 없음. 로그인·앱 라이브러리·화면/브라우저/Tailscale 설정도 캡처했다.
+- 격리 환경의 /api/v1/tailscale은 관리 서비스 미구성으로 500을 반환했다. 해당 외부 연동 정상 동작으로 보고하지 않는다. 보고서와 캡처는 artifacts/ui/에 저장한다.
+- Studio 실제 PTY·중앙 하단 패널·우측 세션 사이드바·리사이즈·접기를 1600/1280/1024/390px에서 재검증했다.
+- 화면 검증은 준비된 데이터/빈 상태 범위이며 운영 데이터 전체, 물리 터치, OS IME와 실제 외부 앱 화면을 보장하지 않는다.

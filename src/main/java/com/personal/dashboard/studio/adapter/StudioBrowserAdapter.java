@@ -34,6 +34,16 @@ public class StudioBrowserAdapter {
     private WebSocket socket;
     private URI endpoint;
     private String target;
+    private volatile String navigationOrigin;
+    private volatile CompletableFuture<Void> navigation;
+    private boolean restricted;
+    private final Object writeLock = new Object();
+    private volatile boolean disconnected;
+
+    public boolean connected() {
+      return !disconnected;
+    }
+
     private net.schmizz.sshj.SSHClient connection;
     private ServerSocket listener;
 
@@ -62,6 +72,29 @@ public class StudioBrowserAdapter {
             } else {
               String method = event.path("method").asText();
               JsonNode params = event.path("params");
+              if (method.equals("Page.loadEventFired") && navigation != null)
+                navigation.complete(null);
+              if (method.equals("Fetch.requestPaused")) {
+                String requested = params.path("request").path("url").asText();
+                boolean allowed =
+                    navigationOrigin != null
+                        && (requested.equals(navigationOrigin)
+                            || requested.startsWith(navigationOrigin + "/"));
+                send(
+                    Map.of(
+                        "id",
+                        sequence.incrementAndGet(),
+                        "method",
+                        allowed ? "Fetch.continueRequest" : "Fetch.failRequest",
+                        "params",
+                        allowed
+                            ? Map.of("requestId", params.path("requestId").asText())
+                            : Map.of(
+                                "requestId",
+                                params.path("requestId").asText(),
+                                "errorReason",
+                                "BlockedByClient")));
+              }
               if (method.equals("Runtime.exceptionThrown"))
                 add(
                     errors,
@@ -110,6 +143,7 @@ public class StudioBrowserAdapter {
     }
 
     private void failPending() {
+      disconnected = true;
       pending
           .values()
           .forEach(
@@ -132,16 +166,53 @@ public class StudioBrowserAdapter {
     }
 
     public JsonNode command(String method, Map<String, ?> args) {
+      return command(method, args, 3);
+    }
+
+    private void send(Map<String, ?> frame) throws Exception {
+      synchronized (writeLock) {
+        socket.sendText(json.writeValueAsString(frame), true).get(5, TimeUnit.SECONDS);
+      }
+    }
+
+    public JsonNode navigateCommand(String method, Map<String, ?> args) {
+      var loaded = new CompletableFuture<Void>();
+      navigation = loaded;
+      try {
+        var result = command(method, args);
+        if (!result.has("errorText")) {
+          try {
+            loaded.get(5, TimeUnit.SECONDS);
+          } catch (TimeoutException ignored) {
+            /* Slow pages remain observable by polling. */
+          } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+          } catch (ExecutionException ignored) {
+          }
+        }
+        return result;
+      } finally {
+        navigation = null;
+      }
+    }
+
+    private JsonNode command(String method, Map<String, ?> args, int navigationRetries) {
       int id = sequence.incrementAndGet();
       var future = new CompletableFuture<JsonNode>();
       pending.put(id, future);
       try {
-        socket
-            .sendText(
-                json.writeValueAsString(Map.of("id", id, "method", method, "params", args)), true)
-            .get(5, TimeUnit.SECONDS);
+        send(Map.of("id", id, "method", method, "params", args));
         JsonNode response = future.get(10, TimeUnit.SECONDS);
-        if (response.has("error")) throw new IllegalStateException();
+        if (response.has("error")) {
+          String message = response.path("error").path("message").asText().toLowerCase(Locale.ROOT);
+          if (method.equals("Runtime.evaluate")
+              && navigationRetries > 0
+              && (message.contains("context") || message.contains("navigat"))) {
+            Thread.sleep(75);
+            return command(method, args, navigationRetries - 1);
+          }
+          throw new IllegalStateException();
+        }
         return response.path("result");
       } catch (Exception error) {
         throw new WorkspaceException(
@@ -201,7 +272,8 @@ public class StudioBrowserAdapter {
       URI uri = validate(url);
       String origin = uri.getScheme() + "://" + uri.getRawAuthority();
       if (forwards.containsKey(origin)) {
-        command(
+        navigationOrigin = forwards.get(origin);
+        navigateCommand(
             "Page.navigate", Map.of("url", forwards.get(origin) + url.substring(origin.length())));
         return;
       }
@@ -264,17 +336,30 @@ public class StudioBrowserAdapter {
       synchronized (failures) {
         failures.clear();
       }
-      var result = command("Page.navigate", Map.of("url", url));
+      URI destination = URI.create(url);
+      navigationOrigin = destination.getScheme() + "://" + destination.getRawAuthority();
+      var result = navigateCommand("Page.navigate", Map.of("url", url));
       if (result.has("errorText"))
         throw new WorkspaceException(
             502, "미리보기 URL에 연결하지 못했습니다: " + result.path("errorText").asText());
+    }
+
+    /** Model-driven navigation may only fetch the current project's forwarded origin. */
+    public void projectOnly(boolean enabled) {
+      if (restricted == enabled) return;
+      command(
+          enabled ? "Fetch.enable" : "Fetch.disable",
+          enabled
+              ? Map.of("patterns", List.of(Map.of("urlPattern", "*", "requestStage", "Request")))
+              : Map.of());
+      restricted = enabled;
     }
 
     public void history(int delta) {
       var history = command("Page.getNavigationHistory", Map.of());
       int index = history.path("currentIndex").asInt() + delta;
       if (index >= 0 && index < history.path("entries").size())
-        command(
+        navigateCommand(
             "Page.navigateToHistoryEntry",
             Map.of("entryId", history.path("entries").get(index).path("id").asInt()));
     }
