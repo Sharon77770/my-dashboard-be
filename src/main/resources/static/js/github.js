@@ -421,6 +421,7 @@
   async function login() {
     if (busy) return;
     busy = true; $('#github-login').disabled = true; $('#github-cancel').hidden = false; $('#github-auth').hidden = false;
+    window.WorkspaceAuthenticationBrowser?.attach($('#github-auth-link'), () => {const code=$('#github-auth-code').textContent;return $('#github-auth').hidden||code==='발급 대기 중'?'':code;});
     $('#github-auth-code').textContent = '발급 대기 중'; setStatus('로그인 준비 중…');
     try {
       let job = await ui.api('/studio/jobs', 'POST', {deviceId:'local', root:localDevice.rootPath, action:'github-login', args:{}});

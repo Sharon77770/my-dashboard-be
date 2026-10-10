@@ -113,6 +113,75 @@ public class RuntimeService {
     return new SessionView(runtime.id, runtime.kind, runtime.label, "");
   }
 
+  /** Closing this view disconnects VNC while Chromium's persistent profile remains intact. */
+  @PreAuthorize("hasRole('OWNER')")
+  public synchronized SessionView createBrowserSession(
+      String url, String label, String ownerId, int width, int height) {
+    expirePending();
+    if (sessions.size() >= 12)
+      throw new WorkspaceException(409, "열린 실행 탭을 닫은 후 다시 시도해 주세요. 최대 12개 세션을 지원합니다.");
+    DeviceRecord device =
+        new DeviceRecord(
+            "browser",
+            "인증 브라우저",
+            browserHost,
+            22,
+            "",
+            "",
+            "",
+            "/",
+            "VNC",
+            browserVncPort,
+            "",
+            "",
+            "",
+            "",
+            false);
+    if (url != null) browser.open(browserHost, browserPort, url);
+    RuntimeSession runtime = new RuntimeSession(ownerId, device, "APP", label, width, height);
+    sessions.put(runtime.id, runtime);
+    return new SessionView(runtime.id, runtime.kind, runtime.label, "");
+  }
+
+  /** Dedicated profile desktop, fixed broker port range and ordinary runtime ownership. */
+  @PreAuthorize("hasRole('OWNER')")
+  public synchronized SessionView createCommunicationBrowserSession(
+      String profileId, String label, int port, String ownerId) {
+    expirePending();
+    if (!((port >= 5910 && port <= 5913) || (port >= 5920 && port <= 5923))
+        || !profileId.matches("[a-f0-9-]{36}"))
+      throw new WorkspaceException(400, "Bridge 세션을 확인해 주세요.");
+    if (sessions.size() >= 12) throw new WorkspaceException(409, "열린 실행 탭을 닫아 주세요.");
+    var device =
+        new DeviceRecord(
+            "communication:" + profileId,
+            label,
+            browserHost,
+            22,
+            "",
+            "",
+            "",
+            "/",
+            "VNC",
+            port,
+            "",
+            "",
+            "",
+            "",
+            false);
+    var session = new RuntimeSession(ownerId, device, "APP", label, 1600, 900);
+    sessions.put(session.id, session);
+    return new SessionView(session.id, session.kind, label, "");
+  }
+
+  @PreAuthorize("hasRole('OWNER')")
+  public synchronized void closeCommunicationBrowserSessions(String profileId) {
+    sessions.values().stream()
+        .filter(session -> session.device.id().equals("communication:" + profileId))
+        .toList()
+        .forEach(session -> close(session.id));
+  }
+
   public synchronized RuntimeSession attach(String id, String ownerId) {
     RuntimeSession runtime = owned(id, ownerId);
     if (runtime.attached) throw new WorkspaceException(409, "이미 연결된 세션입니다.");

@@ -76,17 +76,11 @@ WORKSPACE_APT_PACKAGES=tree
 
 2026-10-08 격리 검증: 추가 apt 패키지 `tree`를 포함한 최종 이미지 빌드 성공. 이미지 빌드 중 Python 41개와 Maven verify(Java 178개 통과·9개 skip, 패키징·Spotless) 통과. UID 10001, cap-drop ALL, no-new-privileges 조건에서 Java/C 컴파일·실행과 Python venv 생성 성공. 컨테이너 내부에서 CPU 2개·메모리 2GiB·공유 메모리 256MiB 제한을 확인했다. 기본 설정 및 8 CPU/16g 설정의 Compose config 검사도 통과했다. 운영 서버의 자원 증설·재배포 및 실제 부하 검증은 수행하지 않았다.
 
-## 카카오톡 기능 제거 후 업데이트
+## Communications 메신저 화면 업데이트
 
-카카오톡·Wine 서비스와 설치 파일 다운로드를 제거했다. KAKAO_INSTALLER_SHA256 환경변수는 더 이상 필요하지 않다. 이전 `.env`의 해당 줄은 삭제해도 된다.
+카카오톡은 Communications 프로필별 Wine 화면으로 다시 제공한다. Slack/Discord는 Chromium 화면을 사용한다. `docker compose --env-file .env up -d --build`로 dashboard/browser/wine 변경을 적용한다. Wine은 linux/amd64 이미지이며 앱 설치 파일 버전/해시는 저장소 Dockerfile에서 관리한다. `KAKAO_INSTALLER_SHA256` 및 `COMMUNICATION_BROWSER_TOKEN` 환경변수는 필요하지 않다.
 
-```sh
-git pull --ff-only
-docker compose --env-file .env config --quiet
-docker compose --env-file .env up -d --build --remove-orphans
-```
-
-`--remove-orphans`는 현재 Compose에서 제거된 기존 Wine 컨테이너를 정리한다. 기존 wine-profile 볼륨은 자동 삭제하지 않는다. `down -v`는 사용하지 않는다. 저장된 카카오톡 실행 탭과 이력은 조회에서 제외되며 새 DESKTOP 세션 요청은 거부된다.
+새 `communication-wine-profile` 볼륨을 사용하며 과거 `wine-profile`, 기존 SQLite와 browser-profile은 삭제하지 않는다. `down -v`는 사용하지 않는다. 예전 DESKTOP 실행 탭은 계속 차단하고, 새 Communications OWNER 세션을 통해 연결한다. Wine이 중단되어도 Gmail/API/Chromium은 독립적으로 사용할 수 있다. 자세한 기능·미검증 범위는 [Communications](communications.md)를 참고한다.
 
 ## Tailscale 없이 실행
 

@@ -2,6 +2,8 @@
 /** Shared presentation primitives. No application requests or credentials live here. */
 window.WorkspaceUI = (() => {
   const paths = {
+    talk:'M4 4h16v12H9l-5 4V4Zm4 5h8m-8 3h5', lock:'M5 10h14v11H5zM8 10V6a4 4 0 0 1 8 0v4m-4 5v2',
+    people:'M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM5 21v-3a7 7 0 0 1 14 0v3M19 4a3 3 0 0 1 0 6m1 4a5 5 0 0 1 3 4v3',
     home:'m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9', devices:'M3 4h18v12H3zM8 21h8m-4-5v5', files:'M3 5h7l2 3h9v12H3z',
     terminal:'m5 6 5 6-5 6m8 0h6', remote:'M3 3h18v14H3zM8 21h8m-4-4v4m2-12 3 3-3 3m-4-6-3 3 3 3', apps:'M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z',
     calendar:'M3 5h18v16H3zM7 2v6m10-6v6M3 10h18m-14 4h3m4 0h3m-10 4h3', timetable:'M3 4h18v17H3zM3 9h18M8 9v12m7-12v12M3 15h18',

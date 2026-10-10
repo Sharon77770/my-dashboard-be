@@ -104,7 +104,7 @@
       paint($(`#${container}`), state.devices.filter(item => kind !== 'REMOTE' || item.remoteProtocol !== 'NONE').map(item => `<button class="device-card choice" ${openAttrs(kind,item.id)}><span class="type">${window.WorkspaceUI.icon(({FILES:'files',TERMINAL:'terminal',REMOTE:'remote'})[kind]||'apps')}</span><b>${escape(item.name)}</b><small>${escape(item.host)}</small></button>`).join('') || empty('장비 설정에서 RDP 또는 VNC 접속을 추가해 주세요.'));
     }
     $('#browser-mode').textContent = `앱 실행 위치: ${modes[state.browserSettings.mode]}`;
-    paint($('#apps-list'), state.applications.map(item => `<div class="app-item"><button ${openAttrs('APP',item.id)}><span class="app-icon">${escape(item.name.slice(0,3))}</span><span><b>${escape(item.name)} ${item.pinned ? '★' : ''}</b><small>${escape(item.url)}</small></span><em>${modes[state.browserSettings.mode]}</em></button><button data-action="app-edit" data-id="${item.id}" aria-label="앱 설정">⚙</button><button data-action="app-delete" data-id="${item.id}" aria-label="앱 삭제">×</button></div>`).join('') || empty('앱 추가로 자주 사용하는 웹사이트를 등록하세요.'));
+    paint($('#apps-list'), state.applications.map(item => `<div class="app-item"><button ${openAttrs('APP',item.id)}><span class="app-icon">${escape(item.name.slice(0,3))}</span><span><b>${escape(item.name)} ${item.pinned ? '★' : ''}</b><small>${escape(item.url)}</small></span><em>${modes[state.browserSettings.mode]}</em></button><button type="button" data-authentication-app="${escape(item.id)}" aria-label="${escape(item.name)} 인증 브라우저에서 열기">인증 브라우저</button><button data-action="app-edit" data-id="${item.id}" aria-label="앱 설정">⚙</button><button data-action="app-delete" data-id="${item.id}" aria-label="앱 삭제">×</button></div>`).join('') || empty('앱 추가로 자주 사용하는 웹사이트를 등록하세요.'));
     renderTabs();
   }
   async function checkStatus(id, options = {}) {
@@ -134,6 +134,7 @@
     window.WorkspaceLogs?.open(id).catch(error=>toast(error.message));
     $('#palette-dialog').close();$('#app-switcher').close();
     window.WorkspacePlanner?.open(id).catch(error=>toast(error.message));
+    window.WorkspaceCommunications?.open(id).catch(error=>toast(error.message));
     window.WorkspaceMilitary?.open(id).catch(error=>toast(error.message));
     window.WorkspaceStudio?.open(id).catch(error=>toast(error.message));
     window.WorkspaceDeviceCodex?.open(id).catch(error=>toast(error.message));
@@ -465,6 +466,7 @@
   for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('click',event=>{if(event.target===dialog){const box=dialog.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)dialog.close();}});
   window.addEventListener('beforeunload',()=>{for(const runtime of runtimes.values()){runtime.socket?.close();runtime.guacamole?.disconnect();}});
   window.WorkspacePlanner?.init({api,editor,fields,escape,toast,confirmAction});
+  window.WorkspaceCommunications?.init({api,editor,fields,escape,toast,confirmAction});
   window.WorkspaceMilitary?.init({api,editor,fields,escape,toast,confirmAction});
   window.WorkspaceLogs?.init({api,escape,toast});
   window.WorkspaceNotes?.init({api,escape,toast,editor,confirmAction});
@@ -501,7 +503,7 @@
         if(['home','devices'].includes(view)&&(all||topics.has('devices')))updates.push(refreshStatuses({quiet:true}));
         if(view==='home')updates.push(window.WorkspaceLauncher?.refreshWidgets({quiet:true}));
         if(['calendar','timetable'].includes(view)&&changed(view==='timetable'?'timetables':'calendar'))updates.push(window.WorkspacePlanner?.refresh(view));
-        const modules={services:'Services',telemetry:'Telemetry',notes:'Notes',databases:'Databases',github:'Github',cloud:'Cloud',military:'Military'};
+        const modules={communications:'Communications',services:'Services',telemetry:'Telemetry',notes:'Notes',databases:'Databases',github:'Github',cloud:'Cloud',military:'Military'};
         if(modules[view]&&changed(view))updates.push(window['Workspace'+modules[view]]?.refresh?.());
         const results=await Promise.allSettled(updates);
         if(results.some(result=>result.status==='rejected'))markLiveStale();

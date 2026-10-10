@@ -119,8 +119,8 @@
     for(const event of events) {
       const row=document.createElement('div');
       const label=document.createElement('b'); label.textContent=event.event; row.append(label);
-      if(event.url && (/^https:\/\/auth\.openai\.com\//.test(event.url) || event.url==='https://github.com/login/device')) {const link=document.createElement('a');link.href=event.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='인증 페이지 열기';row.append(link);}
-      const text=document.createElement('pre');text.textContent=event.code || event.text || event.state || '';row.append(text);container.append(row);
+      if(event.url && (/^https:\/\/auth\.openai\.com\//.test(event.url) || event.url==='https://github.com/login/device')) {const link=document.createElement('a');link.href=event.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='인증 페이지 열기';row.append(link);window.WorkspaceAuthenticationBrowser?.attach(link,()=>busy?(container.querySelector('[data-auth-code-value]')?.textContent||''):'');}
+      const text=document.createElement('pre');if(event.code)text.dataset.authCodeValue='';text.textContent=event.code || event.text || event.state || '';row.append(text);container.append(row);
     }
     container.scrollTop=container.scrollHeight;if(eventTarget){const conversation=$('#studio-conversation');conversation.scrollTop=conversation.scrollHeight;}
   }
@@ -268,7 +268,7 @@
     const seen=new Set();
     function events(items=[]){for(const event of items){
       if(event.code&&!seen.has(event.code)){seen.add(event.code);const code=document.createElement('code');code.textContent=event.code;box.append(code);message.textContent='인증 코드를 복사한 뒤 GitHub에서 승인을 완료하세요.';}
-      if((event.code||event.url==='https://github.com/login/device')&&!box.querySelector('a')){const link=document.createElement('a');link.href='https://github.com/login/device';link.target='_blank';link.rel='noopener noreferrer';link.textContent='GitHub 인증 페이지 열기 ↗';box.append(link);}
+      if((event.code||event.url==='https://github.com/login/device')&&!box.querySelector('a')){const link=document.createElement('a');link.href='https://github.com/login/device';link.target='_blank';link.rel='noopener noreferrer';link.textContent='GitHub 인증 페이지 열기 ↗';box.append(link);window.WorkspaceAuthenticationBrowser?.attach(link,()=>githubJob?(box.querySelector('code')?.textContent||''):'');}
     }}
     try{
       let job=await ui.api('/studio/jobs','POST',{...context,action,args:{}},{quiet:true});githubJob=job.id;

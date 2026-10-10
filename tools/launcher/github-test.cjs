@@ -71,7 +71,7 @@ window.fetch = async (url, options = {}) => {
 const scripts = [
   'ui.js', 'live-dom.js', 'launcher/app-registry.js', 'launcher/grid-model.js',
   'launcher/persistence.js', 'launcher/widget-registry.js',
-  'launcher/interactions.js', 'launcher/launcher.js', 'workspace.js', 'drawers.js', 'github.js'
+  'launcher/interactions.js', 'launcher/launcher.js', 'authentication-browser.js', 'workspace.js', 'drawers.js', 'assistant-markdown.js', 'github.js'
 ];
 for (const file of scripts) window.eval(fs.readFileSync('src/main/resources/static/js/' + file, 'utf8'));
 
@@ -86,7 +86,8 @@ async function settled(){for(let i=0;i<100;i++){await new Promise(resolve=>setTi
   assert.ok(requests.some(request => request.url === '/api/v1/studio/jobs' && request.method === 'POST'));
   assert.match(document.querySelector('#github-status').textContent, /연결됨/);
   assert.equal(document.querySelector('#github-auth-code').textContent, 'ABCD-1234');
-  assert.equal(document.querySelectorAll('#github-owner option').length, 2);
+  assert.equal([...document.querySelectorAll('#github-owner option')].filter(option=>option.value).length, 2);
+  assert.equal(document.querySelectorAll('#github-auth .authentication-browser-open').length, 1);
   const scope = document.querySelector('#github-owner');
   scope.value = 'example-org'; scope.dispatchEvent(new window.Event('change', {bubbles:true}));
   await settled();

@@ -11,3 +11,6 @@ artifacts
 .playwright-mcp
 **/*.db*
 **/*.log
+
+**/bin
+**/obj

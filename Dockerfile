@@ -24,6 +24,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && groupadd --gid 10001 dashboard \
     && useradd --uid 10001 --gid dashboard --home-dir /app/data/home --no-create-home dashboard \
     && mkdir -p /app/data/files /app/data/home \
+    && mkdir -p /run/communication-bridge \
+    && chown dashboard:dashboard /run/communication-bridge \
+    && chmod 700 /run/communication-bridge \
     && chown -R dashboard:dashboard /app
 # Development is opt-in; production retains its non-root, no-sudo contract.
 RUN if [ "$WORKSPACE_DEVELOPMENT" = "true" ]; then \

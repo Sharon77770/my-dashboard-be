@@ -2,6 +2,7 @@
 /** @typedef {{id:string,name:string,icon:string,route?:string,action?:string,kind?:string,targetId?:string,widgets?:string[]}} WorkspaceApp */
 window.WorkspaceApps = (() => {
   const builtins = [
+    {id:'communications',name:'Communications',icon:'clip',route:'communications'},
     {id:'devices',name:'장비',icon:'devices',route:'devices',widgets:['device-status']},
     {id:'notes',name:'메모장',icon:'notes',route:'notes'},
     {id:'telemetry',name:'Telemetry',icon:'apps',route:'telemetry',widgets:['service-analytics']},

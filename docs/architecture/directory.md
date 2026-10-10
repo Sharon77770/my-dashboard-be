@@ -169,3 +169,18 @@ Database Studio의 `database/adapter/DatabaseTargetAdapter.java`는 등록 장�
 
 - `src/main/resources/static/js/container-picker.js`: 앱 공통 컨테이너 검색·자동완성 select UI.
 - `scripts/check-container-picker.mjs`, `scripts/check-container-picker-app.mjs`: 브라우저 컴포넌트 및 데이터베이스 화면 검색 통합 검증. 앱 통합 검증은 테스트용 컨테이너 목록을 주입하며 실제 DB 연결은 수행하지 않는다.
+
+## 공통 인증 브라우저
+
+`runtime/controller/AuthenticationBrowserController.java`, `runtime/service/AuthenticationBrowserService.java`, `runtime/dto/AuthenticationBrowserRequest.java`는 공급자별 인증 페이지 선택과 서버 화면 생성을 담당한다. `static/js/authentication-browser.js`와 `static/css/authentication-browser.css`는 모든 앱에서 사용하는 원격 인증 창을 제공한다. 기존 RuntimeService/BrowserAdapter 및 Guacamole 경계를 재사용한다.
+
+`docker/browser/shutdown.py`는 외부 포트를 공개하지 않고 Chromium loopback CDP의 정상 종료 명령을 전송한다. `start.sh`는 프로필 저장을 기다린 후 X/VNC를 정리한다.
+
+## Communications
+
+`communication/{controller,service,repository,entity,dto,domain,adapter}`: 계정/대화/API Provider와 Bridge. `static/js/communications.js`, `static/css/communications.css`: native messenger. `docker/browser/communication_bridge.py`: 격리 profile/X/CDP broker. `tools/windows-runtime-agent/`: 읽기 전용 UIA agent. `V12__communications.sql`: 영속 schema.
+상세: [Communications](../communications.md).
+
+docker/wine/Dockerfile 및 wine_session.py: 공식 카카오톡 설치 파일을 포함한 비루트 Wine 이미지와 UUID 프로필별 고정 앱 실행기. 공통 화면 브로커는 docker/browser/communication_bridge.py를 재사용한다.
+
+`scripts/check-communications-ui.mjs`: 격리 대시보드에서 세 해상도/상태별 UI fixture를 실제 Chromium으로 렌더링하는 검증. 기존 check-communications.mjs의 실제 원격 화면·승인·복원 회귀와 별도로 실행한다.

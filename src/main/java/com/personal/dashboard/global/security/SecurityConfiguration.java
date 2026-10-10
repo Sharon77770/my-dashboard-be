@@ -43,6 +43,8 @@ public class SecurityConfiguration {
                         new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
                             "/api/v1/mcp"),
                         new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
+                            "/api/v1/communications/events/slack"),
+                        new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
                             "/login"),
                         new org.springframework.security.web.util.matcher.AntPathRequestMatcher(
                             "/css/**"),
@@ -57,7 +59,10 @@ public class SecurityConfiguration {
                     .permitAll()
                     .anyRequest()
                     .hasRole("OWNER"))
-        .csrf(csrf -> csrf.ignoringRequestMatchers("/api/v1/mcp", "/api/v1/telemetry/**"))
+        .csrf(
+            csrf ->
+                csrf.ignoringRequestMatchers(
+                    "/api/v1/mcp", "/api/v1/telemetry/**", "/api/v1/communications/events/slack"))
         .formLogin(
             login ->
                 login

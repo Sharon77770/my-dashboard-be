@@ -768,3 +768,119 @@ AI 비서의 요청 root는 하위 실행 경로를 지정하지 않는다. 인�
 - `PATCH /api/v1/github/repositories`: description/homepage use GitHub PATCH repository; topics use PUT repository/topics with `names`. Null topics leave them untouched; empty list removes all topics. Both writes are sequential and not atomic; a topics error can follow a successful description update.
 - Browser regression: `node scripts/check-github.mjs` uses real Chromium and fixture API responses; it does not establish live GitHub authorization or remote-write success.
 - GitHub product parity is not implemented: Discussions, Projects, security administration, organization/billing settings and full Markdown compatibility remain outside this change. Existing list endpoints may still be bounded.
+
+## 인증 브라우저
+
+### POST /api/v1/authentication-browser/sessions
+
+OWNER + CSRF 필수. path/query parameter 없음. JSON 요청:
+
+| 필드 | 타입 | 필수/기본값 | 의미 |
+| --- | --- | --- | --- |
+| provider | string | 필수, null 불가 | BROWSER, GOOGLE, GITHUB, CODEX, APP |
+| url | string | 선택/null | 최대 8192자. GOOGLE/GITHUB/CODEX의 HTTPS 공식 호스트만 허용, 사용자정보·비표준 포트 금지. 생략 시 공급자 계정 페이지. BROWSER/APP은 null만 허용 |
+| applicationId | string | APP에서 필수, 나머지는 null | 최대 200자, 등록 앱 ID. APP은 저장된 앱 URL로 이동 |
+| width | integer | 필수 | 320–3840, 원격 화면 폭 |
+| height | integer | 필수 | 240–2160, 원격 화면 높이 |
+
+BROWSER는 새 탭을 열지 않고 기존 Chromium 화면에 연결한다. CODEX 기본 페이지는 ChatGPT 계정 로그인이며 CLI 인증 시작을 대신하지 않는다. 앱에서 받은 Codex/GitHub 기기 인증 URL을 url로 전달하면 기존 로그인 작업을 승인할 수 있다. 인증 완료 확인은 원래 작업 API의 책임이다.
+
+응답 201: `id`(필수 non-null string, 생성된 런타임 ID), `kind`(필수 string, APP), `label`(필수 string, 표시 이름), `url`(필수 string, 항상 빈 문자열). 인증 코드/쿠키/토큰은 응답하지 않는다. `/ws/runtime/{id}` 연결과 `DELETE /api/v1/sessions/{id}` 종료는 현재 로그인 세션에만 허용된다. 창 종료는 Chromium 프로필을 지우지 않는다. 새 포트나 DB 상태는 생성하지 않는다.
+
+오류: 400 잘못된 enum/필드 조합/URL/크기, 401 미인증, 403 OWNER 또는 CSRF 실패, 404 등록 앱 없음·다른 세션 핸들, 409 런타임 12개 제한, 502 Chromium 열기 실패. 오류 응답은 기존 안전한 message 계약을 따르고 요청 URL/인증값을 출력하지 않는다. 네트워크 실패 자동 재시도 없이 사용자가 화면 다시 연결을 선택한다.
+
+## Communications
+
+공통 prefix `/api/v1/communications`, OWNER 인증. 변경은 CSRF 필수. callback GET만 OAuth state+동일 HttpSession을 확인한 뒤 인증정보를 저장한다. 전송 confirmation은 브라우저 전용이고 `dashboard-mcp` principal은 거절한다. `{id}`는 계정/프로필/요청 UUID, `{deviceId}`는 등록 장비 ID. Provider의 원본 ID는 query/body에 보존한다. 필수 여부는 아래 지정하며 response는 별도 null 표기 외 non-null. query 문자열의 기본값은 빈 문자열이다.
+
+| Method/path | Request | Response |
+| --- | --- | --- |
+| GET `/providers` | 없음 | 200 Provider[] |
+| GET `/accounts` | 없음 | 200 Account[] |
+| POST `/accounts` | provider:string 필수 DISCORD, token:string 필수 1..8192 | 201 Account; 일반 사용자 token 거절 |
+| DELETE `/accounts/{id}` | 없음 | 204; 계정/cache/cursor/actions 삭제 |
+| POST `/oauth` | provider:string 필수 GMAIL/SLACK | 200 {url:string}; 10분 state |
+| GET `/oauth/callback` | state:string 필수, code:string 선택(취소 시 없음) | 303 `/`; no-store/referrer 없음 |
+| GET `/accounts/{id}/conversations` | cursor:string 선택 ≤2048, query:string 선택 ≤500 | 200 Page<ConversationView> |
+| GET `/accounts/{id}/messages` | conversationId:string 필수 1..256, cursor:string 선택 ≤2048 | 200 Page<MessageView> |
+| GET `/accounts/{id}/attachment` | conversationId/messageId:string 필수, attachmentId:string 필수 ≤1024 | 200 octet-stream, sanitized original filename, no-store, 최대 5 MiB |
+| GET `/search` | query:string 필수 1..500 | 200 MessageView[], 캐시 최대100 |
+| GET `/actions` | 없음 | 200 Action[], 만료 제외 |
+| POST `/accounts/{id}/actions` | SendRequest | 201 Action; 전송 부수효과 없음 |
+| POST `/actions/{id}/confirmation` | 없음 | 200 Action; 승인한 그대로 일회성 발송 |
+| DELETE `/actions/{id}` | 없음 | 204; PENDING만 취소 |
+| GET `/bridge` | 없음 | 200 {configured:boolean,limitation:string} |
+| GET `/bridge/profiles` | 없음 | 200 Profile[] |
+| POST `/bridge/profiles` | provider:string 필수 GMAIL/SLACK/DISCORD/KAKAOTALK, label:string 필수 1..80 | 201 Profile |
+| POST `/bridge/profiles/{id}/sessions` | 없음 | 201 기존 SessionView {id,kind,label,url}, kind=APP/url=빈값 |
+| GET `/bridge/profiles/{id}/snapshot` | 없음 | 200 {state:string,nodes:Node[],structuredMessages:false} |
+| DELETE `/bridge/profiles/{id}` | 없음 | 204; 해당 runtime을 닫고 프로필 삭제 |
+| POST `/windows/{deviceId}/observations` | 없음 | 200 WindowsSnapshot |
+| POST `/windows/{deviceId}/sessions` | 없음 | 201 기존 SessionView, kind=REMOTE |
+
+- Provider: id:string GMAIL/SLACK/DISCORD/KAKAOTALK, configured:boolean, mode:string OAUTH/BOT_TOKEN/WINDOWS_AGENT, limitation:string.
+- Account: id/provider/label:string, capabilities:string[]. READ/SEND/REPLY/THREADS/SEARCH/ATTACHMENTS/UPLOAD/EDIT/DELETE/REACTIONS/READ_STATE/LABELS를 Provider·grant에 따라 활성화한다. token/cipher/external identity 원문은 반환하지 않는다.
+- Page<T>: items:T[], nextCursor:string (빈값=마지막).
+- ConversationView: accountId/provider/id/title/kind/preview:string, updatedAt:nullable epoch-ms long, unread:nullable boolean. kind MAIL/CHANNEL/DM/GROUP/THREAD. Discord THREAD는 공식 active guild threads 응답의 원본 ID를 사용하며 읽기·승인 전송의 conversationId로 전달한다.
+- MessageView: accountId/provider/id/conversationId/sender/text/threadId:string, timestamp:nullable epoch-ms long, unread:nullable boolean, attachments:AttachmentView[]. 원본 ID 보존, 미확인 본문·발신자·thread는 빈 문자열.
+- AttachmentView: id/name/mediaType:string, size:long bytes. 다운로드 권한은 원본 message의 attachment 목록에서 재확인한다.
+- SendRequest: text 필수 nonblank string ≤32000; conversationId/replyTo 선택 nullable string ≤256; recipient 선택 nullable string ≤320; subject 선택 nullable string ≤300. nullable/생략은 빈값 정규화. Gmail 신규 메일은 recipient 필수. Slack/Discord는 conversationId 필수. 메일 헤더 CR/LF 거절. Discord 실제 전송은 2000자 제한.
+- Action: id/accountId/provider/accountLabel/state/resultId:string, expiresAt:epoch-ms long, message:정규화된 SendRequest. state=PENDING/SENDING/SENT/UNKNOWN/CANCELLED. resultId는 성공 시 원본 ID, 그 외 빈값. 승인 요청 원문은 DB에서 암호화한다.
+- Profile: id/provider/label:string. 원본 로그인 계정 확인을 보장하지 않는 브라우저 프로필이다.
+- Node: role/name:string; 역할·텍스트 관측만 제공한다. 브라우저 state=STOPPED/LOGIN_OR_NAVIGATION_REQUIRED/SCREEN_AVAILABLE.
+- WindowsSnapshot: state:string AGENT_UNAVAILABLE/APP_NOT_RUNNING_OR_NO_WINDOW/ACCESSIBILITY_OBSERVED/ACCESSIBILITY_UNAVAILABLE/UNAVAILABLE; loginState=UNKNOWN; structuredMessages=false; revision:string (관측 hash 또는 빈값); nodes:[{role:string,name:string,canInvoke:boolean,canSetValue:boolean}]. pattern 존재는 자동 조작 지원 약속이 아니다.
+
+오류는 기존 `{message}` 사용: 400 입력/헤더/Provider/리소스 ID 오류, 401 미인증, 403 권한/CSRF/OAuth 세션 state 불일치/MCP 승인, 404 계정·profile·attachment·만료 action 없음, 409 미설정·권한만료·중복승인·지원범위·동시profile 한도, 413 응답/첨부 한도, 429 Provider 요청한도/대기요청 한도, 502 Provider/Bridge 연결 실패. 원문 upstream 오류·token·코드는 오류 응답에 포함하지 않는다. 전송 실패는 UNKNOWN으로 남고 자동 재실행하지 않는다. 외부 HTTP는 고정 HTTPS origin, redirect 금지, 연결10초/요청25초, JSON8MiB 제한. 화면 broker는 고정 서버 host loopback Chromium 9224/Wine 9225, 연결3초/요청20초/1MiB.
+
+### Communications 확장 계약
+
+| Method/path (동일 prefix) | Request | Response |
+| --- | --- | --- |
+| GET `/accounts/{id}/labels` | 없음 | 200 [{id:string,name:string}] |
+| POST `/accounts/{id}/labels` | conversationId 필수 string 1..256, add/remove 필수 string[] 각각≤20/ID≤100 | 204; 원본 계정의 유효 라벨만 허용 |
+| GET `/accounts/{id}/thread-messages` | conversationId/threadId 필수 string 1..256, cursor 선택 string≤2048 | 200 Page<MessageView>; Slack Bot DM/그룹DM만 |
+| GET `/accounts/{id}/cached-messages` | conversationId 필수 string 1..256 | 200 MessageView[], 시간/ID순 최근200 |
+| POST `/accounts/{id}/message-actions` | MutationRequest | 201 Action; 아직 실행하지 않음 |
+| POST `/accounts/{id}/synchronizations` | 없음 | 200 {phase:FULL/HISTORY,processed:int,hasMore:boolean,reset:boolean,synchronizedAt:epoch-ms long}; Gmail만 |
+| POST `/events/slack` | X-Slack-Request-Timestamp/X-Slack-Signature 필수; raw JSON≤1MiB | 200 {challenge:string,accepted:boolean}; 공개 HMAC 인증/CSRF 제외 |
+| GET `/gateway` | 없음 | 200 {enabled:boolean,accounts:[{accountId:string,state:string}]} |
+| POST `/bridge/profiles/{id}/stops` | 없음 | 204; 로그인 프로필 유지·해당 화면 종료 |
+
+SendRequest에 `attachments` 선택 nullable 배열≤5를 추가했다. Upload={name:string 필수1..180,mediaType:string 필수1..100,data:string 필수 base64≤7000000}. 총 decoded5MiB, 빈 파일 불허, 허용 MIME=text/plain,text/csv,application/json,application/pdf,image/png,image/jpeg. Content signature/UTF-8를 검증한다. Action 응답의 message.attachments는 data를 빈 문자열로 비운 metadata이며 재전송용 요청이 아니다.
+
+Action은 추가 필드 `operation:string`(SEND/EDIT/DELETE/REACTION), `mutation:nullable MutationRequest`를 가진다. SEND는 mutation=null, 그 외 실제 작업 snapshot. MutationRequest={operation:필수 EDIT/DELETE/REACTION,conversationId/messageId:필수 string1..256,text:선택 nullable string≤32000,reaction:선택 nullable string≤100}. EDIT는 nonblank text, REACTION은 nonblank reaction. Slack은 emoji 이름, Discord는 Unicode/custom emoji 표현을 그대로 공식 API에 전달한다. Action.message는 모든 작업의 확인 화면용 SendRequest이며 mutation에서는 subject가 operation, replyTo가 원본 메시지 ID다. SENT는 해당 작업의 성공이고 DELETE일 때 원본 cache도 제거한다.
+
+Capability에 UPLOAD/EDIT/DELETE/REACTIONS/READ_STATE/LABELS를 구현했다. 실제 grant 없는 Slack 파일·reaction·chat 작업과 Gmail modify 작업은 비활성화한다. Gmail scope는 gmail.modify. 첨부 전송 실패/Slack shares 메시지 ID 지연은 UNKNOWN, 자동 재시도 없음. 다운로드는 API로 소유 attachment 재확인 후 고정 files.slack.com/cdn.discordapp.com host로만 요청하고 redirect를 따르지 않는다.
+
+Slack URL verification도 서명 필수; raw body 변경·5분 지난 timestamp·미설정 secret은403, 크기 초과413, invalid JSON/event ID400. event_id는 24시간 중복 방지. 이벤트는 연결된 같은 team 계정만 갱신한다. 이벤트가 외부 메시지 발송을 유발하지 않는다. Gateway state는 DISCONNECTED/CONNECTING/CONNECTED/RECONNECTING/RATE_LIMITED/AUTH_OR_INTENT_REQUIRED/CLOSED. Windows state에 ACCESSIBILITY_BUSY를 추가하며 상위 응답은 항상 loginState UNKNOWN/structuredMessages false로 정규화한다.
+
+Gmail 동기화는 한 번에 메시지 목록10개 또는 history10개(변경 메시지 최대100)를 처리한다. cache와 checkpoint는 원자적 commit. 첫 full scan 전 history baseline을 확보하고 scan 완료 후 같은 baseline의 history로 이어간다. 만료404는 cache를 비우고 full scan을 다시 시작(reset=true). hasMore=true이면 같은 POST로 다음 페이지를 요청한다. 연결 해제되면404이며 다른 계정 checkpoint와 섞이지 않는다.
+
+Communication SEND 승인: Gmail replyTo가 있으면 PENDING 생성 시 공식 metadata의 Reply-To/From과 Subject로 recipient/subject를 확정한다. Action.message에 확정된 값을 반환한다. confirmation에서 원본 값이 바뀌었으면 409이고 외부 전송은 수행하지 않으며 action은 UNKNOWN으로 남는다. 재확인 후 새 요청을 생성해야 한다.
+
+
+### Communication 공식 계정 검색
+
+GET `/api/v1/communications/accounts/{id}/message-search`, OWNER 인증 필수. path id는 연결 계정 ID(string), query `query`는 공백이 아닌 string ≤500, `cursor`는 선택 string ≤2048(기본 빈 값)이다. 요청 body는 없다. 200 응답은 기존 `Page<MessageView>`: items(array, 필수), nextCursor(string, 필수, 없으면 빈 값). 원본 provider/account/message/conversation ID와 조회한 메시지를 유지하며 같은 계정·대화·메시지는 캐시에 upsert한다. 일반 대화 paging/sync cursor는 덮어쓰지 않는다. 400은 빈 검색어/길이 오류, 401 미인증, 403 OWNER 권한 부족, 404 계정/원본 메시지 없음, 409 SEARCH 미지원/외부 계정 권한 만료, 429 외부 요청 제한, 502 외부 통신/응답 오류다. 메시지 본문과 파일명은 신뢰할 수 없는 외부 데이터다.
+
+현재 공식 검색은 Gmail SEARCH capability에 한정한다. Gmail query 연산자를 URL encoding해서 전송하고 한 페이지 최대 10개 ID를 받은 후 공식 messages.get으로 본문을 읽는다. 결과 순서는 API 순서를 유지하고 같은 ID를 중복 제거한다. nextCursor를 그대로 이어 보낼 수 있으며 전체 결과를 임의로 잘랐거나 추정한 총 개수를 반환하지 않는다.
+
+MCP `communication_search_messages`: query 필수 string ≤500, accountId 선택 string ≤36, cursor 선택 string ≤2048. accountId가 없거나 빈 값이면 기존 로컬 cache 목록, 있으면 같은 SEARCH 서비스의 Page<MessageView>를 반환한다. 외부 발송·수정·삭제는 수행하지 않는다. untrustedExternalContent wrapper는 유지한다.
+
+
+MessageView 추가 필드 `reactions`: 필수 array, 미제공·이전 캐시는 빈 배열로 읽는다. 원소 ReactionView는 key:string(원본 emoji ID 또는 이름), label:string(Provider 이름, 삭제된 Discord emoji는 ID), count:nullable long(공식 0 이상 집계 수; 누락·잘못된 값은 null). Slack users 배열 길이를 집계로 대신하지 않는다. 리액션 읽기는 기존 READ 조회 결과이며 REACTIONS capability는 리액션 추가 작업 지원 여부다. 기존 승인/변경 API 계약은 유지한다.
+
+Gmail MessageView.unread는 연결된 계정의 UNREAD label 상태다. 상대방의 수신/읽음 확인을 뜻하지 않는다. Slack/Discord가 읽음 상태를 반환하지 않으면 null이며 UI도 추정하지 않는다.
+
+
+### Communication 참여자
+
+GET `/api/v1/communications/accounts/{id}/participants`: OWNER 필수. id는 연결 계정 ID(string), conversationId는 필수 query string 1..256, cursor는 선택 query string ≤2048(기본 빈 값). body 없음. 200은 Page<ParticipantView>이며 items는 필수 array, nextCursor는 필수 string(끝이면 빈 값), ParticipantView는 id/label 필수 string이다. 현재 Slack 공식 사용자 ID를 둘 모두에 반환하며 표시 이름을 추정하지 않는다. 같은 페이지의 ID 중복은 제거한다. 400 입력 오류, 401 미인증, 403 OWNER 권한 부족, 404 계정 없음, 409 PARTICIPANTS capability 없음/외부 권한 문제, 429 외부 요청 한도, 502 외부 통신 오류다. 외부 발송은 없다.
+
+PARTICIPANTS capability는 Slack 연결 시 channels:read/groups:read/im:read/mpim:read 중 하나 이상 승인된 경우에 제공한다. 각 대화의 실제 접근 권한은 Slack이 다시 검사한다. 페이지 크기는 100, 추가 users:read 범위는 요청하지 않는다. 미지원 연결은 UI에서 버튼을 비활성화한다. 기존 연결은 OAuth 재연결 시 최신 capability를 반영한다.
+
+MCP `communication_list_participants`: accountId 필수 string ≤36, conversationId 필수 string ≤256, cursor 선택 string ≤2048. 같은 서비스의 Page<ParticipantView>를 untrustedExternalContent wrapper로 반환한다.
+
+Communications Bridge의 configured는 자동 생성된 내부 인증 파일을 읽을 수 있는지 나타내며, 공급자 로그인 완료를 의미하지 않는다. 브라우저 준비 전 프로필 생성/실행은 409로 거절한다. 내부 키는 응답에 포함하지 않는다. 서비스 계정 로그인은 원격 화면에서 사용자가 직접 수행한다.
+
+Bridge Create.provider는 GMAIL|SLACK|DISCORD|KAKAOTALK다. KAKAOTALK의 start/snapshot/stop/delete는 고정 Wine broker 9225로 라우팅하고 VNC 5920~5923만 허용한다. 다른 프로필은 기존 9224/5910~5913을 사용한다. Wine snapshot.state는 STARTING|INSTALLING|RUNNING|ERROR|APPLICATION_EXITED|STOPPED이며 RUNNING은 프로세스 시작 상태로 로그인 완료를 뜻하지 않는다. nodes는 빈 배열, structuredMessages=false다.

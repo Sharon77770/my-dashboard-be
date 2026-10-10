@@ -179,3 +179,7 @@ Samba SMB3가 기존 `dashboard-data` 볼륨의 `/app/data/cloud/files`를 공�
 
 ## 메모장
 앱 목록 → 메모장에서 조직/프로젝트 폴더를 만들고 Notion 방식 블록 편집기로 문서를 작성합니다. 이미지, 체크리스트, 표, Markdown과 자동 저장을 지원하며 빈 문서·할 일·업무 기록·가계부 등 8개 템플릿을 제공합니다. [사용법과 저장/백업 제한](docs/notes.md).
+
+## Communications
+
+Communications 내장 앱은 카카오톡 Wine 화면과 Slack/Discord Chromium 화면을 대시보드에서 직접 열고 조작한다. 화면 모드에는 별도 OAuth/Bot Token 설정이 필요 없다. Gmail/Slack 공식 OAuth, Discord Bot 연결과 승인 후 메시지 전송은 선택적인 API 수신함 기능으로 유지한다. 지원 범위·미구현 항목·설정·검증 경계는 [Communications](docs/communications.md)를 따른다.

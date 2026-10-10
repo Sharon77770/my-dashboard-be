@@ -310,3 +310,36 @@ Service 1:N Event. `service_id` FK CASCADE. GitHub/장비/Telemetry의 기존 �
 | revision | INTEGER | 예 | 1 | 없음 | 조건부 저장·삭제 버전 |
 
 프로필 삭제는 해당 병역 일정만 CASCADE 삭제한다. 프로필과 일정의 수정은 기존 revision 일치 조건에서만 가능하다. 진행률·휴가 집계·일반 캘린더 투영은 읽을 때 계산하고 저장하지 않는다.
+
+## Communications (owner: communication, V12)
+
+`V12__communications.sql`을 DatabaseInitialization이 idempotent CREATE로 적용한다. 기존 SQLite/볼륨을 유지하며 soft delete는 없다. account 1:N messages/cursors/actions; account 삭제 시 FK CASCADE. 모든 컬럼은 별도 표시 외 NOT NULL/default 없음. 암호화 키는 기존 CredentialVault 외부 key 파일이다.
+
+| Table | Column/type | 역할·제약 |
+| --- | --- | --- |
+| communication_accounts | id TEXT PK | 서버 UUID |
+| communication_accounts | provider / external_id TEXT | GMAIL/SLACK/DISCORD + Provider 계정 ID; 복합 UNIQUE |
+| communication_accounts | label TEXT | Provider 확인 표시 이름 |
+| communication_accounts | credential_cipher TEXT | accessToken/refreshToken/expiresAt/reconnectRequired JSON의 AES-GCM; 응답 금지 |
+| communication_accounts | capabilities TEXT | 확인된 capability 이름 CSV |
+| communication_accounts | created_at INTEGER | 생성 epoch-ms |
+| communication_messages | account_id TEXT FK, conversation_id / message_id TEXT | 세 컬럼 복합 PK, 원본 ID |
+| communication_messages | sent_at INTEGER nullable | 확인된 epoch-ms; account_id,sent_at,message_id 비고유 index |
+| communication_messages | payload TEXT | MessageView JSON cache; 민감 메시지 포함, DB 백업 보호 필요 |
+| communication_cursors | account_id TEXT FK, conversation_id TEXT | 복합 PK |
+| communication_cursors | cursor TEXT, synchronized_at INTEGER | 마지막 페이지 cursor 및 조회 시각; 이벤트 복구 완료 지표가 아님 |
+| communication_actions | id TEXT PK, account_id TEXT FK | 서버 요청 UUID, 소유 계정 |
+| communication_actions | payload_cipher TEXT | 불변 SendRequest AES-GCM |
+| communication_actions | state TEXT CHECK | PENDING/SENDING/SENT/UNKNOWN/CANCELLED |
+| communication_actions | expires_at INTEGER, result_id TEXT | 10분 만료, 성공 원본 ID/빈값 |
+| communication_profiles | id TEXT PK, provider/label TEXT | 별도 화면 프로필 UUID와 GMAIL/SLACK/DISCORD/KAKAOTALK, 표시명. 계정 FK 없음 |
+
+원본 서비스 메시지는 삭제하지 않는다. credentials와 action 본문 외 message cache는 현재 일반 SQLite 파일 보호에 의존한다. profile 로그인은 기존 browser volume의 별도 UUID 폴더이고 DB에 복제하지 않는다. 명시적 profile 삭제는 서버 runtime 종료와 파일 제거 성공 후 DB 행을 삭제한다. `SENDING` 선점 이후 crash/timeout은 재전송하지 않으며 만료 때 action을 제거한다.
+
+Communication action의 payload_cipher는 `{operation,message,mutation}` 불변 JSON을 AES-GCM으로 저장한다. operation=SEND/EDIT/DELETE/REACTION이며 둘 중 실제 요청 하나만 non-null이다. message의 업로드 파일 base64도 암호문 안에만 보관하고 API action 응답에서는 제거한다. `communication_event_receipts`는 event_id TEXT PK, received_at INTEGER NOT NULL/default없음의 서명 이벤트 재전송 기록이다. FK/soft delete 없음, 수신 시24시간 지난 행을 제거한다. Slack prefix로 다른 Provider ID와 분리한다. `communication_cursors`의 예약 conversation_id `@gmail-sync`는 FULL/HISTORY phase/checkpoint/pageToken JSON을 보관한다. 이것만 Gmail 증분 복구 checkpoint이며 일반 대화 nextCursor와 구분한다.
+
+communication_messages.payload의 MessageView JSON에 reactions 배열(key, label, count nullable)을 추가했다. 기존 row의 누락 필드는 빈 배열로 읽으며 테이블·PK·기존 볼륨에는 변경이 없다. Provider가 제공하지 않은 집계 수나 읽음 상태를 만들어 저장하지 않는다.
+
+Communication credential JSON의 reconnectRequired는 갱신 교환을 시작할 때 true, 성공 저장 시 false다. 이전 JSON에서 누락되면 false로 읽는다. 계정 ID와 이전 암호문을 함께 비교하는 원자적 UPDATE로 연결 해제/재인증과의 경합을 처리한다. 불명확한 교환 실패는 재연결이 필요하며, 명시적인 429는 이전 값을 복원한다. SQL column 추가는 없다.
+
+communication_profiles.provider에 KAKAOTALK을 추가한다. 테이블 변경은 없으며 Wine prefix는 새 communication-wine-profile 볼륨의 communications/<UUID>/wine 아래에 있다. 원격 화면 메시지 내용은 communication_messages에 저장하지 않는다.

@@ -155,3 +155,22 @@ Home 표시 흐름: 기존 일정·서비스 health·장비 상태·GitHub 요�
 OWNER 로그인 후 `/ws/workspace`의 ready를 받으면 현재 화면과 공통 Workspace를 조회한다. 변경 알림은 영역별로 합치고 사용자 요청의 로딩 해제 후 기존 REST API를 조용히 호출한다. 응답은 동일 화면·버전일 때 부분 반영하며 폼과 에디터를 유지한다. 재접속·버전 누락·탭 복귀는 최신 상태를 재조회한다. heartbeat는 현재 화면의 외부 상태도 갱신한다. 소켓 미연결 때는 60초 조회를 사용하며 로그아웃 시 연결을 정리한다. [상세](../realtime-ui.md).
 
 병역 캘린더: 앱 또는 기존 캘린더에서 진입 → GET 현황 → 미등록이면 복무 정보 등록 → OWNER/CSRF·날짜·revision 검사 → SQLite 저장 → 서버 계산 현황 반환 → 매초 시계 표시. 휴가·훈련 일정도 같은 경계로 저장하고 성공한 쓰기는 `military`와 `calendar`를 함께 무효화한다. 캘린더는 원본을 투영하고 항목 클릭 시 병역 편집기로 이동한다. 폼 실패·409는 입력을 유지하고, 조용한 조회 실패는 기존 화면을 유지한다. 서울 자정에는 일별 집계를 다시 읽으며 실패 시 30초 이후 재시도한다. 프로필 삭제는 병역 일정만 cascade하고, 연동 해제는 원본을 유지한다. [상세](../military-calendar.md).
+
+## 공통 인증 브라우저
+
+각 앱의 기기 인증 링크 또는 전역 인증 브라우저 버튼 → AuthenticationBrowserService가 공급자/등록 앱을 검증 → RuntimeService가 OWNER 로그인에 귀속된 서버 VNC 핸들 생성 → 원격 Chromium에서 사용자가 인증 → 원래 앱의 로그인 작업 polling으로 완료 확인. 창 종료는 화면 연결만 닫고 browser-profile 쿠키는 유지한다. [상세](../authentication-browser.md).
+
+## Communications
+
+계정 연결 → Provider identity 확인 → vault 암호화 저장 → 대화/메시지 페이지 조회 → 원본 ID upsert → UI text 렌더. 메시지 작성/AI 요청 → 불변 PENDING → OWNER CSRF confirmation → atomic SENDING → SENT 또는 UNKNOWN. 실패 재전송 없음. 프로필 생성 → 고정 앱의 별도 Chromium 실행 → session-owned Guacamole → 직접 로그인/입력 → 선택적 접근성 조회. Windows Agent 미연결은 다른 Provider를 중단하지 않는다.
+상세: [Communications](../communications.md).
+
+Communication OAuth 갱신은 최신 credential 읽기 → 이전 암호문 비교 후 reconnectRequired=true claim → 고정 Provider token endpoint 교환 → 검증한 만료/회전 토큰의 조건부 저장 순서다. 연결 해제·재인증으로 claim이 바뀌면 저장하지 않는다. 불명확한 실패/중간 종료는 재연결을 요구하며, 명시적인 429만 claim을 해제한다.
+
+Communications 격리 Chromium은 환경변수 인증값 없이 전용 control 볼륨의 자동 생성 키로 내부 연결한다. dashboard는 읽기 전용, browser는 쓰기 권한을 가지며 일반 공유 브라우저 프로필과 인증키 저장소를 분리한다. 사용자 서비스 로그인은 대시보드 원격 화면에서 직접 수행하고 해당 프로필에 보존한다.
+
+메신저 화면 버튼 → 기존/새 서비스 프로필 선택 → BrowserBridgeService → 고정 Chromium 또는 Wine broker → RuntimeService의 세션 소유 VNC → Guacamole 화면/입력. Wine 프로필 실행 시 고정 공식 카카오 설치/실행만 허용하며 임의 명령/실행 경로를 API로 받지 않는다.
+
+### Communications 화면 탐색
+
+미연결 → 중앙 연결 안내, 연결됨 → 통합 사이드바에서 대화 선택 → 대화 탭과 하단 작성기. 헤더 상세 버튼 → 참여자/첨부/AI/승인 패널, 닫기 → 대화. 모바일 뒤로 → 목록이며 백그라운드 갱신은 이 선택을 유지한다. 전송 내용 확인 → 기존 승인 대화상자 → 명시적 승인 후 발송 흐름을 유지한다. 조회 오류에는 재시도를 제공하고 권한 부족과 빈 대화를 구분한다. 원격 앱 버튼은 준비 중 상태와 중복 클릭 방지를 제공한 뒤 기존 인증 브라우저로 연결한다.

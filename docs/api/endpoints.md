@@ -134,6 +134,7 @@
 | PATCH | /api/v1/devices/{device}/files | OWNER | 이름 변경 |
 | DELETE | /api/v1/devices/{device}/files | OWNER | 파일/빈 폴더 삭제 |
 | GET | /api/v1/devices/{device}/files/content | OWNER | 파일 다운로드 |
+| POST | /api/v1/authentication-browser/sessions | OWNER + CSRF | 영구 서버 인증 브라우저의 로그인 세션 전용 화면 생성 |
 | POST | /api/v1/sessions | OWNER | 실행 세션 생성 |
 | GET | /api/v1/sessions | OWNER + 생성한 로그인 세션 | 현재 프로젝트의 유지 중인 Studio 터미널 목록 |
 | DELETE | /api/v1/sessions/{id} | OWNER | 실행 세션 종료 |
@@ -269,3 +270,44 @@ Terminal은 기존 `POST /api/v1/sessions`에 선택 필드 `root`를 전달한�
 | POST | /api/v1/military/events | OWNER + CSRF | 병역 일정 생성 |
 | PUT | /api/v1/military/events/{id} | OWNER + CSRF | 병역 일정 전체 수정 |
 | DELETE | /api/v1/military/events/{id} | OWNER + CSRF | 병역 일정 삭제 |
+
+## Communications
+
+| Method | URL | Auth | 설명 |
+| --- | --- | --- | --- |
+| GET | `/api/v1/communications/providers` | OWNER | Provider 설정·제약 |
+| GET | `/api/v1/communications/accounts` | OWNER | 연결 계정 |
+| POST | `/api/v1/communications/accounts` | OWNER + CSRF | Discord Bot 연결 |
+| DELETE | `/api/v1/communications/accounts/{id}` | OWNER + CSRF | 계정·캐시 삭제 |
+| POST | `/api/v1/communications/oauth` | OWNER + CSRF | OAuth 시작 |
+| GET | `/api/v1/communications/oauth/callback` | OWNER | 세션 state 확인 후 OAuth 완료 |
+| GET | `/api/v1/communications/accounts/{id}/conversations` | OWNER | Provider 대화 페이지 |
+| GET | `/api/v1/communications/accounts/{id}/messages` | OWNER | Provider 메시지 페이지 |
+| GET | `/api/v1/communications/accounts/{id}/attachment` | OWNER | 검증된 첨부 다운로드 |
+| GET | `/api/v1/communications/search` | OWNER | 로컬 캐시 검색 |
+| GET | `/api/v1/communications/actions` | OWNER | 전송 승인 상태 |
+| POST | `/api/v1/communications/accounts/{id}/actions` | OWNER + CSRF | 불변 전송 요청 생성 |
+| POST | `/api/v1/communications/actions/{id}/confirmation` | OWNER + CSRF | 브라우저 승인 및 일회성 전송 |
+| DELETE | `/api/v1/communications/actions/{id}` | OWNER + CSRF | 대기 전송 취소 |
+| GET | `/api/v1/communications/bridge` | OWNER | Bridge 설정 상태 |
+| GET | `/api/v1/communications/bridge/profiles` | OWNER | 격리 프로필 목록 |
+| POST | `/api/v1/communications/bridge/profiles` | OWNER + CSRF | 프로필 생성 |
+| POST | `/api/v1/communications/bridge/profiles/{id}/sessions` | OWNER + CSRF | 격리 앱 실행·Guacamole 세션 |
+| GET | `/api/v1/communications/bridge/profiles/{id}/snapshot` | OWNER | 읽기 전용 접근성 상태 |
+| DELETE | `/api/v1/communications/bridge/profiles/{id}` | OWNER + CSRF | 프로필·로그인 상태 삭제 |
+| POST | `/api/v1/communications/windows/{deviceId}/observations` | OWNER + CSRF | Windows UIA 관측 |
+| POST | `/api/v1/communications/windows/{deviceId}/sessions` | OWNER + CSRF | Windows 원격 화면 |
+
+| Method | URL | Auth | 설명 |
+| --- | --- | --- | --- |
+| GET | `/api/v1/communications/accounts/{id}/labels` | OWNER | Gmail 라벨 목록 |
+| POST | `/api/v1/communications/accounts/{id}/labels` | OWNER + CSRF | Gmail 읽음·라벨 변경 |
+| GET | `/api/v1/communications/accounts/{id}/thread-messages` | OWNER | Slack DM 스레드 페이지 |
+| GET | `/api/v1/communications/accounts/{id}/cached-messages` | OWNER | 로컬 메시지 캐시 |
+| POST | `/api/v1/communications/accounts/{id}/message-actions` | OWNER + CSRF | 수정·삭제·리액션 승인 요청 |
+| POST | `/api/v1/communications/accounts/{id}/synchronizations` | OWNER + CSRF | Gmail 동기화 한 페이지 |
+| POST | `/api/v1/communications/events/slack` | Slack HMAC | 서명된 이벤트 수신 |
+| GET | `/api/v1/communications/gateway` | OWNER | Discord Gateway 상태 |
+| POST | `/api/v1/communications/bridge/profiles/{id}/stops` | OWNER + CSRF | 프로필을 보존하며 원격 앱 중지 |
+| GET | `/api/v1/communications/accounts/{id}/message-search` | OWNER | SEARCH 권한이 있는 연결 계정의 공식 메시지 검색 및 cursor 페이지 조회 |
+| GET | `/api/v1/communications/accounts/{id}/participants` | OWNER | PARTICIPANTS 권한이 있는 대화의 원본 참여자 ID 페이지 조회 |

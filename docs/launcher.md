@@ -77,3 +77,9 @@ App Drawer는 App Library overlay가 된다. 고정·개발·서비스와 인프
 `tools/launcher/test.cjs`는 좌표/폴더/페이지/위젯/잠금/검색/전환/계정 저장을 확인한다. `responsive-test.cjs`는 1440/1280/1024/768/700/430/390/360px에서 shell·Home·Notes 폭·집중 모드 규칙을 확인한다. `theme-test.cjs`는 양쪽 테마의 대비를 확인한다. `drawers-test.cjs`, `github-test.cjs`, `assistant-test.cjs`, `tools/studio-editor/test.cjs`는 주요 앱 동작을 검사한다. JS DOM 검사는 실제 시각적 레이아웃·터치·가상 키보드가 아니며 브라우저/기기 검증과 구분한다.
 
 `npm ci --prefix tools/ui`, `npm run build --prefix tools/ui`로 Tailwind 4 bundle을 생성한다. Preflight는 내장 editor의 스타일 보존을 위해 제외한다. 공통 색상과 typography는 [디자인 시스템](design-system.md)을 따른다.
+
+## Communications
+
+Communications를 중앙 builtins에 등록했다. 같은 Registry를 통해 Home/Dock/Library/Palette와 Workspace 내장 탭 복원에 참여한다. 메시지 작성·대화 분할은 communications.js가 담당하고 기존 실행 탭의 종류/저장 계약은 바꾸지 않는다.
+
+Communications의 메신저 화면 버튼은 카카오톡 Wine, Slack/Discord Chromium 프로필을 생성 또는 재사용해 공통 원격 화면을 연다. 복수 프로필은 계정 관리에서 선택한다. 공식 API 수신함은 별도 선택 기능이며 화면 내용을 자동 수집하지 않는다.

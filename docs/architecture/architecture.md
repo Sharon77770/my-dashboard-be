@@ -104,3 +104,12 @@ notes/controller → notes/service → notes/repository → SQLite. 기존 계�
 ## 병역 캘린더
 
 `MilitaryController → MilitaryService → MilitaryRepository → SQLite`에 개인 복무와 일정을 저장한다. 순수 날짜 규칙은 MilitaryDates에 두며 응답은 MilitaryDto로 변환한다. 기존 PlannerService가 MilitaryService의 읽기 투영을 합쳐 일반 캘린더·위젯·MCP에 같은 병역 일정을 제공한다. 투영을 일반 일정으로 복제하지 않으며 원본 쓰기는 MilitaryService만 수행한다. OWNER/CSRF를 재사용하고 외부 앱 계정 연동은 추가하지 않는다. [계산·사용법](../military-calendar.md).
+
+## 공통 인증 브라우저
+
+모든 앱의 공급자 인증 진입은 AuthenticationBrowserController → AuthenticationBrowserService → RuntimeService → BrowserAdapter와 기존 Guacamole 화면을 재사용한다. 서버 Chromium 프로필의 로그인 상태와 앱/장비별 CLI 인증을 구분하며 쿠키/토큰을 클라이언트로 추출하지 않는다. [운영과 보안 경계](../authentication-browser.md).
+
+## Communications
+
+CommunicationController/BrowserBridgeController/WindowsBridgeController → communication service → repository 또는 Provider/Bridge adapter. SQLite 계정·cache·일회성 action과 기존 vault를 재사용한다. Assistant MCP는 같은 service로 읽고 전송 요청만 생성하며 OWNER 브라우저 confirmation에서만 실행한다. Web Bridge는 같은 browser 컨테이너의 고정 loopback broker에 별도 프로필을 요청하고 기존 RuntimeService/Guacamole로 화면을 연다. Windows Agent는 기존 검증된 SSH와 동일 사용자 named pipe를 쓰는 선택적 외부 컴포넌트다.
+상세: [Communications](../communications.md).

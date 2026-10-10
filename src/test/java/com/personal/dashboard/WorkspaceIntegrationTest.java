@@ -36,6 +36,64 @@ class WorkspaceIntegrationTest {
   @Autowired JdbcTemplate jdbc;
 
   @Test
+  void authenticationBrowserRequiresOwnerCsrfAndValidDestination() throws Exception {
+    String path = "/api/v1/authentication-browser/sessions";
+    String body = "{\"provider\":\"BROWSER\",\"width\":1600,\"height\":900}";
+    mvc.perform(post(path).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(
+            post(path)
+                .with(user("owner").roles("OWNER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post(path)
+                .with(csrf())
+                .with(user("viewer").roles("VIEWER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isForbidden());
+    var session = new org.springframework.mock.web.MockHttpSession();
+    String response =
+        mvc.perform(
+                post(path)
+                    .session(session)
+                    .with(csrf())
+                    .with(user("owner").roles("OWNER"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.kind").value("APP"))
+            .andExpect(jsonPath("$.url").value(""))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String id = mapper.readTree(response).path("id").asText();
+    mvc.perform(delete("/api/v1/sessions/" + id).with(csrf()).with(user("owner").roles("OWNER")))
+        .andExpect(status().isNotFound());
+    mvc.perform(
+            delete("/api/v1/sessions/" + id)
+                .session(session)
+                .with(csrf())
+                .with(user("owner").roles("OWNER")))
+        .andExpect(status().isNoContent());
+    for (String invalid :
+        new String[] {
+          body.replace("BROWSER", "UNKNOWN"),
+          body.replace("1600", "0"),
+          "{\"provider\":\"GITHUB\",\"url\":\"https://github.com.evil.test/\",\"width\":1600,\"height\":900}"
+        })
+      mvc.perform(
+              post(path)
+                  .with(csrf())
+                  .with(user("owner").roles("OWNER"))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(invalid))
+          .andExpect(status().isBadRequest());
+  }
+
+  @Test
   @org.springframework.transaction.annotation.Transactional
   void databaseApiRequiresOwnerAndCsrfAndNeverReturnsCredential() throws Exception {
     mvc.perform(get("/api/v1/databases")).andExpect(status().isUnauthorized());

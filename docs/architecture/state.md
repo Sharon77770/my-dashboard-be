@@ -82,3 +82,18 @@ Service Onboarding Draft는 Codex thread ID당 최신 하나를 서버 메모리
 브라우저 연결 상태는 `connecting → connected → reconnecting`이며 인증 종료 시 `expired`로 재시도를 멈춘다. 화면 갱신 실패는 표시 상태 `stale`로 나타낸다. epoch/revision은 프로세스별 알림 순서를 위한 메모리 상태로 SQLite에 저장하지 않는다. dirty topic은 조회 중 누적해 다음 한 번의 갱신으로 합친다. 폼·에디터·선택·스크롤은 클라이언트 소유 상태다. 메모의 외부 변경은 기존 revision 충돌 검증을 유지한다.
 
 병역 복무 유형은 `ARMY` 육군, `NAVY` 해군, `AIR_FORCE` 공군, `MARINES` 해병대, `SOCIAL_SERVICE` 사회복무, `CUSTOM` 직접 설정이다. 일정 종류는 `LEAVE` 휴가, `TRAINING` 훈련, `DUTY` 근무, `OTHER` 기타다. 계산 상태는 서울 날짜에 따라 `UPCOMING` 입대 전 → `SERVING` 전역 당일까지 → `COMPLETED` 다음 날부터이며 DB에 저장하지 않는다. 이정표 종류는 `ENLISTMENT`/`PROMOTION`/`DISCHARGE`다. 저장 revision은 생성 1, 수정 시 증가하고 요청의 기존 revision 불일치는 409다. 월·선택 날짜·폼 초안·서버 시각 보간용 단조 증가 시계는 브라우저 상태다. 조회 generation이 달라진 지연 응답은 저장 결과를 덮어쓰지 않는다.
+
+## 인증 브라우저 화면
+
+원격 화면 핸들은 기존 로그인 세션 소유 런타임 상태이며 영속 DB에 저장하지 않는다. 연결 중/연결됨/연결 종료/오류는 화면 연결 상태일 뿐 공급자 인증 완료 상태가 아니다. UI는 세대 번호로 닫기·재연결 후 늦은 응답의 핸들을 즉시 정리하고 인증 코드·입력값을 창 닫기에 제거한다. Chromium 쿠키는 browser-profile에 유지되며 각 CLI 인증 상태와 별개이다.
+
+## Communications
+
+Communications 계정과 메시지 cache는 SQLite, OAuth state는 10분 세션 소유 메모리, draft는 브라우저 메모리, 탭 metadata는 계정별 sessionStorage다. action=PENDING/SENDING/SENT/UNKNOWN/CANCELLED; 허용 전이는 PENDING→SENDING→SENT 또는 UNKNOWN, PENDING→CANCELLED. Bridge 관측은 login/구조화 성공을 추정하지 않는다.
+상세: [Communications](../communications.md).
+
+Communications 브라우저 탭 저장 version 2: panes(accountId/id/title/kind), selected(계정·대화 key), split(boolean). 기존 배열도 읽고 허용 필드만 복원한다. kind는 MAIL/CHANNEL/DM/GROUP/THREAD 또는 빈 값이며 계정 권한은 서버에서 다시 읽는다. 메시지·초안·replyTo·인증정보는 복원 대상이 아니다.
+
+### Communications 표현 상태
+
+기존 탭·분할 저장 계약은 유지한다. `detailsOpen`은 기본 false인 일시적 UI 상태이며 `messageOpen`은 모바일 목록/대화 전환 상태다. 실시간 캐시 갱신은 목록으로 돌아간 사용자를 대화로 이동시키지 않는다. `listQuery`는 서버 검색과 별개의 로컬 목록 필터다. 계정별 조회 오류와 각 pane의 loading/error는 분리하며, 오류가 발생해도 이미 읽은 메시지와 작성 중인 초안을 보존한다. API/DB/인증 상태 변경은 없다.

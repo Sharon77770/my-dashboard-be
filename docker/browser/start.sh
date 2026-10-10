@@ -11,7 +11,24 @@ if [ -f /tmp/.X1-lock ]; then
     if ! kill -0 "$display_pid" 2>/dev/null; then rm -f /tmp/.X1-lock /tmp/.X11-unix/X1; fi
 fi
 children=''
-cleanup() { trap - EXIT INT TERM; for child in $children; do kill "$child" 2>/dev/null || true; done; wait 2>/dev/null || true; }
+cleanup() {
+    trap - EXIT INT TERM
+    # Keep X and the window manager alive until Chromium has saved its profile.
+    if [ -n "${browser_pid:-}" ]; then
+        python3 /usr/local/lib/workspace-browser-shutdown.py || true
+        shutdown_attempt=0
+        while kill -0 "$browser_pid" 2>/dev/null && [ "$shutdown_attempt" -lt 30 ]; do
+            shutdown_attempt=$((shutdown_attempt + 1))
+            sleep 0.1
+        done
+        kill "$browser_pid" 2>/dev/null || true
+        wait "$browser_pid" 2>/dev/null || true
+    fi
+    for child in $children; do
+        if [ "$child" != "${browser_pid:-}" ]; then kill "$child" 2>/dev/null || true; fi
+    done
+    wait 2>/dev/null || true
+}
 trap cleanup EXIT
 trap 'exit 0' INT TERM
 # Shared dashboard networking must not expose the unauthenticated desktop/CDP ports.
@@ -29,7 +46,7 @@ openbox &
 children="$children $!"
 socat "TCP-LISTEN:9223,reuseaddr,fork,bind=$browser_bind" TCP:127.0.0.1:9222 &
 children="$children $!"
-chromium --no-sandbox --disable-dev-shm-usage --no-first-run --password-store=basic --user-data-dir=/home/browser/profile --remote-debugging-port=9222 --remote-allow-origins=http://browser:9223 about:blank &
+chromium --no-sandbox --disable-dev-shm-usage --no-first-run --start-maximized --password-store=basic --user-data-dir=/home/browser/profile --remote-debugging-port=9222 --remote-allow-origins=http://browser:9223 about:blank &
 browser_pid=$!
 children="$children $browser_pid"
 # A Chromium error dialog keeps the process alive without providing CDP.
@@ -43,4 +60,6 @@ until curl -fsS --max-time 1 http://127.0.0.1:9223/json/version >/dev/null 2>&1;
     fi
     sleep 1
 done
+python3 /usr/local/lib/communication_bridge.py &
+children="$children $!"
 wait "$browser_pid"

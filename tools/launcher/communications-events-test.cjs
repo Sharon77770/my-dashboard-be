@@ -1,0 +1,38 @@
+const {JSDOM}=require('jsdom'),fs=require('node:fs'),assert=require('node:assert/strict');
+const dom=new JSDOM('<body data-account="fixture"><div id="communications" class="active"></div></body>',{runScripts:'outside-only',url:'http://localhost'});
+const w=dom.window,d=w.document,toasts=[];
+const message={accountId:'a1',provider:'GMAIL',id:'m1',conversationId:'c1',sender:'fixture',text:'message fixture',timestamp:100,unread:true,attachments:[],reactions:[{key:'untrusted',label:'<img src=x>',count:3}]};
+let cached=[message],pending=[];
+for(const file of ['ui.js','live-dom.js','communications.js'])w.eval(fs.readFileSync('src/main/resources/static/js/'+file,'utf8'));
+const api=async path=>{
+  if(path.endsWith('/accounts'))return [{id:'a1',provider:'GMAIL',label:'Fixture',capabilities:['READ','SEND']}];
+  if(path.endsWith('/providers'))return [];if(path.endsWith('/actions'))return pending;
+  if(path.endsWith('/conversations'))return {items:[{accountId:'a1',id:'c1',title:'Fixture',kind:'MAIL'}],nextCursor:''};
+  if(path.includes('/cached-messages?'))return cached;
+  if(path.includes('/messages?'))return {items:[message],nextCursor:''};
+  throw Error(path);
+};
+w.WorkspaceCommunications.init({api,escape:w.WorkspaceUI.escape,toast:value=>toasts.push(value),editor(){}});
+const tick=()=>new Promise(resolve=>setTimeout(resolve,20));
+const invalidate=()=>w.dispatchEvent(new w.CustomEvent('workspace:invalidate',{detail:{topics:['communications']}}));
+(async()=>{
+  await w.WorkspaceCommunications.open('communications');d.querySelector('[data-comm=conversation]').click();await tick();
+  assert.equal(d.querySelector('.comm-reactions img'),null);
+  assert.match(d.querySelector('.comm-reactions').textContent,/<img src=x> · 3/);
+  assert.match(d.querySelector('.comm-read-state').textContent,/내 메일함: 읽지 않음/);
+  cached=[{...message,id:'old',timestamp:90},{...message,unread:false},{...message,id:'new',timestamp:101}];
+  invalidate();await tick();
+  assert.match(d.querySelector('[data-comm-status]').textContent,/새 메시지 1개/);
+  assert.equal(d.querySelectorAll('.comm-message').length,3);
+  d.querySelector('[data-comm=back]').click();invalidate();await tick();assert.equal(d.querySelector('#communications').dataset.messageOpen,'false');
+  assert.match(d.querySelector('[data-live-key=m1] .comm-read-state').textContent,/내 메일함: 읽음/);
+  d.querySelector('#communications').classList.remove('active');
+  cached=[...cached,{...message,id:'next',timestamp:102}];invalidate();invalidate();await tick();await tick();
+  assert.equal(toasts.length,1);assert.match(toasts[0],/새 메시지 1개/);assert.ok(!toasts[0].includes('message fixture'));
+  invalidate();await tick();assert.equal(toasts.length,1);
+  cached=[];invalidate();await tick();assert.equal(d.querySelectorAll('.comm-message').length,0);
+  assert.equal(toasts.length,1);
+  d.querySelector('#communications').classList.add('active');d.querySelector('[data-comm=close]').click();pending=[{id:'pending',provider:'GMAIL',accountLabel:'Fixture',state:'PENDING',message:{text:'Approval fixture'}}];invalidate();await tick();assert.ok(d.querySelector('[data-comm=review]'));
+  console.log('PASS Communications events: reported read/reaction facts, escaped labels, newer-message notifications, no replay/backfill alerts, inactive view and deletion.');
+  w.close();
+})().catch(error=>{console.error(error);w.close();process.exitCode=1;});

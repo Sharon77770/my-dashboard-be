@@ -89,3 +89,10 @@ All application views share `semantic-ui.css`, compiled from `tools/ui/workspace
 - Raw terminal ANSI colors and external remote/app content remain owned by their producers; dashboard chrome uses shared roles. Embedded third-party pages cannot be restyled reliably across origins.
 
 Verification: `node scripts/check-semantic-ui.mjs` renders the authenticated QA dashboard using current source assets, checks all 21 views in dark/light mode, and checks six mobile views for page overflow. Screenshots/report are in `artifacts/semantic-ui`. Empty and disconnected states are valid render checks, not proof of every connected service workflow. `node tools/studio-editor/test.cjs` verifies real Git state-to-explorer decoration alongside existing editor behavior.
+
+## Communications
+
+CommunicationProvider는 공식 API의 Identity/Conversation/Message/Page/Send를 domain record로 정규화한다. service에서 API DTO와 저장 record를 분리한다. capability는 모든 Provider가 동일한 기능을 제공한다는 가정을 막는다. 기존 WorkspaceEvents/RuntimeService/Guacamole/CredentialVault를 공통으로 사용한다.
+상세: [Communications](../communications.md).
+
+Communications 화면 모드: BrowserBridgeService가 프로필 provider로 고정 Chromium/Wine 브로커를 선택한다. 공통 broker는 별도 컨테이너에서 서비스 allowlist와 VNC 포트 범위를 나누며, Wine 실행기는 고정 카카오 설치/실행만 수행한다. 공식 API Provider/MCP는 별도 선택 기능으로 유지한다.

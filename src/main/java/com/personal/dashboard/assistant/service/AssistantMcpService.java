@@ -36,6 +36,7 @@ public class AssistantMcpService {
           "home",
           "calendar",
           "military",
+          "communications",
           "timetable",
           "notes",
           "cloud",
@@ -65,6 +66,7 @@ public class AssistantMcpService {
   private final WorkspaceMemoryService memories;
   private final ServiceLogService logs;
   private final ServiceRuntimeService runtime;
+  private final com.personal.dashboard.communication.service.CommunicationMcpTools communications;
 
   public AssistantMcpService(
       PlannerService planner,
@@ -80,7 +82,8 @@ public class AssistantMcpService {
       ServiceOnboardingService onboarding,
       WorkspaceMemoryService memories,
       ServiceLogService logs,
-      ServiceRuntimeService runtime) {
+      ServiceRuntimeService runtime,
+      com.personal.dashboard.communication.service.CommunicationMcpTools communications) {
     this.planner = planner;
     this.catalog = catalog;
     this.notes = notes;
@@ -95,9 +98,16 @@ public class AssistantMcpService {
     this.memories = memories;
     this.logs = logs;
     this.runtime = runtime;
+    this.communications = communications;
   }
 
   public List<Map<String, Object>> tools() {
+    var tools = new ArrayList<Map<String, Object>>(communications.tools());
+    tools.addAll(workspaceTools());
+    return tools;
+  }
+
+  private List<Map<String, Object>> workspaceTools() {
     return List.of(
         tool(
             "search_memories",
@@ -996,6 +1006,7 @@ public class AssistantMcpService {
   public Map<String, Object> call(String name, JsonNode args) {
     if (args == null || !args.isObject())
       throw new WorkspaceException(400, "MCP 도구 입력은 JSON 객체여야 합니다.");
+    if (name.startsWith("communication_")) return communications.call(name, args);
     return switch (name) {
       case "search_memories" ->
           Map.of(

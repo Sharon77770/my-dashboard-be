@@ -294,7 +294,8 @@ class LocalSshCodexIntegrationTest {
             mock(com.personal.dashboard.services.service.ServiceOnboardingService.class),
             mock(com.personal.dashboard.assistant.service.WorkspaceMemoryService.class),
             logs,
-            mock(com.personal.dashboard.services.service.ServiceRuntimeService.class));
+            mock(com.personal.dashboard.services.service.ServiceRuntimeService.class),
+            mock(com.personal.dashboard.communication.service.CommunicationMcpTools.class));
     var registered =
         mcp.tools().stream()
             .filter(tool -> tool.get("name").equals("get_service_logs"))

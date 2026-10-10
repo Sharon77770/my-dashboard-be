@@ -46,6 +46,14 @@ services:
     environment:
       DASHBOARD_AUTH_ID: ${DASHBOARD_AUTH_ID:?Set DASHBOARD_AUTH_ID in .env}
       DASHBOARD_AUTH_PASSWORD: ${DASHBOARD_AUTH_PASSWORD:?Set DASHBOARD_AUTH_PASSWORD in .env}
+      COMMUNICATION_DISCORD_GATEWAY_ENABLED: ${COMMUNICATION_DISCORD_GATEWAY_ENABLED:-false}
+      COMMUNICATION_GOOGLE_CLIENT_ID: ${COMMUNICATION_GOOGLE_CLIENT_ID:-}
+      COMMUNICATION_GOOGLE_CLIENT_SECRET: ${COMMUNICATION_GOOGLE_CLIENT_SECRET:-}
+      COMMUNICATION_GOOGLE_REDIRECT_URI: ${COMMUNICATION_GOOGLE_REDIRECT_URI:-}
+      COMMUNICATION_SLACK_SIGNING_SECRET: ${COMMUNICATION_SLACK_SIGNING_SECRET:-}
+      COMMUNICATION_SLACK_CLIENT_ID: ${COMMUNICATION_SLACK_CLIENT_ID:-}
+      COMMUNICATION_SLACK_CLIENT_SECRET: ${COMMUNICATION_SLACK_CLIENT_SECRET:-}
+      COMMUNICATION_SLACK_REDIRECT_URI: ${COMMUNICATION_SLACK_REDIRECT_URI:-}
       DASHBOARD_MCP_TOKEN: ${DASHBOARD_MCP_TOKEN:-}
       DASHBOARD_DB_PATH: /app/data/dashboard.db
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
@@ -61,6 +69,7 @@ services:
       JAVA_TOOL_OPTIONS: ${DASHBOARD_JAVA_TOOL_OPTIONS:--Xms128m -Xmx1g}
     volumes:
       - dashboard-data:/app/data
+      - communication-bridge-control:/run/communication-bridge:ro
       - tailscale-control:/run/dashboard-tailscale:ro
     security_opt:
       - no-new-privileges:true
@@ -125,6 +134,7 @@ services:
         condition: service_started
         restart: true
   browser:
+    stop_grace_period: 90s
     build: ./docker/browser
     restart: unless-stopped
     network_mode: service:dashboard
@@ -133,14 +143,37 @@ services:
     shm_size: ${BROWSER_SHM_SIZE:-1gb}
     volumes:
       - browser-profile:/home/browser/profile
+      - communication-bridge-control:/run/communication-bridge
     security_opt:
       - no-new-privileges:true
     depends_on:
       dashboard:
         condition: service_started
         restart: true
+  wine:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: docker/wine/Dockerfile
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    network_mode: service:dashboard
+    volumes:
+      - communication-wine-profile:/home/browser/profile
+      - communication-bridge-control:/run/communication-bridge:ro
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      dashboard:
+        condition: service_started
+        restart: true
+      browser:
+        condition: service_started
 volumes:
   dashboard-data:
   browser-profile:
+  communication-bridge-control:
   tailscale-state:
   tailscale-control:
+  communication-wine-profile:

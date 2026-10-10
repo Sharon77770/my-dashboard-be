@@ -50,7 +50,7 @@ window.WorkspaceDeviceCodex = (() => {
     if(event.event)status(event.event);
     if(!event.url&&!event.code)return;
     const box=$('[data-dc-auth]');box.hidden=false;
-    if(event.url){try{const url=new URL(event.url);if(url.protocol==='https:'){let link=box.querySelector('a');if(!link){link=document.createElement('a');link.target='_blank';link.rel='noopener noreferrer';link.textContent='인증 페이지 열기';box.append(link);}link.href=url.href;}}catch{}}
+    if(event.url){try{const url=new URL(event.url);if(url.protocol==='https:'){let link=box.querySelector('a');if(!link){link=document.createElement('a');link.target='_blank';link.rel='noopener noreferrer';link.textContent='인증 페이지 열기';box.append(link);}link.href=url.href;window.WorkspaceAuthenticationBrowser?.attach(link,()=>box.querySelector("code")?.textContent||"");}}catch{}}
     if(event.code){let code=box.querySelector('code');if(!code){code=document.createElement('code');const copy=document.createElement('button');copy.type='button';copy.textContent='코드 복사';copy.onclick=()=>guard(async()=>{if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(code.textContent);else{const field=document.createElement('textarea');field.value=code.textContent;box.append(field);field.select();const ok=document.execCommand('copy');field.remove();if(!ok)throw Error('인증 코드를 선택해 복사하세요.');}});box.append(code,copy);}code.textContent=event.code;}
   }
   async function task(action,args={}){

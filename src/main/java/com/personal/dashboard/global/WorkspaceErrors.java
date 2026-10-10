@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 /** Normalizes API failures without reflecting credentials, commands or upstream response bodies. */
 @RestControllerAdvice(
     basePackages = {
+      "com.personal.dashboard.communication",
       "com.personal.dashboard.catalog.controller",
       "com.personal.dashboard.files.controller",
       "com.personal.dashboard.cloud.controller",

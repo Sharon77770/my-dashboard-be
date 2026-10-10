@@ -51,12 +51,12 @@ assert.equal(d.querySelector('.home-item'),homeItemBeforeRefresh,'activity polli
 assert.match(d.querySelector('.overview-continue').textContent,/최근 터미널/);
 assert.ok(d.querySelector('.home-command[data-action="palette"]'));
 assert.equal(d.querySelectorAll('#launcher-dock-apps').length,1);
-assert.equal(w.WorkspaceApps.all().length,25);assert.equal(d.querySelectorAll('#home-grid img').length,0);
+assert.equal(w.WorkspaceApps.all().length,26);assert.equal(d.querySelectorAll('#home-grid img').length,0);
 assert.ok(d.querySelector('#home-grid [data-view="assistant"]'));
 assert.equal(w.WorkspaceApps.get('assistant').name,'AI 비서');
 assert.ok(d.querySelector('#launcher-dock-apps [data-view="assistant"]'));
 // Grid projects one model without collisions or changing canonical coordinates.
-assert.equal(w.WorkspaceApps.get('kakaotalk'),undefined);
+assert.equal(w.WorkspaceApps.get('kakaotalk'),undefined);assert.equal(w.WorkspaceApps.get('communications').name,'Communications');
 const retiredLayout=w.HomeGrid.sanitize({version:1,pages:1,dock:['kakaotalk','files'],items:[{id:'removed',type:'app',appId:'kakaotalk',page:0,x:0,y:0},{id:'old-folder',type:'folder',apps:['kakaotalk'],name:'old',page:0,x:1,y:0}]},w.WorkspaceApps,w.WorkspaceWidgets);
 assert.deepEqual(Array.from(retiredLayout.dock),['files']);assert.equal(retiredLayout.items.length,0);
 const grid=w.HomeGrid;const items=[{id:'a',page:0,x:0,y:0,w:4,h:2},{id:'b',page:0,x:4,y:0,w:4,h:2},{id:'c',page:1,x:0,y:0,w:1,h:1}];

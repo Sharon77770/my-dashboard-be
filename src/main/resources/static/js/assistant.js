@@ -988,6 +988,7 @@
       loginGuide.hidden = false;
       loginLink.href = event.url;
       loginLink.hidden = false;
+      window.WorkspaceAuthenticationBrowser?.attach(loginLink, () => loginGuide.hidden || loginCodeRow.hidden ? "" : loginCode.textContent);
       loginMessage.textContent = '인증 페이지를 열고 Codex 로그인을 완료하세요.';
       setStatus('인증 페이지에서 로그인을 진행해 주세요.');
     }
