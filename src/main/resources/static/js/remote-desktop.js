@@ -22,7 +22,7 @@ window.WorkspaceRemoteDesktop = {
     const display = client.getDisplay(), root = runtime.element;
     root.querySelector('.live-runtime').classList.add('remote-desktop');
     area.append(display.getElement());
-    let timer, lastSize = '', fitted = true;
+    let timer, lastSize = '';
     const key = value => {client.sendKeyEvent(1,value);client.sendKeyEvent(0,value);};
     const bar = document.createElement('form');bar.className = 'remote-input-bar';bar.hidden = true;
     bar.innerHTML = '<input name="text" aria-label="원격 화면에 보낼 텍스트" placeholder="한글·텍스트 입력" autocomplete="off" maxlength="4000"><button type="submit">전송</button><button type="button" data-key="65293">Enter</button><button type="button" data-key="65289">Tab</button><button type="button" data-key="65288" aria-label="한 글자 삭제">⌫</button><button type="button" data-key="65307">Esc</button>';
@@ -31,16 +31,18 @@ window.WorkspaceRemoteDesktop = {
     bar.onclick = event => {const button = event.target.closest('[data-key]');if(button)key(Number(button.dataset.key));};
     const resize = () => {
       if (root.hidden || !area.clientWidth || !area.clientHeight) return;
-      if(display.getWidth())display.scale(fitted ? Math.min(area.clientWidth/display.getWidth(),area.clientHeight/display.getHeight(),1) : 1);
+      viewport.update();
       clearTimeout(timer);
       timer = setTimeout(() => {
-        if (root.hidden || !fitted || !area.clientWidth || !area.clientHeight) return;
-        const width = Math.max(640,Math.min(3840,Math.round(area.clientWidth)));
-        const height = Math.max(240,Math.min(2160,Math.round(area.clientHeight*width/area.clientWidth)));
+        if (root.hidden || !viewport.isFitted() || !area.clientWidth || !area.clientHeight) return;
+        const available=viewport.bounds();
+        const width = Math.max(640,Math.min(3840,Math.floor(available.width)));
+        const height = Math.max(240,Math.min(2160,Math.floor(available.height*width/available.width)));
         const size = `${width}:${height}`;
         if(size !== lastSize) {lastSize = size;client.sendSize(width,height);}
       },180);
     };
+    const viewport=window.WorkspaceRemoteViewport(area,display,resize);
     runtime.scale = resize;display.onresize = resize;
     for(const pointer of [new Guacamole.Mouse(display.getElement()),new Guacamole.Mouse.Touchpad(display.getElement())])
       pointer.onmousedown = pointer.onmouseup = pointer.onmousemove = state => client.sendMouseState(state,true);
@@ -52,9 +54,9 @@ window.WorkspaceRemoteDesktop = {
       focus() {area.focus({preventScroll:true});},
       paste(terminal) {keyboard.reset();client.sendKeyEvent(1,0xffe3);if(terminal)client.sendKeyEvent(1,0xffe1);key(0x76);if(terminal)client.sendKeyEvent(0,0xffe1);client.sendKeyEvent(0,0xffe3);},
       keyboard(button) {bar.hidden = !bar.hidden;button.setAttribute('aria-expanded',String(!bar.hidden));if(!bar.hidden)bar.elements.text.focus();else area.focus();resize();},
-      fit(button) {fitted = !fitted;button.textContent = fitted ? '화면 맞춤' : '원본 크기';button.setAttribute('aria-pressed',String(fitted));resize();},
+      fit(button) {viewport.fit();button.textContent = '화면 맞춤';button.setAttribute('aria-pressed','true');},
       secureAttention() {client.sendKeyEvent(1,0xffe3);client.sendKeyEvent(1,0xffe9);key(0xffff);client.sendKeyEvent(0,0xffe9);client.sendKeyEvent(0,0xffe3);},
-      dispose() {runtime.remoteConnected = false;clearTimeout(timer);keyboard.reset();keyboard.onkeydown = keyboard.onkeyup = null;bar.elements.text.value = '';}
+      dispose() {runtime.remoteConnected = false;clearTimeout(timer);viewport.dispose();keyboard.reset();keyboard.onkeydown = keyboard.onkeyup = null;bar.elements.text.value = '';}
     };
     client.onerror = () => status('화면 연결 실패 · 다시 연결하거나 연결 도우미로 점검하세요.');
     client.onstatechange = value => {runtime.remoteConnected = value === 3;status(({1:'연결 중…',2:'응답 대기 중…',3:'연결됨',4:'연결 종료 중…',5:'연결이 종료되었습니다. 다시 연결할 수 있습니다.'})[value] || '준비 중…');};

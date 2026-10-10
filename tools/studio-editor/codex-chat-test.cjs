@@ -21,6 +21,7 @@ async function verify(idPrefix){
       }
       poll++;
       if(poll===1)return {id:'job',state:'RUNNING',events:[event(1,user),event(2,user),event(3,{id:'reply-1',type:'agentMessage',text:'Checking'})]};
+      if(poll===2)return {id:'job',state:'RUNNING',events:[event(4,{id:'reply-1',type:'agentMessage',text:'Still checking'})]};
       return {id:'job',state:'SUCCEEDED',result:{assistant:{thread:{id:'thread',turns:[
         {id:'turn-1',items:[user,user,{id:'reply-1',type:'agentMessage',text:'Done'}]},
         {id:'turn-2',items:[{...user,id:'user-2'},{id:'reply-2',type:'agentMessage',text:'Done again'}]}
@@ -29,6 +30,15 @@ async function verify(idPrefix){
   });
   const prompt=panel.querySelector('[data-cx-id=studio-prompt]'),form=panel.querySelector('form[data-cx-id=studio-prompt-form]');
   const send=()=>form.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
+  const log=panel.querySelector('[data-cx-id=studio-conversation]');
+  let scrollTop=0;
+  Object.defineProperties(log,{
+    clientHeight:{get:()=>400},
+    scrollHeight:{get:()=>log.children.length*1200},
+    scrollTop:{get:()=>scrollTop,set:value=>{scrollTop=Math.max(0,Math.min(value,log.scrollHeight-400));}}
+  });
+  const replace=log.replaceChildren.bind(log);
+  log.replaceChildren=(...nodes)=>{replace(...nodes);scrollTop=0;};
   prompt.value='Inspect service';send();send();assert.equal(posts,0);
   releasePrepare();await tick();assert.equal(posts,1,'rapid submit during preparation creates one request');
   const rows=()=>panel.querySelectorAll('[data-kind=userMessage]');
@@ -36,7 +46,11 @@ async function verify(idPrefix){
   const acknowledged=rows()[0];assert.match(acknowledged.textContent,/첨부: config.txt/);assert.doesNotMatch(acknowledged.textContent,/Untrusted tool output|studio-runtime-observations/);
   prompt.value='Additional instruction';send();send();await tick();assert.equal(controls,1,'steering is also single flight');releaseControl();await tick();
   releasePoll();await tick();assert.equal(rows().length,1,'replayed user items do not append');assert.equal(rows()[0],acknowledged);
+  assert.equal(log.scrollTop,log.scrollHeight-log.clientHeight,'large streamed item follows bottom based on pre-update position');
+  log.scrollTop=120;
+  releasePoll();await tick();await tick();assert.equal(log.scrollTop,120,'streaming preserves position while reading earlier messages');
   releasePoll();await tick();assert.equal(rows().length,2,'identical text intentionally sent in a later turn is preserved');assert.equal(busy,false);
+  await tick();assert.equal(log.scrollTop,log.scrollHeight-log.clientHeight,'final transcript forces bottom even when reading earlier messages');
   fail=true;prompt.value='Retryable request';send();await tick();assert.equal(rows().length,2,'unacknowledged failed optimistic row is removed');assert.equal(prompt.value,'Retryable request');
   send();await tick();assert.equal(rows().length,2,'retries do not accumulate phantom messages');
   dom.window.close();

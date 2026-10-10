@@ -23,6 +23,14 @@
 .remote-device-card button { align-self:flex-start; min-height:42px; }
 .remote-desktop .stream-area { min-height:0; overflow:auto; overscroll-behavior:contain; }
 .remote-desktop .stream-area > div { touch-action:none; }
+.remote-viewport { display:block!important; padding:0!important; min-width:0; min-height:0; overflow:auto; overscroll-behavior:contain; touch-action:none; }
+.remote-viewport[data-viewport-fit=true] { overflow:hidden; }
+.remote-viewport[data-viewport-moving=true] { cursor:grab; }
+.remote-viewport-controls { display:flex; flex:none; align-items:center; gap:4px; flex-wrap:wrap; padding:4px; background:var(--bg-surface,#191c22); }
+.remote-viewport-controls button { min-width:40px; min-height:40px; padding:4px 8px; font-size:13px; }
+.remote-viewport-controls output { min-width:44px; text-align:center; font-size:12px; }
+.remote-viewport-controls [aria-pressed=true] { background:var(--accent,#536bbb); color:#fff; }
+@media(max-width:600px) { .remote-viewport-controls { gap:2px; } .remote-viewport-controls button { padding:4px; font-size:12px; } .remote-viewport-controls output { min-width:36px; } }
 .remote-input-bar { display:flex; gap:6px; padding:6px; flex-wrap:wrap; flex:none; background:var(--surface,#1c2028); }
 .remote-input-bar[hidden] { display:none; }
 .remote-input-bar input { flex:1; min-width:120px; width:120px; font-size:16px; }

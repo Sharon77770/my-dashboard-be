@@ -2,6 +2,7 @@ const {JSDOM}=require('jsdom');
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const dom=new JSDOM('<div><div class="live-runtime"></div><div class="stream-area" tabindex="0"></div></div>',{runScripts:'outside-only'}),w=dom.window;
 w.TextEncoder=TextEncoder;
+w.eval(fs.readFileSync('src/main/resources/static/js/remote-viewport.js','utf8'));
 w.eval(fs.readFileSync('src/main/resources/static/js/remote-desktop.js','utf8'));
 const controls=w.WorkspaceRemoteDesktop, chunks=[];
 const client={createClipboardStream:()=>({sendBlob:data=>chunks.push(Buffer.from(data,'base64')),sendEnd:()=>chunks.push('end')})};

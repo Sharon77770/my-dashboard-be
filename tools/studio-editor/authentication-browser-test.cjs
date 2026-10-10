@@ -14,7 +14,8 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
     constructor(){clients.push(this);this.display={getElement:()=>d.createElement('div'),getWidth:()=>1600,getHeight:()=>900,scale(){}};}
     getDisplay(){return this.display;}connect(){this.onstatechange(3);}disconnect(){this.closed=true;this.onstatechange?.(5);}sendKeyEvent(){}sendMouseState(){}createClipboardStream(){return {};}
   }};
-  w.eval(fs.readFileSync('src/main/resources/static/js/authentication-browser.js','utf8'));
+  w.eval(fs.readFileSync('src/main/resources/static/js/remote-viewport.js','utf8'));
+w.eval(fs.readFileSync('src/main/resources/static/js/authentication-browser.js','utf8'));
   const feature=w.WorkspaceAuthenticationBrowser,link=d.querySelector('#auth');let code='FIRST';
   feature.attach(link,()=>code);feature.attach(link,()=>code);
   assert.equal(d.querySelectorAll('.authentication-browser-open').length,1);
@@ -24,9 +25,11 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
   assert.match(d.querySelector('[data-auth-code]').textContent,/LATEST/);
   code='CHANGED';await new Promise(resolve=>setTimeout(resolve,550));assert.match(d.querySelector('[data-auth-code]').textContent,/CHANGED/);
   assert.match(d.querySelector('[data-auth-status]').textContent,/원본 앱/);
+  assert.equal(d.querySelectorAll('.remote-viewport-controls').length,1,'authentication and messenger screens expose viewport controls');
   assert.equal(w.localStorage.length,0);assert.equal(w.sessionStorage.length,0);
   const dialog=d.querySelector('dialog');dialog.querySelector('input').value='private input';dialog.close();await tick();
   assert.equal(clients[0].closed,true);assert.equal(dialog.querySelector('input').value,'');assert.equal(d.querySelector('[data-auth-code]').textContent,'');
+  assert.equal(d.querySelectorAll('.remote-viewport-controls').length,0,'closing removes viewport controls');
   assert.ok(requests.some(request=>request.method==='DELETE'&&request.path==='/sessions/session-1'));
   for(const bad of ['https://github.com.evil.test/','https://password@github.com/','http://github.com/','https://github.com:8443/','javascript:alert(1)'])assert.equal(feature.providerFor(bad),null);
   d.querySelector('[data-authentication-browser]').click();await tick();

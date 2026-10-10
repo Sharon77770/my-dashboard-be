@@ -5,8 +5,13 @@
 .authentication-browser header{justify-content:space-between}
 .authentication-browser p{margin:0;font-size:13px}
 .authentication-browser-hint{color:var(--text-secondary,#a8afbd)}
-.authentication-browser-screen{flex:1;min-height:180px;overflow:auto;background:#111;outline-offset:2px;touch-action:none}
+.authentication-browser-screen{flex:1;min-height:0;min-width:0;overflow:auto;background:#111;outline-offset:2px;touch-action:none}
 .authentication-browser-text label{flex:1;display:flex;align-items:center;gap:8px}
 .authentication-browser-text input{flex:1;min-width:80px}
 .authentication-browser-open{margin-inline:6px}
 @media(max-width:600px){.authentication-browser{padding:10px;width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0}.authentication-browser nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.authentication-browser nav button{white-space:nowrap}.authentication-browser-hint{font-size:12px}}
+
+.authentication-browser{box-sizing:border-box;overflow:hidden;height:calc(var(--remote-dialog-height,100dvh) * .94);max-height:calc(var(--remote-dialog-height,100dvh) * .94)}
+.authentication-browser-text,.authentication-browser-text label{min-width:0}
+.authentication-browser-text input{width:0;font-size:16px}
+@media(max-width:600px){.authentication-browser{height:var(--remote-dialog-height,100dvh);max-height:var(--remote-dialog-height,100dvh);margin:0;gap:6px}.authentication-browser nav{display:flex;flex-wrap:nowrap;overflow-x:auto}.authentication-browser nav button{flex:none;min-height:40px}.authentication-browser-hint{display:none}}

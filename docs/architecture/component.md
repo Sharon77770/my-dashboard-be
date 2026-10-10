@@ -100,3 +100,5 @@ Communications 화면 모드: BrowserBridgeService가 프로필 provider로 고�
 원격 화면 조작은 `WorkspaceRemoteDesktop`에 모아 원격 입력·크기·UI 수명을 관리하고 `workspace.js`는 탭/세션 생성·삭제를 소유한다. 준비 화면은 `WorkspaceRemoteSetup`이 표현하고 환경 판정·설치·프로필 갱신은 서비스/adapter가 수행한다. 설치 권한과 연결 암호는 서로 다른 요청 계약으로 취급한다.
 
 - `RemoteClipboardController`/`RemoteClipboardService`? ???????? ?? ??? ????. `DesktopClipboardAdapter`? ??? SSH ??? ???? ?? Python ????? ??? stdin?? ???? ??? READY ??? ????. ?? ??? `WorkspaceRemoteDesktop`?? ????.
+
+`WorkspaceRemoteViewport` owns local display scale and scroll. Remote desktop, Chrome and authentication/messenger screens retain ownership of protocol input and session lifecycle. Move mode captures pointer and legacy mouse/touch events to prevent remote clicks; leaving it restores existing touchpad input. Dispose removes observers, listeners and controls.

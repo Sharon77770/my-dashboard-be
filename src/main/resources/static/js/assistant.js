@@ -188,7 +188,18 @@
     return '연결된 기능 사용';
   }
 
-  function renderConversation() {
+  // Capture before clearing the transcript; layout changes settle on the next frame.
+  let scrollFrame = null;
+  function restoreConversationScroll(top = null) {
+    const apply = () => { messages.scrollTop = top === null ? messages.scrollHeight : top; };
+    if (scrollFrame !== null) (window.cancelAnimationFrame || window.clearTimeout)(scrollFrame);
+    apply();
+    scrollFrame = (window.requestAnimationFrame || window.setTimeout)(() => { scrollFrame = null; apply(); });
+  }
+
+  function renderConversation(forceBottom = false) {
+    const top = messages.scrollTop;
+    const follow = forceBottom || messages.scrollHeight - top - messages.clientHeight < 300;
     const interactionCards = [...messages.querySelectorAll('.assistant-interaction')];
     messages.replaceChildren();
     if (!conversation.length) {
@@ -198,6 +209,7 @@
       messages.append(welcome);
       messages.append(...interactionCards);
       renderServiceDraft();
+      restoreConversationScroll(0);
       return;
     }
 
@@ -276,7 +288,7 @@
     }
     messages.append(...interactionCards);
     renderServiceDraft();
-    messages.scrollTop = messages.scrollHeight;
+    restoreConversationScroll(follow ? null : top);
   }
 
   function renderServiceDraft() {
@@ -446,7 +458,7 @@
       setStatus(error.message, 'error');
       await refreshServiceDraft().catch(() => {});
     } finally {
-      chatPending = false; syncComposerAction(); saveConversation(); renderConversation();
+      chatPending = false; syncComposerAction(); saveConversation(); renderConversation(true);
     }
     return true;
   }
@@ -1056,7 +1068,7 @@
     conversation = conversation.slice(-60);
     const responseIndex = conversation.length - 1;
     saveConversation();
-    renderConversation();
+    renderConversation(true);
     try {
       await prepareServerCodex();
       const result = await runJob('codex-run', {
@@ -1087,7 +1099,7 @@
       if (!message.text) message.text = '요청을 처리했지만 표시할 답변이 없습니다.';
       attachments = []; renderAttachments();
       saveConversation();
-      renderConversation();
+      renderConversation(true);
       chatPending = false;
       syncComposerAction();
       await refreshServiceDraft().catch(() => {});
@@ -1117,6 +1129,7 @@
       chatPending = false;
       stopRequested = false;
       syncComposerAction();
+      restoreConversationScroll();
     }
   }
 

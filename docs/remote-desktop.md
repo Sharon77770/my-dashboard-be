@@ -60,3 +60,7 @@ sudo 비밀번호는 필요한 경우에만 별도로 입력받아 SSH stdin으�
 ?? ??? ??: [Guacamole 1.6 VNC clipboard ??](https://github.com/apache/guacamole-server/blob/1.6.0/src/protocols/vnc/clipboard.c).
 
 ?? X11 ?? ??? `scripts/check-remote-clipboard.py [clipboard.py ??]`? ????. TigerVNC? libX11? ?? ?? Linux ??? ????, ?? HOME? ???? ?? X ?????? ???? ????. ??? ?? ??? ?? ???? ???? ???.
+
+## Remote viewport controls
+
+All remote screens share Fit, zoom out/in, 100% and Move controls. Fit excludes padding and clips unscaled Guacamole layer overflow. Zoom preserves the viewport center. Enable Move to drag the enlarged screen with a finger or mouse without sending remote clicks; switch back to remote control to resume touchpad input. Server resizing remains enabled only in fit mode. Authentication/messenger dialogs follow the mobile visual viewport when the keyboard opens. `tools/launcher/remote-viewport-test.cjs` checks synthetic geometry and input isolation; it does not prove physical touch or live remote connectivity.

@@ -19,6 +19,8 @@
 
 - Google Cloud에서 Gmail API와 웹 OAuth Client를 설정한다. `COMMUNICATION_GOOGLE_CLIENT_ID`, `_CLIENT_SECRET`, `_REDIRECT_URI`. Redirect URI는 `https://<dashboard-host>/api/v1/communications/oauth/callback`. localhost 개발만 HTTP 허용.
 - Google scope는 `gmail.modify` (읽기·전송·라벨/읽음 변경에 필요한 scope; 영구 삭제 권한을 요청하지 않음). offline access와 consent로 refresh token을 요청한다. Google 검증/테스트 사용자/조직 정책은 운영자가 설정해야 한다.
+- Google 로그인 동의와 Gmail API 사용 설정은 별개다. OAuth 클라이언트를 만든 **같은 프로젝트**에서 [Gmail API](https://console.cloud.google.com/apis/library/gmail.googleapis.com)를 사용 설정해야 콜백의 `users.getProfile` 호출이 성공한다. `accessNotConfigured`/`SERVICE_DISABLED`는 재로그인만으로 해결되지 않는다. API 활성화 반영 후 대시보드에서 새 연결을 시작한다. 이미 사용한 콜백 URL은 재사용하지 않는다.
+- 콜백/Provider 오류는 Google의 알려진 오류 코드만 읽어 로컬 안내로 변환한다. API 미활성화, 조직 정책, scope 부족, OAuth 클라이언트 오류, 만료된 코드·갱신 토큰은 409로 원인별 안내하고 Gmail 403 할당량 오류는 429로 매핑한다. 원본 오류 본문·인증 코드·토큰·프로젝트 메타데이터는 반환하거나 로그에 기록하지 않는다. 알 수 없는 오류는 안전한 단계별 안내를 사용하며 자동 재시도하지 않는다. 근거: [Gmail 오류 처리](https://developers.google.com/workspace/gmail/api/guides/handle-errors), [웹 서버 OAuth](https://developers.google.com/identity/protocols/oauth2/web-server).
 - Slack 앱의 redirect와 bot scopes는 `channels:read,groups:read,im:read,mpim:read,channels:history,groups:history,im:history,mpim:history,chat:write,reactions:write,files:read,files:write`. `COMMUNICATION_SLACK_CLIENT_ID`, `_CLIENT_SECRET`, `_REDIRECT_URI`. 앱이 실제 승인받은 scope로 전송 가능 여부를 제한한다.
 - Discord Developer Portal의 공식 Bot Token을 계정 연결 비밀번호 필드에 입력한다. 토큰은 연결 확인 후 CredentialVault로만 저장한다. 초대된 서버의 필요한 채널 권한과 Message Content intent를 별도로 설정한다. 일반 사용자 계정 토큰을 받지 않는다.
 - OAuth는 시작한 대시보드 로그인 세션에 귀속한다. 서버 Chromium에서 인증하려면 Chromium 안에서 대시보드를 열고 연결을 시작한다. 다른 브라우저의 state를 복사하지 않는다.

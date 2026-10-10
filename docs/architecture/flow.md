@@ -107,6 +107,8 @@ OWNER가 GitHub 앱을 열면 서버 `gh auth status`로 인증을 확인한다.
 
 ### Codex 대화
 
+AI 비서·장비 Codex·편집기 Codex는 대화 갱신 전에 스크롤 위치와 하단 근접 여부를 저장한다. 스트리밍 중 하단을 보고 있으면 새 내용을 따라가고, 이전 내용을 읽고 있으면 위치를 보존한다. 요청 전송과 응답 완료(오류·중지 포함) 시에는 최신 대화의 맨 아래로 이동한다. 최종 thread 재표시와 입력 컨트롤 정리 후 다음 프레임에도 하단 위치를 맞춰 긴 응답의 첫 부분으로 튀지 않게 한다.
+
 SSH 장비의 프로젝트 열기 → Codex 탭 → 원격 model/list 및 account/read → 최근 thread 복원 또는 세션 목록 선택 → 파일/선택/이미지/스킬 첨부 → thread/start 또는 resume → turn/start → 스트림 표시 → 필요 시 승인/질문 응답 → turn/completed → thread/read. 서버 자체(local) 프로젝트에서 Codex 요청은 400으로 거부하고 SSH 장비를 선택하도록 안내한다. 전송 전 미저장 편집을 막는다. 첫 메시지 전 새 세션은 draft다. 다른 cwd의 thread 작업은 403. 자동 모델 호출 재시도는 하지 않는다.
 
 전역 Codex assistant: 상단 `AI 비서` 또는 내장 앱 열기 → server-local setup/MCP 연결 및 계정·모델 확인 → 사용자 요청 직접 입력 → 사용자 turn을 assistant job으로 실행 → MCP tools/call로 페이지 이동·일정·노트·GitHub 조회/생성/수정/삭제 → app-server usage/item/interaction 이벤트를 채팅에 표시 → navigation queue를 브라우저가 polling해 내부 페이지 또는 등록 앱을 연다. 일정·메모 삭제 및 메모 전체 교체는 대화에서 정확한 대상을 확인한다. GitHub 저장소·Release 삭제는 승인 요청 → GitHub 화면에서 대상 확인과 재확인 → 같은 작업·대상에 묶인 일회성 승인 소비 → GitHub API 호출 순서다. 앱을 벗어나도 실행 중인 job과 세션 대화는 유지되고 다시 열면 해당 세션 대화를 표시한다. 프로젝트 편집기 job endpoint는 사용하지 않는다. 로그인 만료, 설치 오류와 MCP 도구 오류는 채팅 상태로 표시하고 임의 셸 도구는 제공하지 않는다.

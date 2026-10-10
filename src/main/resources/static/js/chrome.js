@@ -2,7 +2,7 @@
 /** Immersive view of the authenticated server desktop; no page content or cookies enter app state. */
 (() => {
   let root, screen, status, keyboard, connection, observer, sequence = 0, resizeTimer;
-  let fitted = true, lastSize = '';
+  let lastSize = '';
   const api = (...args) => window.WorkspaceAssistantRuntime.api(...args);
   const find = selector => root.querySelector(selector);
   const report = message => { status.textContent = message; status.hidden = !message; };
@@ -18,10 +18,10 @@
     root.style.setProperty('--chrome-height', `${window.visualViewport?.height || window.innerHeight}px`);
     const display = connection?.client.getDisplay();
     if (!display?.getWidth()) return;
-    display.scale(fitted ? Math.min(screen.clientWidth / display.getWidth(), screen.clientHeight / display.getHeight(), 1) : 1);
+    connection.viewport.update();
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      if (!connection || !fitted || !root.classList.contains('active')) return;
+      if (!connection || !connection.viewport.isFitted() || !root.classList.contains('active')) return;
       const size = viewport(), key = `${size.width}:${size.height}`;
       if (key !== lastSize) { lastSize = key; connection.client.sendSize(size.width, size.height); }
     }, 180);
@@ -37,7 +37,7 @@
     clearTimeout(resizeTimer);
     keyboard?.reset();
     if (keyboard) { keyboard.onkeydown = null; keyboard.onkeyup = null; }
-    previous?.client.disconnect();
+    previous?.viewport?.dispose();previous?.client.disconnect();
     if (previous) {
       Guacamole.AudioContextFactory.getAudioContext()?.suspend().catch(() => {});
       find('[data-chrome-audio]').setAttribute('aria-pressed', 'false'); find('[data-chrome-audio]').textContent = '소리 켜기';
@@ -61,6 +61,7 @@
       const client = new Guacamole.Client(new Guacamole.WebSocketTunnel(endpoint));
       connection = {id:session.id, client};
       const display = client.getDisplay(); screen.replaceChildren(display.getElement());
+      connection.viewport = window.WorkspaceRemoteViewport(screen,display,resize);
       display.onresize = resize;
       for (const pointer of [new Guacamole.Mouse(display.getElement()), new Guacamole.Mouse.Touchpad(display.getElement())]) {
         pointer.onmousedown = pointer.onmouseup = pointer.onmousemove = state => client.sendMouseState(state, true);
@@ -91,8 +92,8 @@
     screen.addEventListener('blur', () => keyboard?.reset());
     find('[data-chrome-reconnect]').onclick = () => {find('details').open = false; connect();};
     find('[data-chrome-fit]').onclick = event => {
-      fitted = !fitted; event.currentTarget.setAttribute('aria-pressed', String(fitted));
-      event.currentTarget.textContent = fitted ? '화면 맞춤' : '원본 크기 · 스크롤';
+      connection?.viewport.fit();event.currentTarget.setAttribute('aria-pressed','true');
+      event.currentTarget.textContent = '화면 맞춤';
       find('details').open = false; resize();
     };
     find('[data-chrome-keyboard]').onclick = event => {

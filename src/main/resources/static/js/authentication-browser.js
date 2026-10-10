@@ -21,13 +21,15 @@
       <div class="authentication-browser-screen" tabindex="0" aria-label="서버 앱 원격 화면"></div>
       <form class="authentication-browser-text"><label>원격 입력<input name="text" type="password" autocomplete="off" maxlength="4000" placeholder="한글·텍스트 입력"></label><button type="submit">입력 전송</button></form>`;
     document.body.append(dialog);screen = dialog.querySelector('.authentication-browser-screen');status = dialog.querySelector('[data-auth-status]');codeLabel = dialog.querySelector('[data-auth-code]');
+    const resizeDialog=()=>dialog.style.setProperty('--remote-dialog-height',(window.visualViewport?.height||window.innerHeight)+'px');
+    window.visualViewport?.addEventListener('resize',resizeDialog);window.addEventListener('resize',resizeDialog);resizeDialog();
     const codeTimer = setInterval(() => {if (dialog.open) updateCode();},500);
     window.addEventListener('pagehide', () => clearInterval(codeTimer));
     dialog.querySelector('[data-auth-close]').onclick = () => dialog.close();
     dialog.querySelector('[data-auth-reconnect]').onclick = () => open({...currentOptions,code:currentCode});
     dialog.querySelector('[data-auth-zoom]').onclick = event => {
-      const expanded = event.currentTarget.getAttribute('aria-pressed') !== 'true';
-      event.currentTarget.setAttribute('aria-pressed',String(expanded));event.currentTarget.textContent = expanded ? '화면 맞춤' : '화면 확대';connection?.scale?.();
+      const expanded = connection?.viewport.isFitted() ?? true;
+      event.currentTarget.setAttribute('aria-pressed',String(expanded));event.currentTarget.textContent = expanded ? '화면 맞춤' : '화면 확대';if(expanded)connection?.viewport.original();else connection?.viewport.fit();
     };
     dialog.querySelectorAll('[data-auth-provider]').forEach(button => button.onclick = () => open({provider:button.dataset.authProvider}));
     dialog.addEventListener('close', () => {
@@ -52,7 +54,7 @@
   async function release() {
     const previous = connection;connection = null;
     if (!previous) return;
-    previous.observer?.disconnect();previous.keyboard?.reset();
+    previous.observer?.disconnect();previous.viewport?.dispose();previous.keyboard?.reset();
     if (previous.keyboard) {previous.keyboard.onkeydown = null;previous.keyboard.onkeyup = null;}
     previous.client?.disconnect();
     if (previous.id) await api('/sessions/'+encodeURIComponent(previous.id),'DELETE',undefined,{quiet:true}).catch(()=>{});
@@ -63,7 +65,10 @@
     const client = new Guacamole.Client(new Guacamole.WebSocketTunnel(endpoint));
     connection = {id:session.id,client};
     const display = client.getDisplay();screen.replaceChildren(display.getElement());
-    const scale = () => {if (display.getWidth()) display.scale(dialog.querySelector('[data-auth-zoom]').getAttribute('aria-pressed') === 'true' ? 1 : Math.min(screen.clientWidth/display.getWidth(),screen.clientHeight/display.getHeight(),1));};
+    connection.viewport=window.WorkspaceRemoteViewport(screen,display);
+    const scale = () => connection?.viewport.update();
+    dialog.querySelector('[data-auth-zoom]').setAttribute('aria-pressed','false');
+    dialog.querySelector('[data-auth-zoom]').textContent='화면 확대';
     connection.scale = scale;
     display.onresize = scale;
     for (const mouse of [new Guacamole.Mouse(display.getElement()),new Guacamole.Mouse.Touchpad(display.getElement())])

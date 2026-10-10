@@ -193,3 +193,5 @@ docker/wine/Dockerfile 및 wine_session.py: 공식 카카오톡 설치 파일을
 - `scripts/check-remote-desktop-live.mjs`, `scripts/fixtures/remote-desktop/`: 격리 SSH sudo 설치·실제 원격 연결 검증.
 
 - `runtime/{controller,service,adapter}/*Clipboard*`: ?? ??? ?? ?? ???? API? ?? Linux SSH ??. `remote-desktop/clipboard.py`? ?? ??? ?? ?? X11 ????? ????? ????.
+
+- `static/js/remote-viewport.js`: Shared Guacamole fit, zoom, local drag and cleanup for remote desktop, Chrome and authentication/messenger screens. Styles are in `remote-desktop.css`.

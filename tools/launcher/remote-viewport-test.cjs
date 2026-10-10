@@ -1,0 +1,35 @@
+const {JSDOM}=require('jsdom');
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const dom=new JSDOM('<main><div id="screen"><div id="display"></div></div></main>',{runScripts:'outside-only'});
+const w=dom.window,area=w.document.querySelector('#screen'),element=w.document.querySelector('#display');
+let width=390,height=520,scale=1,disconnected=false,remoteEvents=0;
+w.ResizeObserver=class{observe(){}disconnect(){disconnected=true;}};
+Object.defineProperties(area,{clientWidth:{get:()=>width},clientHeight:{get:()=>height}});
+area.style.padding='4px';
+const display={getElement:()=>element,getWidth:()=>1600,getHeight:()=>900,scale:value=>{scale=value;}};
+w.eval(fs.readFileSync('src/main/resources/static/js/remote-viewport.js','utf8'));
+const viewport=w.WorkspaceRemoteViewport(area,display);
+const button=action=>w.document.querySelector(`[data-viewport=${action}]`);
+assert(scale*1600<382 && scale*900<512,'fit excludes padding and rounding margin');
+assert.equal(element.style.overflow,'hidden');
+assert.equal(area.dataset.viewportFit,'true');
+const before=scale;
+button('original').click();assert.equal(scale,1);assert.equal(viewport.isFitted(),false);
+assert.equal(area.scrollLeft,382/2/before-382/2,'zoom preserves viewport center');
+button('in').click();assert.equal(scale,1.25);
+area.scrollLeft=500;area.scrollTop=300;
+element.addEventListener('mousedown',()=>remoteEvents++);
+const pointer=(type,x,y)=>{const event=new w.Event(type,{bubbles:true,cancelable:true});Object.assign(event,{pointerId:1,clientX:x,clientY:y});element.dispatchEvent(event);return event;};
+button('move').click();assert(pointer('pointerdown',200,200).defaultPrevented);
+pointer('pointermove',150,120);assert.equal(area.scrollLeft,550);assert.equal(area.scrollTop,380);
+element.dispatchEvent(new w.MouseEvent('mousedown',{bubbles:true,cancelable:true}));assert.equal(remoteEvents,0,'moving view cannot click remote apps');
+pointer('pointercancel',150,120);pointer('pointermove',20,20);assert.equal(area.scrollLeft,550);
+element.dispatchEvent(new w.WheelEvent('wheel',{bubbles:true,cancelable:true,deltaY:20}));assert.equal(area.scrollTop,400,'move mode wheel scrolls the local viewport');
+button('move').click();element.dispatchEvent(new w.MouseEvent('mousedown',{bubbles:true}));assert.equal(remoteEvents,1);
+for(const size of [[320,180],[390,400],[844,230],[1440,800],[2560,1400]]){
+  [width,height]=size;viewport.fit();assert(scale*1600<=width-8 && scale*900<=height-8);
+  assert.equal(area.scrollTop,0);assert.equal(area.scrollLeft,0);
+}
+viewport.dispose();assert(disconnected);assert.equal(w.document.querySelector('.remote-viewport-controls'),null);
+element.dispatchEvent(new w.MouseEvent('mousedown',{bubbles:true}));assert.equal(remoteEvents,2);
+dom.window.close();console.log('PASS remote viewport: padded fit, zoom anchoring, local drag, input isolation, resize and cleanup (synthetic geometry)');

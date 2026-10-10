@@ -832,6 +832,7 @@ BROWSER는 새 탭을 열지 않고 기존 Chromium 화면에 연결한다. CODE
 | POST `/windows/{deviceId}/sessions` | 없음 | 201 기존 SessionView, kind=REMOTE |
 
 - Provider: id:string GMAIL/SLACK/DISCORD/KAKAOTALK, configured:boolean, mode:string OAUTH/BOT_TOKEN/WINDOWS_AGENT, limitation:string.
+- Google OAuth/메일 API 실패: 응답은 기존 `{message:string}` 형식이다. 409는 OAuth 클라이언트/Redirect URI 오류, 만료·재사용 코드 또는 갱신 토큰, Gmail API 미활성화(`accessNotConfigured`/`SERVICE_DISABLED`), scope 부족, 조직 정책 차단을 구분해 안내한다. Gmail 403의 알려진 요청량/할당량 오류는 429다. Google 오류 본문은 최대 16 KiB까지만 파싱하며 원문·인증정보·프로젝트 메타데이터를 반환하지 않는다. 상태/세션 검증과 일회성 state 소비, 프로필 검증 전 계정 미저장 동작은 유지한다.
 - Account: id/provider/label:string, capabilities:string[]. READ/SEND/REPLY/THREADS/SEARCH/ATTACHMENTS/UPLOAD/EDIT/DELETE/REACTIONS/READ_STATE/LABELS를 Provider·grant에 따라 활성화한다. token/cipher/external identity 원문은 반환하지 않는다.
 - Page<T>: items:T[], nextCursor:string (빈값=마지막).
 - ConversationView: accountId/provider/id/title/kind/preview:string, updatedAt:nullable epoch-ms long, unread:nullable boolean. kind MAIL/CHANNEL/DM/GROUP/THREAD. Discord THREAD는 공식 active guild threads 응답의 원본 ID를 사용하며 읽기·승인 전송의 conversationId로 전달한다.

@@ -216,6 +216,15 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
   } finally { unavailableModelFixture.dom.window.close(); }
   const thinking = await fixture(connected, true, false, true);
   try {
+    const log = thinking.d.querySelector('#assistant-messages');
+    let scrollTop = 0;
+    Object.defineProperties(log, {
+      clientHeight: { get: () => 400 },
+      scrollHeight: { get: () => log.textContent.includes('fixture answer') ? 8000 : 2000 },
+      scrollTop: { get: () => scrollTop, set: value => { scrollTop = Math.max(0, Math.min(value, log.scrollHeight - 400)); } }
+    });
+    const replace = log.replaceChildren.bind(log);
+    log.replaceChildren = (...nodes) => { replace(...nodes); scrollTop = 0; };
     thinking.d.querySelector('#assistant-prompt').value = '오늘 일정 알려줘';
     thinking.d.querySelector('#assistant-form').dispatchEvent(new thinking.w.Event('submit', { cancelable: true }));
     assert.equal(thinking.d.querySelector('#assistant-send').hidden, true);
@@ -225,11 +234,13 @@ async function fixture(connection, authenticated = true, connectionFailure = fal
     assert.match(thinking.d.querySelector('#assistant-messages').textContent, /Codex가 생각하고 있어요/);
     assert.equal(thinking.d.querySelectorAll('.assistant-progress-dots span').length, 3);
     assert.doesNotMatch(thinking.d.querySelector('#assistant-messages').textContent, /private reasoning summary/);
+    log.scrollTop = 120;
     await new Promise(resolve => setTimeout(resolve, 500));
     assert.match(thinking.d.querySelector('#assistant-messages').textContent, /fixture answer/);
     assert.equal(thinking.d.querySelector('.assistant-progress'), null);
     assert.equal(thinking.d.querySelector('#assistant-send').hidden, false);
     assert.equal(thinking.d.querySelector('#assistant-stop').hidden, true);
+    assert.equal(log.scrollTop, log.scrollHeight - log.clientHeight, 'completed answer forces the final transcript to the bottom');
   } finally { thinking.dom.window.close(); }
   const rateLimit = await fixture(connected);
   try {
