@@ -26,6 +26,7 @@ public class RuntimeService {
     public final long createdAt = System.currentTimeMillis();
     public volatile AutoCloseable connection;
     public volatile boolean attached;
+    public boolean audioEnabled;
     public String root;
     public volatile long detachedAt;
     public volatile RetainedTerminal terminal;
@@ -111,6 +112,14 @@ public class RuntimeService {
     sessions.put(runtime.id, runtime);
     runtime.root = request.kind().equals("TERMINAL") ? request.root() : null;
     return new SessionView(runtime.id, runtime.kind, runtime.label, "");
+  }
+
+  /** Reuses the server desktop without opening duplicate tabs when reconnecting. */
+  @PreAuthorize("hasRole('OWNER')")
+  public synchronized SessionView createChromeSession(String ownerId, int width, int height) {
+    SessionView view = createBrowserSession(null, "Chrome", ownerId, width, height);
+    sessions.get(view.id()).audioEnabled = true;
+    return view;
   }
 
   /** Closing this view disconnects VNC while Chromium's persistent profile remains intact. */

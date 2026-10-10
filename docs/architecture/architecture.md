@@ -113,3 +113,11 @@ notes/controller → notes/service → notes/repository → SQLite. 기존 계�
 
 CommunicationController/BrowserBridgeController/WindowsBridgeController → communication service → repository 또는 Provider/Bridge adapter. SQLite 계정·cache·일회성 action과 기존 vault를 재사용한다. Assistant MCP는 같은 service로 읽고 전송 요청만 생성하며 OWNER 브라우저 confirmation에서만 실행한다. Web Bridge는 같은 browser 컨테이너의 고정 loopback broker에 별도 프로필을 요청하고 기존 RuntimeService/Guacamole로 화면을 연다. Windows Agent는 기존 검증된 SSH와 동일 사용자 named pipe를 쓰는 선택적 외부 컴포넌트다.
 상세: [Communications](../communications.md).
+
+## Chrome
+
+`ChromeController → RuntimeService → RemoteAdapter → guacd → TigerVNC/PulseAudio`를 사용한다. 기존 세션 소유권과 WebSocket 인증을 유지하고 Chrome 세션에만 audioEnabled를 설정한다. 음성은 서버 프로필과 함께 실행되는 PulseAudio monitor에서 전달하며 4713은 loopback 전용이다. 외부 VNC 장비와 인증 브라우저 연결에는 오디오 설정을 추가하지 않는다. Guacamole VNC 오디오 계약: https://guacamole.apache.org/doc/gug/configuring-guacamole.html#vnc
+
+## 원격 연결 도우미
+
+`DesktopSetupController → DesktopSetupService → DesktopSetupAdapter/RemoteAdapter` 경계를 유지한다. GET plan은 읽기 전용 추천, POST는 명시적으로 시작한 설치/복구 작업, PUT connection은 원격 필드만 갱신한다. 가상 화면의 자동 프로필은 실제 guacd 연결 검증 후 저장한다. SSH·Tailscale·점프 설정은 보존한다. 설치용 sudo 비밀번호는 요청과 작업 메모리/SSH stdin에만 존재하며 디스크나 응답으로 전달하지 않는다. [상세](../remote-desktop.md).

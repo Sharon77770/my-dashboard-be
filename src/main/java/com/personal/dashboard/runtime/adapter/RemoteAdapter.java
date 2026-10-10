@@ -34,6 +34,11 @@ public class RemoteAdapter {
   }
 
   public GuacamoleSocket open(DeviceRecord device, int width, int height) {
+    return open(device, width, height, false);
+  }
+
+  /** Audio is enabled only for the built-in Chrome session, never arbitrary remote devices. */
+  public GuacamoleSocket open(DeviceRecord device, int width, int height, boolean audioEnabled) {
     GuacamoleSocket socket = null;
     net.schmizz.sshj.SSHClient sshClient = null;
     java.net.ServerSocket listener = null;
@@ -78,6 +83,12 @@ public class RemoteAdapter {
       information.setOptimalResolution(96);
       information.getImageMimetypes().add("image/png");
       information.getImageMimetypes().add("image/jpeg");
+      if (audioEnabled && device.id().equals("browser")) {
+        configuration.setParameter("enable-audio", "true");
+        configuration.setParameter("audio-servername", "tcp:" + network.resolve(device) + ":4713");
+        // The handshake advertises the base type; guacd supplies rate/channels on the stream.
+        information.getAudioMimetypes().add("audio/L16");
+      }
       socket = new InetGuacamoleSocket(host, port);
       var configured = new ConfiguredGuacamoleSocket(socket, configuration, information);
       if (sshClient == null) return configured;

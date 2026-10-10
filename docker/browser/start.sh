@@ -31,6 +31,17 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'exit 0' INT TERM
+# The dashboard and guacd share this network namespace. Audio never listens on a public interface.
+export XDG_RUNTIME_DIR=/tmp/browser-runtime
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+pulseaudio --daemonize=no --exit-idle-time=-1 --disallow-exit --use-pid-file=no -n \
+    --load="module-native-protocol-unix" \
+    --load="module-null-sink sink_name=chrome sink_properties=device.description=Chrome" \
+    --load="module-native-protocol-tcp listen=127.0.0.1 auth-ip-acl=127.0.0.1" &
+children="$children $!"
+export PULSE_SINK=chrome
+export PULSE_SOURCE=chrome.monitor
 # Shared dashboard networking must not expose the unauthenticated desktop/CDP ports.
 browser_bind=0.0.0.0
 vnc_local_only=no
@@ -40,7 +51,7 @@ if [ "${BROWSER_LOCAL_ONLY:-false}" = "true" ]; then
 fi
 Xvnc :1 -geometry 1600x900 -depth 24 -SecurityTypes None -localhost "$vnc_local_only" -nolisten tcp -AlwaysShared &
 vnc_pid=$!
-children="$vnc_pid"
+children="$children $vnc_pid"
 sleep 1
 openbox &
 children="$children $!"

@@ -99,7 +99,49 @@ public class DesktopSetupAdapter {
     return vault.decrypt(managed.passwordCipher());
   }
 
+  /** Probes existing tools and privileges without installing or changing the target. */
+  public String inspect(DeviceRecord device) {
+    try (var client = ssh.connect(device)) {
+      client.setTimeout(15000);
+      String os = readCommand(client, "uname -s").trim();
+      if (os.equals("Darwin")) return "MACOS";
+      if (!os.equals("Linux")) return "UNSUPPORTED_OS";
+      String probe =
+          "if command -v python3 >/dev/null 2>&1 && "
+              + "(command -v Xtigervnc >/dev/null 2>&1 || command -v Xvnc >/dev/null 2>&1) && "
+              + "(command -v tigervncpasswd >/dev/null 2>&1 || command -v vncpasswd >/dev/null 2>&1) && "
+              + "command -v openbox >/dev/null 2>&1 && command -v xterm >/dev/null 2>&1; then echo TOOLS_READY; "
+              + "elif ! command -v apt-get >/dev/null 2>&1; then echo UNSUPPORTED_PACKAGES; "
+              + "elif [ \"$(id -u)\" = 0 ] || sudo -n true >/dev/null 2>&1; then echo INSTALL; "
+              + "elif command -v sudo >/dev/null 2>&1; then echo ADMIN_REQUIRED; else echo NO_SUDO; fi;";
+      String code = readCommand(client, probe).trim();
+      return Set.of("TOOLS_READY", "INSTALL", "ADMIN_REQUIRED", "NO_SUDO", "UNSUPPORTED_PACKAGES")
+              .contains(code)
+          ? code
+          : "UNSUPPORTED_OS";
+    } catch (WorkspaceException exception) {
+      throw exception;
+    } catch (Exception exception) {
+      throw new WorkspaceException(502, "장비 환경을 확인하지 못했습니다. SSH 연결을 확인하고 다시 시도하세요.");
+    }
+  }
+
+  private String readCommand(net.schmizz.sshj.SSHClient client, String script) throws IOException {
+    try (var session = client.startSession();
+        var command = session.exec(script)) {
+      byte[] output = command.getInputStream().readNBytes(4097);
+      if (output.length > 4096) throw new IOException("Output limit");
+      return new String(output, StandardCharsets.UTF_8);
+    }
+  }
+
   public Outcome configure(DeviceRecord device) {
+    return configure(device, "", stage -> {});
+  }
+
+  /** Password travels only over SSH stdin and is neither persisted nor echoed. */
+  public Outcome configure(
+      DeviceRecord device, String sudoPassword, java.util.function.Consumer<String> progress) {
     try (var client = ssh.connect(device)) {
       client.setTimeout(0);
       try (var timer = Executors.newSingleThreadScheduledExecutor()) {
@@ -114,59 +156,104 @@ public class DesktopSetupAdapter {
                 12,
                 TimeUnit.MINUTES);
         try {
-          try (var session = client.startSession();
-              var command = session.exec("uname -s")) {
-            String os =
-                new String(command.getInputStream().readNBytes(256), StandardCharsets.UTF_8).trim();
-            if (!os.equals("Linux"))
-              return new Outcome(os.equals("Darwin") ? "MACOS" : "UNSUPPORTED_OS", 0);
+          String os = readCommand(client, "uname -s").trim();
+          if (!os.equals("Linux"))
+            return new Outcome(os.equals("Darwin") ? "MACOS" : "UNSUPPORTED_OS", 0);
+          if (readCommand(client, "command -v python3").isBlank()) {
+            progress.accept("INSTALLING");
+            String bootstrap =
+                "IFS= read -r setup_password; "
+                    + "if ! command -v apt-get >/dev/null 2>&1; then echo UNSUPPORTED_PACKAGES; exit; fi; "
+                    + "install_python() { env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 update >/dev/null 2>&1 && env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install -y python3 >/dev/null 2>&1; }; "
+                    + "if [ \"$(id -u)\" = 0 ]; then install_python && echo READY || echo COMMAND_FAILED; "
+                    + "else printf '%s\\n' \"$setup_password\" | sudo -S -p '' true >/dev/null 2>&1 || { echo ADMIN_REQUIRED; exit; }; "
+                    + "printf '%s\\n' \"$setup_password\" | sudo -S -p '' env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 update >/dev/null 2>&1 && "
+                    + "printf '%s\\n' \"$setup_password\" | sudo -S -p '' env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=60 install -y python3 >/dev/null 2>&1 && echo READY || echo COMMAND_FAILED; fi";
+            try (var session = client.startSession();
+                var command = session.exec(bootstrap)) {
+              command
+                  .getOutputStream()
+                  .write((sudoPassword + "\n").getBytes(StandardCharsets.UTF_8));
+              command.getOutputStream().flush();
+              command.getOutputStream().close();
+              String result =
+                  new String(command.getInputStream().readNBytes(128), StandardCharsets.UTF_8)
+                      .trim();
+              if (!result.equals("READY")) return new Outcome(result, 0);
+            }
           }
           Managed item = managed(device);
           if (item == null) {
             var random = new java.security.SecureRandom();
             String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
             var password = new StringBuilder();
-            for (int i = 0; i < 8; i++)
+            for (int index = 0; index < 8; index++)
               password.append(alphabet.charAt(random.nextInt(alphabet.length())));
-            String secret = password.toString();
-            item = new Managed(identity(device), vault.encrypt(secret), 0);
+            item = new Managed(identity(device), vault.encrypt(password.toString()), 0);
             save(device, item);
           }
-          // Bootstrap only the interpreter; package installation remains in the fixed helper.
-          String bootstrap =
-              "if ! command -v python3 >/dev/null 2>&1; then "
-                  + "if ! command -v apt-get >/dev/null 2>&1; then echo '{\"code\":\"PYTHON_REQUIRED\",\"port\":0}'; exit; fi; "
-                  + "if [ \"$(id -u)\" = 0 ]; then p=''; elif sudo -n true >/dev/null 2>&1; then p='sudo -n'; else echo '{\"code\":\"ADMIN_REQUIRED\",\"port\":0}'; exit; fi; "
-                  + "$p env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=30 update >/dev/null 2>&1 && "
-                  + "$p env DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=30 install -y python3 >/dev/null 2>&1 || exit 1; fi; "
-                  + "exec python3 -c 'import base64;exec(base64.b64decode(\""
-                  + program
-                  + "\"))'";
+          String script =
+              "exec python3 -c 'import base64;exec(base64.b64decode(\"" + program + "\"))'";
           try (var session = client.startSession();
-              var command = session.exec(bootstrap)) {
-            command
-                .getOutputStream()
-                .write((password(item) + "\n").getBytes(StandardCharsets.UTF_8));
+              var command = session.exec(script)) {
+            byte[] input =
+                (json.writeValueAsString(
+                            Map.of("password", password(item), "sudoPassword", sudoPassword))
+                        + "\n")
+                    .getBytes(StandardCharsets.UTF_8);
+            command.getOutputStream().write(input);
             command.getOutputStream().flush();
-            byte[] output = command.getInputStream().readNBytes(4097);
-            if (output.length > 4096) throw new IOException("Output limit");
-            Outcome result = json.readValue(output, Outcome.class);
-            if (result.code().equals("READY")) {
-              if (result.port() < 5920 || result.port() > 5999)
-                throw new IOException("Invalid port");
-              save(device, new Managed(item.identity(), item.passwordCipher(), result.port()));
+            Arrays.fill(input, (byte) 0);
+            var reader = new InputStreamReader(command.getInputStream(), StandardCharsets.UTF_8);
+            var line = new StringBuilder();
+            int count = 0, character;
+            while ((character = reader.read()) != -1) {
+              if (++count > 4096) throw new IOException("Output limit");
+              if (character != '\n') {
+                line.append((char) character);
+                continue;
+              }
+              var event = json.readTree(line.toString());
+              line.setLength(0);
+              String stage = event.path("stage").asText();
+              if (Set.of("CHECKING", "INSTALLING", "STARTING").contains(stage)) {
+                progress.accept(stage);
+                continue;
+              }
+              String code = event.path("code").asText();
+              if (!Set.of(
+                      "READY",
+                      "ADMIN_REQUIRED",
+                      "EXISTING_VNC",
+                      "UNSUPPORTED_PACKAGES",
+                      "NO_PORT",
+                      "BUSY",
+                      "TIMEOUT",
+                      "COMMAND_FAILED",
+                      "PASSWORD_FAILED",
+                      "START_FAILED",
+                      "DESKTOP_FAILED",
+                      "UNSAFE_STATE",
+                      "INVALID_SECRET",
+                      "SETUP_FAILED")
+                  .contains(code)) code = "SETUP_FAILED";
+              int port = event.path("port").asInt();
+              if (code.equals("READY")) {
+                if (port < 5920 || port > 5999) throw new IOException("Invalid port");
+                save(device, new Managed(item.identity(), item.passwordCipher(), port));
+              }
+              return new Outcome(code, port);
             }
-            return result;
+            throw new IOException("Missing result");
           }
         } finally {
           deadline.cancel(false);
         }
       }
-    } catch (WorkspaceException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new WorkspaceException(
-          502, "자동 구성을 완료하지 못했습니다. SSH 연결, 설치 저장소 접근, 남은 공간을 확인한 뒤 다시 시도하세요.");
+    } catch (WorkspaceException exception) {
+      throw exception;
+    } catch (Exception exception) {
+      throw new WorkspaceException(502, "자동 준비를 완료하지 못했습니다. SSH 연결과 설치 저장소 접근을 확인하고 다시 시도하세요.");
     }
   }
 }

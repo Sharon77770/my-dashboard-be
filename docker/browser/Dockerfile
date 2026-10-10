@@ -1,5 +1,5 @@
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends chromium tigervnc-standalone-server openbox dbus-x11 socat fonts-noto-cjk ca-certificates curl util-linux python3 \
+RUN apt-get update && apt-get install -y --no-install-recommends chromium tigervnc-standalone-server openbox dbus-x11 socat fonts-noto-cjk ca-certificates curl util-linux python3 pulseaudio pulseaudio-utils \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -u 10001 browser \
     && mkdir -p /home/browser/profile \

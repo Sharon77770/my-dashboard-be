@@ -98,12 +98,13 @@
       const status = statuses.get(item.id);
       const stateTone=status?.state==='ONLINE'?'success':status?.state==='OFFLINE'?'danger':'warning';
       const stateLabel=status?.state==='ONLINE'?'온라인':status?.state==='OFFLINE'?'오프라인':'미확인';
-      return `<article class="device-card" data-live-key="${escape(item.id)}"><header><div><span class="ui-status" data-state="${stateTone}">${stateLabel}</span><b>${escape(item.name)}</b></div><small>${escape(item.host)}${item.networkMode==='TAILSCALE'?' · Tailscale':''}</small></header><div class="metrics">${metricTile('CPU',status?.cpu,'cpu')}${metricTile('RAM',status?.memory,'memory')}${metricTile('Disk',status?.disk,'disk')}</div><details class="device-extra"><summary>상태 상세</summary><p>${escape(status?.details || '새로고침으로 상태를 확인하세요.')}</p></details><footer><button ${openAttrs('TERMINAL',item.id)}>${item.id === 'local' ? '셸' : 'SSH'}</button><button ${openAttrs('FILES',item.id)}>파일</button><button ${openAttrs('DOCKER',item.id)}>Docker</button><details class="ui-menu device-actions"><summary aria-label="${escape(item.name)} 추가 작업">${window.WorkspaceUI.icon('more')}</summary><div class="ui-menu-content"><button ${openAttrs('GPU',item.id)}>GPU</button>${item.remoteProtocol !== 'NONE' ? `<button ${openAttrs('REMOTE',item.id)}>원격</button>` : ''}<button data-action="device-logs" data-id="${escape(item.id)}">로그</button><button data-action="status" data-id="${item.id}">새로고침</button>${item.id !== 'local' ? `<button data-action="device-codex" data-id="${escape(item.id)}">Codex</button><button data-action="remote-setup" data-id="${item.id}">원격 자동 연결</button><button data-action="device-edit" data-id="${item.id}">설정</button><button data-action="wake" data-id="${item.id}">Wake</button><button data-action="device-delete" data-id="${item.id}" class="danger">삭제</button>` : ''}</div></details></footer></article>`;
+      return `<article class="device-card" data-live-key="${escape(item.id)}"><header><div><span class="ui-status" data-state="${stateTone}">${stateLabel}</span><b>${escape(item.name)}</b></div><small>${escape(item.host)}${item.networkMode==='TAILSCALE'?' · Tailscale':''}</small></header><div class="metrics">${metricTile('CPU',status?.cpu,'cpu')}${metricTile('RAM',status?.memory,'memory')}${metricTile('Disk',status?.disk,'disk')}</div><details class="device-extra"><summary>상태 상세</summary><p>${escape(status?.details || '새로고침으로 상태를 확인하세요.')}</p></details><footer><button ${openAttrs('TERMINAL',item.id)}>${item.id === 'local' ? '셸' : 'SSH'}</button><button ${openAttrs('FILES',item.id)}>파일</button><button ${openAttrs('DOCKER',item.id)}>Docker</button><details class="ui-menu device-actions"><summary aria-label="${escape(item.name)} 추가 작업">${window.WorkspaceUI.icon('more')}</summary><div class="ui-menu-content"><button ${openAttrs('GPU',item.id)}>GPU</button>${item.id !== 'local' ? `<button data-action="remote-setup" data-id="${escape(item.id)}">원격 데스크톱</button>` : ''}<button data-action="device-logs" data-id="${escape(item.id)}">로그</button><button data-action="status" data-id="${item.id}">새로고침</button>${item.id !== 'local' ? `<button data-action="device-codex" data-id="${escape(item.id)}">Codex</button><button data-action="device-edit" data-id="${item.id}">설정</button><button data-action="wake" data-id="${item.id}">Wake</button><button data-action="device-delete" data-id="${item.id}" class="danger">삭제</button>` : ''}</div></details></footer></article>`;
     }).join(''));
-    for (const [container,kind] of [['file-choices','FILES'],['terminal-choices','TERMINAL'],['remote-choices','REMOTE']]) {
+    for (const [container,kind] of [['file-choices','FILES'],['terminal-choices','TERMINAL']]) {
       paint($(`#${container}`), state.devices.filter(item => kind !== 'REMOTE' || item.remoteProtocol !== 'NONE').map(item => `<button class="device-card choice" ${openAttrs(kind,item.id)}><span class="type">${window.WorkspaceUI.icon(({FILES:'files',TERMINAL:'terminal',REMOTE:'remote'})[kind]||'apps')}</span><b>${escape(item.name)}</b><small>${escape(item.host)}</small></button>`).join('') || empty('장비 설정에서 RDP 또는 VNC 접속을 추가해 주세요.'));
     }
     $('#browser-mode').textContent = `앱 실행 위치: ${modes[state.browserSettings.mode]}`;
+    paint($('#remote-choices'), state.devices.filter(item=>item.id!=='local').map(item=>`<article class="remote-device-card" data-live-key="${escape(item.id)}"><header><span aria-hidden="true">${window.WorkspaceUI.icon('remote')}</span><h3>${escape(item.name)}</h3></header><p>${escape(item.host)}</p><p>${item.remoteProtocol==='NONE'?'처음 연결 · 환경 자동 확인':`${escape(item.remoteProtocol)} 연결 설정됨`}</p><button class="primary" data-action="remote-setup" data-id="${escape(item.id)}">${item.remoteProtocol==='NONE'?'화면 준비하기':'연결하기'}</button></article>`).join('') || empty('장비 추가로 사용할 PC나 서버를 등록하세요.'));
     paint($('#apps-list'), state.applications.map(item => `<div class="app-item"><button ${openAttrs('APP',item.id)}><span class="app-icon">${escape(item.name.slice(0,3))}</span><span><b>${escape(item.name)} ${item.pinned ? '★' : ''}</b><small>${escape(item.url)}</small></span><em>${modes[state.browserSettings.mode]}</em></button><button type="button" data-authentication-app="${escape(item.id)}" aria-label="${escape(item.name)} 인증 브라우저에서 열기">인증 브라우저</button><button data-action="app-edit" data-id="${item.id}" aria-label="앱 설정">⚙</button><button data-action="app-delete" data-id="${item.id}" aria-label="앱 삭제">×</button></div>`).join('') || empty('앱 추가로 자주 사용하는 웹사이트를 등록하세요.'));
     renderTabs();
   }
@@ -176,7 +177,8 @@
 
   let saveQueue = Promise.resolve();
   function saveTabs() { const snapshot = tabs.map(({id,kind,targetId,path,title,pinned}) => ({id,kind,targetId,path,title,pinned})); saveQueue = saveQueue.catch(()=>{}).then(()=>api('/tabs','PUT',{tabs:snapshot})).catch(error=>toast(error.message)); }
-  async function openResource(kind,targetId,path = '/',forceNew = false) {
+  async function openResource(kind,targetId,path = '/',forceNew = false,bypassSetup = false) {
+    if(kind==='REMOTE'&&!bypassSetup){openRemoteSetup(targetId);return;}
     $('#palette-dialog').close();
     if (kind === 'APP' && state.browserSettings.mode === 'CLIENT') {
       const app = state.applications.find(item=>item.id === targetId);
@@ -225,7 +227,7 @@
   async function closeTab(id) {
     const runtime = runtimes.get(id);
     if(runtime) {
-      runtime.socket?.close(); runtime.guacamole?.disconnect(); runtime.resizeObserver?.disconnect(); runtime.terminal?.dispose();
+      runtime.remoteControls?.dispose(); runtime.socket?.close(); runtime.guacamole?.disconnect(); runtime.resizeObserver?.disconnect(); runtime.terminal?.dispose();
       if(runtime.sessionId) await api(`/sessions/${runtime.sessionId}`,'DELETE').catch(()=>{});
       runtime.element.remove(); runtimes.delete(id);
     }
@@ -339,9 +341,17 @@
     try {const result=await api(`/devices/${tab.targetId}/${tab.kind.toLowerCase()}`);$('.inspection-output',root).textContent=result.output || '출력이 없습니다.';}
     catch(error){$('.inspection-output',root).textContent=error.message;}
   }
+  function openRemoteSetup(id) {
+    window.WorkspaceRemoteSetup.open(id,{api,editor,refresh,device:device(id),edit:()=>editDevice(id),connect:async()=>{
+      const existing=tabs.find(item=>item.kind==='REMOTE'&&item.targetId===id);
+      if(existing){const previous=runtimes.get(existing.id);await activateTab(existing.id);if(previous)await runtimeAction(previous.element.querySelector('[data-runtime-action="reconnect"]'));}
+      else await openResource('REMOTE',id,'/',false,true);
+    }});
+  }
   async function connectRuntime(tab) {
     const runtime=runtimes.get(tab.id); const root=runtime.element;
-    root.innerHTML=`<div class="terminal live-runtime"><div class="terminal-head"><span><i class="dot amber"></i><b>${escape(tab.title)}</b><small class="connection-state">연결 중...</small></span><div class="actions runtime-actions"><button data-runtime-action="reconnect" aria-label="다시 연결" title="다시 연결">${window.WorkspaceUI.icon('refresh')}<span class="runtime-action-label">다시 연결</span></button><button data-runtime-action="new" aria-label="새 세션" title="새 세션">${window.WorkspaceUI.icon('plus')}<span class="runtime-action-label">새 세션</span></button>${tab.kind!=='TERMINAL'?`<button data-runtime-action="fullscreen" aria-label="전체 화면" title="전체 화면">${window.WorkspaceUI.icon('maximize')}<span class="runtime-action-label">전체 화면</span></button><button data-runtime-action="paste" aria-label="텍스트 전송" title="텍스트 전송">${window.WorkspaceUI.icon('clip')}<span class="runtime-action-label">텍스트 전송</span></button>`:''}</div></div><div class="stream-area" tabindex="0" aria-label="${tab.kind==='TERMINAL'?'서버 터미널':'원격 화면'}"></div></div>`;
+    root.innerHTML=`<div class="terminal live-runtime"><div class="terminal-head"><span><i class="dot amber"></i><b>${escape(tab.title)}</b><small class="connection-state">연결 중...</small></span><div class="actions runtime-actions"><button data-runtime-action="reconnect" aria-label="다시 연결" title="다시 연결">${window.WorkspaceUI.icon('refresh')}<span class="runtime-action-label">다시 연결</span></button><button data-runtime-action="new" aria-label="새 세션" title="새 세션">${window.WorkspaceUI.icon('plus')}<span class="runtime-action-label">새 세션</span></button>${tab.kind!=='TERMINAL'?`<button data-runtime-action="keyboard" aria-expanded="false">키보드</button><button data-runtime-action="fit" aria-pressed="true">화면 맞춤</button>${tab.kind==='REMOTE'?'<button data-runtime-action="remote-setup">연결 도우미</button><button data-runtime-action="secure-attention" title="원격 PC에 Ctrl+Alt+Del 전송">Ctrl+Alt+Del</button>':''}<button data-runtime-action="fullscreen" aria-label="전체 화면" title="전체 화면">${window.WorkspaceUI.icon('maximize')}<span class="runtime-action-label">전체 화면</span></button><button data-runtime-action="paste" aria-label="텍스트 전송" title="텍스트 전송">${window.WorkspaceUI.icon('clip')}<span class="runtime-action-label">텍스트 전송</span></button>`:''}</div></div><div class="stream-area" tabindex="0" aria-label="${tab.kind==='TERMINAL'?'서버 터미널':'원격 화면'}"></div></div>`;
+    if(tab.kind==='REMOTE') $('.runtime-actions',root).innerHTML = `<button data-runtime-action="reconnect" title="다시 연결" aria-label="다시 연결">↻</button><button data-runtime-action="keyboard" aria-expanded="false">키보드</button><button data-runtime-action="fullscreen" title="전체 화면" aria-label="전체 화면">⛶</button><details class="ui-menu"><summary aria-label="원격 화면 메뉴">⋯</summary><div class="ui-menu-content"><button data-runtime-action="fit" aria-pressed="true">화면 맞춤</button><button data-runtime-action="paste">클립보드 전송</button><button data-runtime-action="secure-attention">Ctrl+Alt+Del</button><button data-runtime-action="remote-setup">연결 도우미</button></div></details>`;
     const status=message=>{runtime.connected=message==='연결됨';if($('.connection-state',root)){const label=$('.connection-state',root);label.textContent=message;label.classList.add('ui-status');label.dataset.state=runtime.connected?'success':'warning';}renderTabs();};
     try {
       const session=await api('/sessions','POST',{kind:tab.kind,targetId:tab.targetId,width:Math.max(320,Math.min(1920,Math.round(root.clientWidth))),height:Math.max(240,Math.min(1080,Math.round(root.clientHeight-42)))});
@@ -370,17 +380,7 @@
         runtime.resizeObserver=new ResizeObserver(()=>{if(!root.hidden)fit.fit();});runtime.resizeObserver.observe(area);fit.fit();terminal.focus();
       } else {
         const tunnel=new Guacamole.WebSocketTunnel(endpoint);const client=new Guacamole.Client(tunnel);runtime.guacamole=client;
-        const display=client.getDisplay();area.append(display.getElement());
-        runtime.scale=()=>{if(display.getWidth())display.scale(Math.min(area.clientWidth/display.getWidth(),area.clientHeight/display.getHeight(),1));};
-        display.onresize=runtime.scale;
-        const mouse=new Guacamole.Mouse(display.getElement());mouse.onmousedown=mouse.onmouseup=mouse.onmousemove=mouseState=>client.sendMouseState(mouseState,true);
-        const touch=new Guacamole.Mouse.Touchpad(display.getElement());touch.onmousedown=touch.onmouseup=touch.onmousemove=mouseState=>client.sendMouseState(mouseState,true);
-        const keyboard=new Guacamole.Keyboard(area);runtime.keyboard=keyboard;keyboard.onkeydown=keysym=>{client.sendKeyEvent(1,keysym);return false;};keyboard.onkeyup=keysym=>client.sendKeyEvent(0,keysym);
-        area.addEventListener('pointerdown',()=>area.focus());area.addEventListener('blur',()=>keyboard.reset());
-        client.onerror=error=>status(`원격 연결 실패 (${error.code}) · 설정을 확인하세요.`);
-        client.onstatechange=value=>status(({1:'연결 중...',2:'응답 대기...',3:'연결됨',4:'연결 종료 중',5:'연결 종료'})[value] || '준비 중');
-        client.onclipboard=(stream,mimetype)=>{if(mimetype==='text/plain'){const reader=new Guacamole.StringReader(stream);let text='';reader.ontext=chunk=>{if(text.length<32000)text+=chunk;};reader.onend=()=>{runtime.remoteClipboard=text.slice(0,32000);};}};
-        runtime.resizeObserver=new ResizeObserver(runtime.scale);runtime.resizeObserver.observe(area);client.connect();area.focus();
+        window.WorkspaceRemoteDesktop.attach(runtime,client,area,status);
       }
       await refresh();
     } catch(error) {status(error.message);}
@@ -389,8 +389,12 @@
     const tab=tabs.find(item=>item.id===button.closest('[data-runtime]').dataset.runtime);const runtime=runtimes.get(tab.id);const action=button.dataset.runtimeAction;
     if(action==='new') await openResource(tab.kind,tab.targetId,tab.path,true);
     if(action==='reload') await loadInspection(tab);
-    if(action==='reconnect') {runtime.socket?.close();runtime.guacamole?.disconnect();runtime.terminal?.dispose();runtime.resizeObserver?.disconnect();if(runtime.sessionId)await api(`/sessions/${runtime.sessionId}`,'DELETE').catch(()=>{});await connectRuntime(tab);}
-    if(action==='fullscreen') await runtime.element.requestFullscreen();
+    if(action==='reconnect') {runtime.remoteControls?.dispose();runtime.socket?.close();runtime.guacamole?.disconnect();runtime.terminal?.dispose();runtime.resizeObserver?.disconnect();if(runtime.sessionId)await api(`/sessions/${runtime.sessionId}`,'DELETE').catch(()=>{});await connectRuntime(tab);}
+    if(action==='keyboard')runtime.remoteControls?.keyboard(button);
+    if(action==='fit')runtime.remoteControls?.fit(button);
+    if(action==='secure-attention')runtime.remoteControls?.secureAttention();
+    if(action==='remote-setup')openRemoteSetup(tab.targetId);
+    if(action==='fullscreen'){if(document.fullscreenElement)await document.exitFullscreen();else if(runtime.element.requestFullscreen)await runtime.element.requestFullscreen();else toast('이 기기에서는 전체 화면을 지원하지 않습니다.');}
     if(action==='paste') editor('원격 클립보드',`<label>원격 화면에 전송할 텍스트<textarea name="text" rows="7" maxlength="32000">${escape(runtime.remoteClipboard || '')}</textarea></label><p class="section-hint">전송 후 원격 앱에서 붙여넣기 하세요. 원격에서 복사한 텍스트도 이 창에서 확인할 수 있습니다.</p>`,async form=>{if(!runtime.guacamole)throw new Error('원격 연결이 없습니다.');const writer=new Guacamole.StringWriter(runtime.guacamole.createClipboardStream('text/plain'));writer.sendText(form.get('text'));writer.sendEnd();},'전송');
     if(action==='docker') editor('컨테이너 제어',fields.input('container','컨테이너 이름 또는 ID','','text','required')+fields.select('action','동작','restart',[['start','시작'],['stop','중지'],['restart','재시작']]),async form=>{const result=await api(`/devices/${tab.targetId}/docker`,'POST',Object.fromEntries(form));await loadInspection(tab);toast(result.output || '요청을 실행했습니다.');},'실행');
   }
@@ -445,7 +449,7 @@
         case 'device-manual':editDevice();break;
         case 'device-logs':window.WorkspaceLogs?.select(id);showView('logs');break;
         case 'device-codex':window.WorkspaceDeviceCodex?.select(id);showView('device-codex');break;
-        case 'remote-setup':window.WorkspaceRemoteSetup.open(id,{api,editor,refresh,connect:()=>openResource('REMOTE',id,'/',true)});break;
+        case 'remote-setup':openRemoteSetup(id);break;
         case 'device-edit':editDevice(id);break;
         case 'app-add':editApp();break;
         case 'app-edit':editApp(id);break;
@@ -464,7 +468,7 @@
     }catch(error){toast(error.message);}
   });
   for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('click',event=>{if(event.target===dialog){const box=dialog.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)dialog.close();}});
-  window.addEventListener('beforeunload',()=>{for(const runtime of runtimes.values()){runtime.socket?.close();runtime.guacamole?.disconnect();}});
+  window.addEventListener('beforeunload',()=>{for(const runtime of runtimes.values()){runtime.remoteControls?.dispose();runtime.socket?.close();runtime.guacamole?.disconnect();}});
   window.WorkspacePlanner?.init({api,editor,fields,escape,toast,confirmAction});
   window.WorkspaceCommunications?.init({api,editor,fields,escape,toast,confirmAction});
   window.WorkspaceMilitary?.init({api,editor,fields,escape,toast,confirmAction});

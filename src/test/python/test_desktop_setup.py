@@ -35,6 +35,24 @@ class DesktopSetupTest(unittest.TestCase):
                 desktop.install()
             runner.assert_not_called()
 
+    def test_sudo_password_only_travels_in_stdin(self):
+        with patch.object(desktop, "tools", side_effect=[(None,) * 4, ("x", "p", "w", "t")]), patch.object(desktop.os, "geteuid", return_value=1000), patch.object(desktop.shutil, "which", return_value="/usr/bin/tool"), patch.object(desktop.subprocess, "run") as authenticate, patch.object(desktop, "run") as runner:
+            authenticate.return_value.returncode = 0
+            desktop.install("test-secret")
+            self.assertEqual(authenticate.call_args.kwargs["input"], b"test-secret\n")
+            self.assertNotIn("test-secret", " ".join(authenticate.call_args.args[0]))
+            self.assertEqual(runner.call_count, 2)
+            for call in runner.call_args_list:
+                self.assertEqual(call.kwargs["input"], b"test-secret\n")
+                self.assertNotIn("test-secret", " ".join(call.args[0]))
+
+    def test_wrong_sudo_password_never_reaches_package_manager(self):
+        with patch.object(desktop, "tools", return_value=(None,) * 4), patch.object(desktop.os, "geteuid", return_value=1000), patch.object(desktop.shutil, "which", return_value="/usr/bin/tool"), patch.object(desktop.subprocess, "run") as authenticate, patch.object(desktop, "run") as runner:
+            authenticate.return_value.returncode = 1
+            with self.assertRaisesRegex(desktop.SetupError, "ADMIN_REQUIRED"):
+                desktop.install("wrong")
+            runner.assert_not_called()
+
     def test_non_vnc_port_not_reused(self):
         with patch.object(desktop.socket, "create_connection") as connect:
             connect.return_value.__enter__.return_value.recv.return_value = b"HTTP/1.1 200"

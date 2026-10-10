@@ -56,25 +56,30 @@ def tools():
             shutil.which("openbox"), shutil.which("xterm"))
 
 
-def install():
+def install(sudo_password=""):
     if all(tools()):
         return
     if not shutil.which("apt-get"):
         raise SetupError("UNSUPPORTED_PACKAGES")
     prefix = []
+    install_input = {}
     if os.geteuid() != 0:
-        if not shutil.which("sudo") or subprocess.run(["sudo", "-n", "true"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
+        if not shutil.which("sudo"):
             raise SetupError("ADMIN_REQUIRED")
-        prefix = ["sudo", "-n"]
+        prefix = ["sudo", "-S", "-p", ""] if sudo_password else ["sudo", "-n"]
+        install_input = {"input": (sudo_password + "\n").encode()} if sudo_password else {}
+        if subprocess.run(prefix + ["true"], timeout=15, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **install_input).returncode:
+            raise SetupError("ADMIN_REQUIRED")
     env = dict(os.environ, DEBIAN_FRONTEND="noninteractive")
-    run(prefix + ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "-o", "DPkg::Lock::Timeout=30", "update"], 180, env=env)
-    run(prefix + ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "-o", "DPkg::Lock::Timeout=30", "install", "-y", "--no-install-recommends",
-                  "tigervnc-standalone-server", "tigervnc-tools", "openbox", "xterm", "xfonts-base"], 360, env=env)
+    run(prefix + ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "-o", "DPkg::Lock::Timeout=60", "update"], 180, env=env, **install_input)
+    run(prefix + ["env", "DEBIAN_FRONTEND=noninteractive", "apt-get", "-o", "DPkg::Lock::Timeout=60", "install", "-y", "--no-install-recommends",
+                  "tigervnc-standalone-server", "tigervnc-tools", "openbox", "xterm", "xfonts-base", "xfce4", "dbus-x11", "fonts-noto-cjk"], 420, env=env, **install_input)
     if not all(tools()):
         raise SetupError("UNSUPPORTED_PACKAGES")
 
 
-def setup(secret):
+def setup(secret, sudo_password="", progress=lambda stage: None):
+    progress("CHECKING")
     os.umask(0o077)
     root = Path.home() / ".personal-dashboard-desktop"
     if root.is_symlink():
@@ -102,7 +107,9 @@ def setup(secret):
         # Existing VNC installations are never reconfigured or have passwords reset.
         if any(rfb(port) for port in range(5900, 5920)):
             raise SetupError("EXISTING_VNC")
-        install()
+        progress("INSTALLING")
+        install(sudo_password)
+        progress("STARTING")
         server, passwd, wm, terminal = tools()
         with (root / "passwd").open("wb") as output:
             try:
@@ -115,7 +122,7 @@ def setup(secret):
             port = 5900 + display
             process = subprocess.Popen([server, f":{display}", "-localhost", "yes", "-rfbport", str(port),
                                         "-SecurityTypes", "VncAuth", "-PasswordFile", str(root / "passwd"),
-                                        "-geometry", "1280x800", "-depth", "24", "-nolisten", "tcp"],
+                                        "-geometry", "1280x800", "-depth", "24", "-nolisten", "tcp", "-AlwaysShared"],
                                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                        stderr=subprocess.DEVNULL, start_new_session=True)
             ready = False
@@ -139,7 +146,8 @@ def setup(secret):
             env.pop("DBUS_SESSION_BUS_ADDRESS", None)
             children = []
             try:
-                for command in ([wm], [terminal]):
+                desktop_commands = (["dbus-launch", "--exit-with-session", "startxfce4"],) if shutil.which("startxfce4") and shutil.which("dbus-launch") else ([wm], [terminal])
+                for command in desktop_commands:
                     children.append(subprocess.Popen(command, env=env, stdin=subprocess.DEVNULL,
                                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                                      start_new_session=True))
@@ -159,10 +167,14 @@ def setup(secret):
 
 if __name__ == "__main__":
     try:
-        secret = sys.stdin.readline(128).strip()
+        request = json.loads(sys.stdin.readline(16384))
+        secret = request.get("password", "")
+        sudo_password = request.get("sudoPassword", "")
+        if not isinstance(sudo_password, str) or len(sudo_password) > 4096 or "\n" in sudo_password or "\r" in sudo_password:
+            raise SetupError("INVALID_SECRET")
         if len(secret) != 8 or not secret.isalnum():
             raise SetupError("INVALID_SECRET")
-        print(json.dumps({"code": "READY", "port": setup(secret)}))
+        print(json.dumps({"code": "READY", "port": setup(secret, sudo_password, lambda stage: print(json.dumps({"stage": stage}), flush=True))}), flush=True)
     except SetupError as error:
         print(json.dumps({"code": str(error), "port": 0}))
     except Exception:

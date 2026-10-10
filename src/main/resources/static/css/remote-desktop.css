@@ -1,0 +1,37 @@
+﻿.remote-setup { display:grid; gap:14px; }
+.remote-setup header { display:flex; align-items:flex-start; gap:12px; }
+.remote-setup h3 { margin:0 0 8px; font-size:17px; }
+.remote-setup p { margin:0; line-height:1.6; overflow-wrap:anywhere; }
+.remote-setup-icon { display:grid; place-items:center; flex:none; width:42px; height:42px; border-radius:10px; background:var(--surface-raised,#292e39); color:var(--accent,#8b9fff); }
+.remote-setup-steps { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; list-style:none; margin:0; padding:0; }
+.remote-setup-steps li { padding:8px 4px; text-align:center; font-size:12px; border-bottom:2px solid var(--border,#363d48); color:var(--text-muted,#9ca6b7); }
+.remote-setup-steps li[data-state=active] { border-color:var(--accent,#8b9fff); color:var(--text,#eef1f7); }
+.remote-setup-steps li[data-state=done] { border-color:#58ab87; }
+.remote-setup-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.remote-setup button { min-height:42px; }
+.remote-setup [data-setup-status]:empty { display:none; }
+.remote-setup [data-setup-background], .remote-setup small { font-size:12px; color:var(--text-muted,#9ca6b7); }
+.remote-setup details { border-top:1px solid var(--border,#363d48); padding-top:12px; }
+.remote-setup summary { cursor:pointer; padding:6px 0; }
+.remote-setup details p { margin:8px 0; font-size:13px; }
+.remote-connection-fields { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.remote-setup [hidden] { display:none!important; }
+.remote-device-card { display:flex; flex-direction:column; gap:12px; padding:18px; border:1px solid var(--border,#363d48); border-radius:12px; background:var(--surface,#1c2028); min-width:0; }
+.remote-device-card header { display:flex; align-items:center; gap:10px; }
+.remote-device-card h3 { margin:0; font-size:15px; }
+.remote-device-card p { font-size:13px; color:var(--text-muted,#9ca6b7); margin:0; overflow-wrap:anywhere; }
+.remote-device-card button { align-self:flex-start; min-height:42px; }
+.remote-desktop .stream-area { min-height:0; overflow:auto; overscroll-behavior:contain; }
+.remote-desktop .stream-area > div { touch-action:none; }
+.remote-input-bar { display:flex; gap:6px; padding:6px; flex-wrap:wrap; flex:none; background:var(--surface,#1c2028); }
+.remote-input-bar[hidden] { display:none; }
+.remote-input-bar input { flex:1; min-width:120px; width:120px; font-size:16px; }
+.remote-input-bar button { min-height:40px; }
+.remote-desktop:fullscreen { height:100dvh; width:100vw; background:var(--surface,#1c2028); }
+@media(max-width:560px) { .remote-connection-fields { grid-template-columns:1fr; } .remote-setup-steps li { font-size:11px; } }
+.remote-desktop .terminal-head .runtime-actions button { width:auto; min-width:40px; padding:4px 8px; }
+.remote-desktop .terminal-head .runtime-actions .ui-menu-content { min-width:190px; }
+.remote-desktop .terminal-head .runtime-actions .ui-menu-content button { width:100%; justify-content:flex-start; min-height:40px; }
+.remote-desktop .terminal-head .connection-state { max-width:200px; }
+@media(max-width:600px) { .remote-desktop .terminal-head { grid-template-columns:minmax(0,1fr) auto; } .remote-desktop .terminal-head .connection-state { display:none; } }
+#editor-dialog:has([data-desktop-setup]) .dialog-actions > button[data-action="dialog-close"] { display:none; }

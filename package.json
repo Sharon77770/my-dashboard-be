@@ -1,6 +1,6 @@
 {
   "private": true,
-  "scripts": { "check:studio": "node scripts/check-studio.mjs" },
+  "scripts": { "check:studio": "node scripts/check-studio.mjs", "check:chrome": "node scripts/check-chrome.mjs" },
   "devDependencies": {
     "playwright": "^1.64.0"
   }

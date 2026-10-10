@@ -191,6 +191,8 @@ POST /api/v1/studio/jobs, GET/DELETE /api/v1/studio/jobs/{id}: 세션 소유 로
 
 - POST /api/v1/devices/{id}/remote-setup — OWNER 세션·CSRF, 비동기 자동 구성 및 연결 검증 시작.
 - GET /api/v1/devices/{id}/remote-setup — OWNER 세션, 구성 상태 조회.
+- GET /api/v1/devices/{id}/remote-setup/plan — OWNER 세션, 읽기 전용 환경 확인과 연결 추천.
+- PUT /api/v1/devices/{id}/remote-setup/connection — OWNER 세션·CSRF, 원격 연결 설정만 저장.
 
 ## Database Studio
 
@@ -311,3 +313,4 @@ Terminal은 기존 `POST /api/v1/sessions`에 선택 필드 `root`를 전달한�
 | POST | `/api/v1/communications/bridge/profiles/{id}/stops` | OWNER + CSRF | 프로필을 보존하며 원격 앱 중지 |
 | GET | `/api/v1/communications/accounts/{id}/message-search` | OWNER | SEARCH 권한이 있는 연결 계정의 공식 메시지 검색 및 cursor 페이지 조회 |
 | GET | `/api/v1/communications/accounts/{id}/participants` | OWNER | PARTICIPANTS 권한이 있는 대화의 원본 참여자 ID 페이지 조회 |
+| POST | /api/v1/chrome/sessions | OWNER + CSRF | 서버 Chrome 원격 화면 및 오디오 세션 생성 |

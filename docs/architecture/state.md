@@ -97,3 +97,9 @@ Communications 브라우저 탭 저장 version 2: panes(accountId/id/title/kind)
 ### Communications 표현 상태
 
 기존 탭·분할 저장 계약은 유지한다. `detailsOpen`은 기본 false인 일시적 UI 상태이며 `messageOpen`은 모바일 목록/대화 전환 상태다. 실시간 캐시 갱신은 목록으로 돌아간 사용자를 대화로 이동시키지 않는다. `listQuery`는 서버 검색과 별개의 로컬 목록 필터다. 계정별 조회 오류와 각 pane의 loading/error는 분리하며, 오류가 발생해도 이미 읽은 메시지와 작성 중인 초안을 보존한다. API/DB/인증 상태 변경은 없다.
+
+## Chrome UI 상태
+
+Chrome의 connection/id, 요청 sequence, fit 여부는 페이지 메모리에만 둔다. 재연결 시 이전 원격 연결을 닫고 새 세션을 생성한다. 원격 profile/tabs는 browser-profile 볼륨의 Chromium 상태이며 DB 변경은 없다. 텍스트 입력은 전송·화면 이탈 시 비우고 clipboard/localStorage에 보관하지 않는다. 화면을 나가면 연결을 해제한다.
+
+원격 준비 상태는 IDLE/RUNNING/READY/BLOCKED를 유지하고 `stage`로 CHECKING/INSTALLING/STARTING/VERIFYING을 구분한다. `code`는 복구 분류이며 원문 실행 출력은 포함하지 않는다. 설치용 sudoPassword는 요청 write-only 값으로 작업 동안만 유지하며 입력창은 전송/종료 시 지운다. 연결 도우미의 세대 번호로 오래된 조회가 다른 장비의 화면을 수정하지 못하게 한다. 창을 닫아도 서버 작업은 유지한다.

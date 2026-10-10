@@ -368,11 +368,24 @@ GET /api/v1/cloud/nas는 OWNER 세션으로 접근한다. 200 응답 필드는 `
 
 ## 원격 데스크톱 자동 구성
 
-POST /api/v1/devices/{id}/remote-setup: id는 필수 String 장비 ID. 본문 없음. OWNER 세션과 CSRF 필수. 202 응답으로 구성 시작 또는 동일 장비의 진행 중 작업 반환. GET은 같은 경로에서 OWNER 세션으로 상태를 조회하며 본문 없이 200을 반환한다.
+접두사 `/api/v1/devices/{id}/remote-setup`. id는 필수 non-null 장비 ID string, query parameter는 없다. OWNER 로그인 필수이며 POST/PUT에는 CSRF가 필요하다. raw SSH 출력·자격증명은 응답하지 않는다.
 
-응답 DesktopSetupView: state(String, 필수/null 불가, IDLE/RUNNING/READY/BLOCKED), message(String, 필수/null 불가, 사용자 안내). IDLE은 아직 작업 없음, RUNNING은 검사·설치·검증 중, READY는 연결 검증 성공, BLOCKED는 조치 후 재시도 필요. 작업 상세 실패는 BLOCKED의 message로 제공하고 명령 출력이나 자격증명은 반환하지 않는다.
+| Method / 하위 경로 | 요청 | 응답 |
+| --- | --- | --- |
+| GET `/` | 없음 | 200 DesktopSetupView |
+| GET `/plan` | 없음, 읽기 전용 | 200 DesktopSetupPlan |
+| POST `/` | 선택 JSON DesktopSetupRequest, 생략/{} 가능 | 202 DesktopSetupView, 동일 장비의 실행 중 작업은 재사용 |
+| PUT `/connection` | 필수 JSON DesktopConnectionRequest | 204, 원격 연결 필드만 저장, SSH·점프·다른 설정은 보존 |
 
-공통 오류: 400 기본 local 장비 설치 요청, 401 미인증, 403 권한/CSRF 실패, 404 장비 없음, 429 동시 작업 4개 초과. 오류 본문은 기존 message 형식이다. 설치·저장 위치·지원 OS·포트·수명은 [원격 자동 구성](../remote-desktop.md)을 따른다. SQLite schema 변경 없음.
+DesktopSetupRequest: `sudoPassword`는 선택 nullable string, 최대 4096자, CR/LF 불가. null/빈 값/생략은 root 또는 기존 비대화형 sudo만 사용한다. 입력값은 이번 설치에만 쓰며 저장하거나 응답하지 않는다.
+
+DesktopConnectionRequest: `protocol`은 필수 non-null string RDP/VNC, `port`는 필수 integer 1..65535, `username`은 선택 nullable string 최대 128자(null은 빈 계정), `password`는 선택 nullable string 최대 4096자(null/빈 값은 기존 암호 유지). 비밀번호는 write-only이며 저장소 암호화를 사용한다. 이 API는 대상 OS의 RDP/VNC 서비스나 방화벽을 설정하지 않는다. 진행 중 설치가 있으면 409다.
+
+DesktopSetupView의 모든 필드는 non-null이다. `state` string은 IDLE/RUNNING/READY/BLOCKED, `message` string은 사용자 안내, `stage` string은 IDLE/CHECKING/INSTALLING/STARTING/VERIFYING/READY/BLOCKED, `code` string은 정상 시 빈 값이고 실패 시 복구 분류다. code는 ADMIN_REQUIRED, NO_SUDO, MACOS, UNSUPPORTED_OS, UNSUPPORTED_PACKAGES, PYTHON_REQUIRED, EXISTING_VNC, NO_PORT, BUSY, TIMEOUT, COMMAND_FAILED, PASSWORD_FAILED, START_FAILED, DESKTOP_FAILED, UNSAFE_STATE, INVALID_SECRET, SETUP_FAILED, CONNECTION_FAILED 중 하나 또는 미분류 오류의 빈 값이다. RUNNING 동안 단계가 진행하고 READY는 guacd 핸드셰이크까지 성공한 경우만 반환한다. 새 자동 프로필은 검증 후 저장한다.
+
+DesktopSetupPlan의 모든 필드는 non-null이다. `mode` string은 EXISTING(기존 설정), MANAGED(관리 중인 가상 화면), LINUX(자동 준비), MANUAL(직접 연결 필요). `title/message/actionLabel`은 안내 string이며 사용 가능한 자동 동작이 없으면 actionLabel은 빈 값이다. `canStart` boolean은 자동 준비/연결 지원 여부, `requiresPassword` boolean은 설치에 sudo 비밀번호 입력이 필요한지 여부다. 사전 확인은 설치를 시작하지 않는다. 환경 변화가 있으므로 실제 POST에서 다시 확인한다.
+
+공통 오류: 400 기본 local 장비 설치/설정 요청 및 입력 검증 실패, 401 미인증, 403 OWNER/CSRF 실패, 404 장비 없음, 409 준비 중 연결 설정 수정, 429 동시 작업 4개 초과, 502 사전 SSH 확인 실패. 오류 본문은 기존 `{message:string}`이며 설치 이후 실패는 HTTP 200 조회의 BLOCKED 상태로 안내한다. 설치·수명·지원 OS는 [원격 데스크톱](../remote-desktop.md)을 따른다. DB 스키마 변경 없음.
 
 ## 메모장 API
 
@@ -884,3 +897,11 @@ MCP `communication_list_participants`: accountId 필수 string ≤36, conversati
 Communications Bridge의 configured는 자동 생성된 내부 인증 파일을 읽을 수 있는지 나타내며, 공급자 로그인 완료를 의미하지 않는다. 브라우저 준비 전 프로필 생성/실행은 409로 거절한다. 내부 키는 응답에 포함하지 않는다. 서비스 계정 로그인은 원격 화면에서 사용자가 직접 수행한다.
 
 Bridge Create.provider는 GMAIL|SLACK|DISCORD|KAKAOTALK다. KAKAOTALK의 start/snapshot/stop/delete는 고정 Wine broker 9225로 라우팅하고 VNC 5920~5923만 허용한다. 다른 프로필은 기존 9224/5910~5913을 사용한다. Wine snapshot.state는 STARTING|INSTALLING|RUNNING|ERROR|APPLICATION_EXITED|STOPPED이며 RUNNING은 프로세스 시작 상태로 로그인 완료를 뜻하지 않는다. nodes는 빈 배열, structuredMessages=false다.
+
+### POST /api/v1/chrome/sessions
+
+OWNER 로그인과 CSRF가 필수다. path/query parameter는 없다. JSON 요청은 `width`(필수 non-null integer, 320..3840), `height`(필수 non-null integer, 240..2160)로 원격 화면 크기를 지정한다. 서버 Chromium의 기존 화면에 연결하며 새 탭을 생성하거나 URL로 이동하지 않는다. 브라우저 환경설정의 CLIENT/REMOTE 모드와 무관하게 서버 브라우저를 사용한다.
+
+201 응답은 SessionView: `id`(non-null string, 세션 UUID), `kind`(non-null string, APP), `label`(non-null string, Chrome), `url`(non-null string, 빈 값). 세션은 요청의 HTTP 로그인 세션에 귀속된다. 기존 `/ws/runtime/{id}` 연결 및 `DELETE /api/v1/sessions/{id}` 종료 계약을 사용한다. 종료는 Chromium 프로세스·프로필·탭을 삭제하지 않는다. Chrome 세션에만 VNC 오디오를 협상하며 오디오 데이터는 인증된 WebSocket을 통해 전달된다.
+
+오류는 기존 공통 오류 형식이다. 400은 화면 크기 누락/범위 위반/잘못된 JSON, 401은 비로그인, 403은 OWNER 권한 또는 CSRF 누락, 409는 전체 실행 세션 한도 12개 초과다. 한도 메시지는 기존 RuntimeService의 열린 실행 탭 안내를 사용한다. 원격 연결 실패는 생성 이후 WebSocket 1011 종료와 UI의 재연결 안내로 표시된다. 다른 로그인 세션의 조회·삭제는 기존 계약대로 404다.

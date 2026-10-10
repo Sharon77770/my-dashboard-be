@@ -96,3 +96,5 @@ CommunicationProvider는 공식 API의 Identity/Conversation/Message/Page/Send�
 상세: [Communications](../communications.md).
 
 Communications 화면 모드: BrowserBridgeService가 프로필 provider로 고정 Chromium/Wine 브로커를 선택한다. 공통 broker는 별도 컨테이너에서 서비스 allowlist와 VNC 포트 범위를 나누며, Wine 실행기는 고정 카카오 설치/실행만 수행한다. 공식 API Provider/MCP는 별도 선택 기능으로 유지한다.
+
+원격 화면 조작은 `WorkspaceRemoteDesktop`에 모아 원격 입력·크기·UI 수명을 관리하고 `workspace.js`는 탭/세션 생성·삭제를 소유한다. 준비 화면은 `WorkspaceRemoteSetup`이 표현하고 환경 판정·설치·프로필 갱신은 서비스/adapter가 수행한다. 설치 권한과 연결 암호는 서로 다른 요청 계약으로 취급한다.

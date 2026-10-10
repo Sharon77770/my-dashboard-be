@@ -112,7 +112,8 @@ public class RuntimeSocketHandler extends TextWebSocketHandler implements SubPro
         }
         if (socket.isOpen()) socket.close(new CloseStatus(1000, "셸이 종료되었습니다."));
       } else {
-        var remote = remotes.open(runtime.device, runtime.width, runtime.height);
+        var remote =
+            remotes.open(runtime.device, runtime.width, runtime.height, runtime.audioEnabled);
         if (!service.bind(
             runtime,
             () -> {

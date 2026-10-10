@@ -183,3 +183,19 @@ Samba SMB3가 기존 `dashboard-data` 볼륨의 `/app/data/cloud/files`를 공�
 ## Communications
 
 Communications 내장 앱은 카카오톡 Wine 화면과 Slack/Discord Chromium 화면을 대시보드에서 직접 열고 조작한다. 화면 모드에는 별도 OAuth/Bot Token 설정이 필요 없다. Gmail/Slack 공식 OAuth, Discord Bot 연결과 승인 후 메시지 전송은 선택적인 API 수신함 기능으로 유지한다. 지원 범위·미구현 항목·설정·검증 경계는 [Communications](docs/communications.md)를 따른다.
+
+## Chrome 앱
+
+앱 라이브러리에서 **Chrome**을 선택한다. 서버에 설치된 Chromium 전체 화면(주소창과 탭 포함)을 표시하며 별도의 URL iframe을 사용하지 않는다. 대시보드 장식 대신 얇은 도구 모음과 원격 화면을 제공한다. 대시보드로 돌아가면 원격 연결만 종료하고 서버 탭·로그인·프로필은 유지한다. 인증 브라우저와 같은 프로필/데스크톱을 공유하므로 여러 기기에서 동시에 조작하면 화면과 크기 변경도 공유된다.
+
+화면 맞춤은 가용 영역에 맞춰 TigerVNC 크기 변경을 요청하고 전체 화면을 축소 표시한다. 모바일은 최소 480px 원격 폭을 사용해 주소창 조작 공간을 확보한다. 원본 크기로 전환하면 컨테이너를 스크롤할 수 있다. 화면 회전과 가상 키보드에 따른 visual viewport 변화도 반영한다. 한 손가락은 터치패드 포인터, 탭은 클릭, 두 손가락은 스크롤이다. 키보드 버튼의 입력창으로 한글을 보내고 Enter/Esc/삭제 키를 별도로 누를 수 있다. 주소창 이동은 원격 Ctrl+L이다.
+
+YouTube 등 미디어 소리는 소리 켜기를 누른 뒤 사용한다. `docker/browser` 이미지에 PulseAudio가 필요하므로 변경된 이미지를 재빌드해야 한다. PulseAudio null sink의 monitor를 Guacamole VNC 오디오로 전달한다. TCP 4713은 공유 네트워크의 127.0.0.1에만 바인딩하고 외부 포트를 게시하지 않는다. 기존 compose.yaml의 dashboard/browser/guacd 공유 네트워크 구성을 사용한다. 분리 네트워크의 외부 Chromium은 이 오디오 설정의 대상이 아니다.
+
+VNC는 원격 데스크톱 전송이므로 고해상도·고프레임 영상의 부드러움과 음성 동기화는 서버 CPU/네트워크에 영향을 받는다. DRM 재생 가능 여부는 Chromium 및 서비스 정책에 따른다. 실제 운영 서버의 YouTube 영상·오디오, 모바일 Safari/Chrome 터치, 회전, 가상 키보드 검증은 배포 후 필요하다.
+
+검증: `npm run check:chrome`는 Playwright 실제 브라우저에서 가짜 원격 전송을 사용해 데스크톱/모바일 레이아웃, 한글 입력, 연결 실패/복구와 종료를 검사한다. `node scripts/check-chrome-live.mjs`는 별도 테스트 대시보드(`CHROME_TEST_URL`, 기본 localhost:18189), 테스트 계정 파일(`CHROME_TEST_ENV`, 기본 `.tools/chrome-fixture.env`의 DASHBOARD_AUTH_ID/PASSWORD), 서버 브라우저 loopback 8765에서 제공하는 `scripts/fixtures/chrome-media.html`이 필요하다. 운영 계정/프로필 대신 격리 환경에서 실행한다. 실제 VNC 크기 변경과 무음이 아닌 PCM 오디오 수신까지 확인하며, YouTube 서비스 자체 재생이나 실기기 체감 품질 검증을 대신하지 않는다.
+
+## 원격 데스크톱 간편 연결
+
+**원격 데스크톱 → 장비 선택 → 준비/연결** 순서로 사용한다. 미설정 장비도 표시하며 환경 확인은 설치 없이 진행한다. Linux 자동 설치가 필요하면 작업 내용을 먼저 보여 주고, sudo 인증이 필요한 경우에만 이번 설치용 비밀번호를 입력받는다. 준비 단계와 복구 안내를 표시하고 성공 시 자동 연결한다. 기존 RDP/VNC는 간단한 연결 설정에서 수정할 수 있다. 화면 맞춤·모바일 한글 입력·전체 화면·Ctrl+Alt+Del을 제공한다. [지원 환경과 사용법](docs/remote-desktop.md).

@@ -36,6 +36,62 @@ class WorkspaceIntegrationTest {
   @Autowired JdbcTemplate jdbc;
 
   @Test
+  void chromeRequiresOwnerCsrfAndValidViewport() throws Exception {
+    String path = "/api/v1/chrome/sessions";
+    String body = "{\"width\":1600,\"height\":900}";
+    mvc.perform(post(path).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(
+            post(path)
+                .with(user("owner").roles("OWNER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post(path)
+                .with(csrf())
+                .with(user("viewer").roles("VIEWER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isForbidden());
+    var session = new org.springframework.mock.web.MockHttpSession();
+    String response =
+        mvc.perform(
+                post(path)
+                    .session(session)
+                    .with(csrf())
+                    .with(user("owner").roles("OWNER"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.kind").value("APP"))
+            .andExpect(jsonPath("$.url").value(""))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    String id = mapper.readTree(response).path("id").asText();
+    mvc.perform(delete("/api/v1/sessions/" + id).with(csrf()).with(user("owner").roles("OWNER")))
+        .andExpect(status().isNotFound());
+    mvc.perform(
+            delete("/api/v1/sessions/" + id)
+                .session(session)
+                .with(csrf())
+                .with(user("owner").roles("OWNER")))
+        .andExpect(status().isNoContent());
+    for (String invalid :
+        new String[] {
+          body.replace("900", "0"), body.replace("1600", "0"), body.replace("1600", "4000")
+        })
+      mvc.perform(
+              post(path)
+                  .with(csrf())
+                  .with(user("owner").roles("OWNER"))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(invalid))
+          .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void authenticationBrowserRequiresOwnerCsrfAndValidDestination() throws Exception {
     String path = "/api/v1/authentication-browser/sessions";
     String body = "{\"provider\":\"BROWSER\",\"width\":1600,\"height\":900}";
@@ -178,6 +234,33 @@ class WorkspaceIntegrationTest {
     mvc.perform(get("/api/v1/devices/local/remote-setup").with(user("owner").roles("OWNER")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.state").value("IDLE"));
+  }
+
+  @Test
+  void remotePlanAndScopedSettingsRequireOwnerAndValidateInput() throws Exception {
+    String path = "/api/v1/devices/local/remote-setup";
+    mvc.perform(get(path + "/plan")).andExpect(status().isUnauthorized());
+    mvc.perform(get(path + "/plan").with(user("viewer").roles("VIEWER")))
+        .andExpect(status().isForbidden());
+    mvc.perform(get(path + "/plan").with(user("owner").roles("OWNER")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.canStart").value(false));
+    mvc.perform(
+            put(path + "/connection")
+                .with(user("owner").roles("OWNER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            put(path + "/connection")
+                .with(user("owner").roles("OWNER"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"protocol\":\"RDP\",\"port\":0}"))
+        .andExpect(status().isBadRequest());
+    var request = new com.personal.dashboard.runtime.dto.DesktopSetupRequest("fixture-sensitive");
+    assertThat(mapper.writeValueAsString(request)).doesNotContain("fixture-sensitive");
+    assertThat(request.toString()).doesNotContain("fixture-sensitive");
   }
 
   @Test
