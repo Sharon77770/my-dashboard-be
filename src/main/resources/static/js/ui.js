@@ -35,6 +35,27 @@ window.WorkspaceUI = (() => {
   };
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const icon = name => `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name] || paths.apps}"/></svg>`;
+  /** Explicit domain states map to shared visual roles; unknown never implies success. */
+  const stateTone = state => {
+    const value = String(state || '').toLowerCase();
+    if (['success','succeeded','completed','healthy','online','connected','passed','added','open'].includes(value)) return 'success';
+    if (['failed','failure','error','danger','down','offline','deleted','conflict'].includes(value)) return 'danger';
+    if (['warning','degraded','pending','modified','dirty','queued','blocked'].includes(value)) return 'warning';
+    if (['running','loading','connecting','in_progress','info'].includes(value)) return 'info';
+    if (['merged'].includes(value)) return 'merged';
+    return 'neutral';
+  };
+  const usageTone = value => value == null || value === '' ? 'neutral' : value >= 90 ? 'danger' : value >= 75 ? 'warning' : 'info';
+  const status = (state, label = state) => `<span class="ui-status" data-state="${stateTone(state)}">${escape(label)}</span>`;
+  const fileKind = (name, directory = false) => {
+    if (directory) return 'folder';
+    const ext = String(name).split('.').pop().toLowerCase();
+    if (['js','ts','tsx','jsx','java','py','go','rs','html','css','sh','sql'].includes(ext)) return 'code';
+    if (['png','jpg','jpeg','gif','svg','webp','mp4','mp3','wav'].includes(ext)) return 'media';
+    if (['zip','gz','tar','7z','rar'].includes(ext)) return 'archive';
+    if (['json','yaml','yml','toml','xml','ini','env'].includes(ext)) return 'config';
+    return 'document';
+  };
   const token = name => getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
   const terminalTheme = () => ({background:token('bg-app'),foreground:token('text-primary'),cursor:token('accent'),selectionBackground:token('accent-subtle'),black:token('bg-sidebar'),red:token('danger'),green:token('success'),yellow:token('warning'),blue:token('accent'),magenta:token('studio-keyword'),cyan:token('studio-function'),white:token('text-primary'),brightBlack:token('text-muted'),brightRed:token('danger'),brightGreen:token('success'),brightYellow:token('warning'),brightBlue:token('accent'),brightMagenta:token('studio-keyword'),brightCyan:token('studio-function'),brightWhite:token('text-primary')});
   const progress = (value, label, tone = 'accent') => {
@@ -182,5 +203,5 @@ window.WorkspaceUI = (() => {
   function showTooltip(event){const target=event.target.closest('[data-tooltip]');if(!target)return;hideTooltip();tooltip=document.createElement('div');tooltip.className='ui-tooltip';tooltip.role='tooltip';tooltip.textContent=target.dataset.tooltip;document.body.append(tooltip);const box=target.getBoundingClientRect();tooltip.style.left=Math.max(8,Math.min(box.left,innerWidth-tooltip.offsetWidth-8))+'px';tooltip.style.top=Math.min(box.bottom+6,innerHeight-tooltip.offsetHeight-8)+'px';}
   document.addEventListener('pointerover',showTooltip);document.addEventListener('focusin',showTooltip);document.addEventListener('pointerout',hideTooltip);document.addEventListener('focusout',hideTooltip);document.addEventListener('pointerdown',hideTooltip);
   function uuid(){if(typeof crypto.randomUUID==='function')return crypto.randomUUID();const bytes=crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;const hex=Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('');return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);}
-  return {escape,icon,token,terminalTheme,progress,ring,emptyState,skeleton,beginTask,uuid};
+  return {escape,icon,stateTone,usageTone,status,fileKind,token,terminalTheme,progress,ring,emptyState,skeleton,beginTask,uuid};
 })();

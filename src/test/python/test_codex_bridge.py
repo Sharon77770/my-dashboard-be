@@ -95,6 +95,16 @@ for line in sys.stdin:
 
 
 class CodexBridgeTest(unittest.TestCase):
+    def test_legacy_thread_scope_is_limited_to_assistant(self):
+        bridge = remote.CodexBridge.__new__(remote.CodexBridge)
+        bridge.root = Path('/private/assistant')
+        bridge.legacy_root = Path('/old/files')
+        self.assertTrue(bridge.owns_cwd('/private/assistant'))
+        self.assertTrue(bridge.owns_cwd('/old/files'))
+        self.assertFalse(bridge.owns_cwd('/other/project'))
+        bridge.legacy_root = None
+        self.assertFalse(bridge.owns_cwd('/old/files'))
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)

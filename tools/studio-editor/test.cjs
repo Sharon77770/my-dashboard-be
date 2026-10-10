@@ -9,19 +9,22 @@ const w=dom.window;const d=w.document;let edit,loaded,dialogSubmit;
 const domErrors=[];w.addEventListener('error',event=>domErrors.push(event.error));
 w.WorkspaceCodeEditor=(parent,onChange)=>{edit=onChange;return {load:(name,text)=>{loaded=text;},focus(){}};};
 w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
-const calls=[];let jobs=0;const requests=new Map();const notices=[];
+const calls=[];let githubRunning=false;let jobs=0;const requests=new Map();const notices=[];
 const project={devices:[{id:'remote',name:'Test',host:'localhost',rootPath:'/home/tester'},{id:'local',name:'Dashboard Server',host:'localhost',rootPath:'/app/data/files'}]};
 let content='print("hello")';let revision='v1';let running=false,cancelled=false,authenticated=false,conflictPath=null;
 const transferred=[];
 const api=async(url,method,body)=>{
  if(url==='/workspace')return project;
+ if(url==='/studio/jobs/github-test'){if(method==='DELETE'){githubRunning=false;return null;}return {id:'github-test',state:githubRunning?'RUNNING':'CANCELLED',events:[]};}
  if(url.startsWith('/devices/')&&method==='POST'){transferred.push({url,path:body.get('path'),name:body.get('file').name});return null;}
  if(url.startsWith('/devices/')&&!method)return {entries:[]};
  if(url.endsWith('/inputs')){cancelled=true;return null;}
  if(method==='DELETE'){cancelled=true;return null;}
  if(url.startsWith('/studio/jobs/')&&!method)return {id:'running',state:cancelled?'CANCELLED':'RUNNING',events:[],error:cancelled?'사용자가 중지했습니다.':null};
  if(method==='POST'){calls.push(body);const id=String(++jobs);requests.set(id,body);let result={ok:true};
-  if(body.action==='list')result={root:body.root,path:'.',entries:[{name:'project',path:'project',directory:true},{name:'app.py',path:'app.py',directory:false},{name:'<img src=x onerror=alert(1)>',path:'<unsafe>',directory:false}]};
+  if(body.action==='github-login'){githubRunning=true;return {id:'github-test',state:'RUNNING',events:[{code:'TEST-CODE',url:'https://github.com/login/device'}]};}
+  if(body.action==='setup')result={codex:'codex-cli 0.154.0'};
+  if(body.action==='list')result={root:body.root,path:'.',entries:[{name:'project',path:'project',directory:true},{name:'app.py',path:'app.py',directory:false},...['new.ts','working.ts','conflict.ts'].map(name=>({name,path:name,directory:false})),{name:'<img src=x onerror=alert(1)>',path:'<unsafe>',directory:false}]};
   if(body.action==='read')result={content,revision};
   if(body.action==='save'){if(body.args.path===conflictPath)throw new Error('revision conflict');assert.equal(body.args.revision,revision);content=body.args.content;revision='v2';result={revision};}
   if(body.action==='git-status')result={branch:'main',branches:['main'],changes:[{index:'M',worktree:' ',path:'staged.ts'},{index:' ',worktree:'M',path:'working.ts'},{index:'U',worktree:'U',path:'conflict.ts'},{index:'?',worktree:'?',path:'new.ts'}],history:'abc first'};
@@ -50,8 +53,21 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  assert.equal(d.querySelector('#studio-device').value,'local');
  assert.equal(d.querySelector('#studio-root').value,'/app/data/files');
  assert.equal(d.querySelector('#studio-device').options.length,2);
+ click('[data-studio="folder-create"]');await tick();
+ await assert.rejects(()=>dialogSubmit(new Map([['name','../outside']])));
+ assert.equal(calls.length,0);
+ await dialogSubmit(new Map([['name','new project']]));
+ assert.equal(calls[0].action,'mkdir');assert.equal(calls[0].root,'/app/data/files');assert.equal(calls[0].deviceId,'local');
+ assert.equal(d.querySelector('#studio-root').value,'/app/data/files/new project');
+ assert.equal(d.querySelector('.studio-workbench').hidden,true);
+ d.querySelector('#studio-device').value='remote';d.querySelector('#studio-root').value='/home/tester/nested';
+ click('[data-studio="folder-create"]');await tick();await dialogSubmit(new Map([['name','remote-project']]));
+ assert.equal(calls.findLast(c=>c.action==='mkdir').root,'/home/tester/nested');assert.equal(calls.findLast(c=>c.action==='mkdir').deviceId,'remote');
+ assert.equal(d.querySelector('#studio-root').value,'/home/tester/nested/remote-project');
+ d.querySelector('#editor-dialog').close();d.querySelector('#studio-device').value='local';d.querySelector('#studio-root').value='/app/data/files';calls.length=0;
  d.querySelector('.studio-connect').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await tick();
  assert.deepEqual(calls.slice(0,3).map(c=>c.action),['setup','list','git-status']);
+ for(const [name,tone] of [['new.ts','success'],['working.ts','warning'],['conflict.ts','danger']])assert.equal(d.querySelector('.studio-file-row [data-path="'+name+'"]').closest('.studio-file-row').dataset.change,tone);
  assert.ok(calls.slice(0,3).every(c=>c.deviceId==='local'));
  assert.equal(d.querySelector('.studio-connection').textContent,'서버 자체 · 로컬 편집');
  assert.equal(d.querySelector('.studio-workbench').hidden,false);
@@ -62,6 +78,12 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  click('[data-studio="file"][data-path="app.py"]');await tick();assert.equal(loaded,content);
  edit('print("changed")');assert.match(d.querySelector('#studio-dirty').textContent,/저장하지/);
  click('[data-studio="save"]');await tick();assert.equal(content,'print("changed")');assert.equal(calls.filter(c=>c.action==='save').length,1);
+ click('[data-studio="github-login"]');await tick();assert.equal(githubRunning,true);
+ assert.equal(d.querySelector('[data-studio="save"]').disabled,false);
+ assert.equal(d.querySelector('#studio-github-progress a').href,'https://github.com/login/device');
+ click('[data-studio="reload-file"]');await tick();assert.equal(loaded,content);
+ click('#studio-github-progress button');await new Promise(resolve=>setTimeout(resolve,750));
+ assert.equal(githubRunning,false);assert.equal(d.querySelector('#studio-github-progress code'),null);
  edit('unsaved');click('[data-studio="close"][data-path="app.py"]');await tick();assert.equal(d.querySelector('#editor-dialog').open,true);
  d.querySelector('#editor-dialog').close();await tick();assert.ok(d.querySelector('[data-studio="tab"]'));
  click('[data-studio-panel="codex"]');assert.equal(d.querySelector('#studio-codex').hidden,false);
@@ -71,6 +93,7 @@ const click=selector=>{const button=d.querySelector(selector);assert.ok(button,s
  assert.equal(calls.some(c=>c.action==='codex-run'),false);assert.ok(notices.some(n=>n.includes('저장')));
  await tick();assert.equal(d.querySelector('#studio-auth-cta').hidden,false);assert.equal(d.querySelector('[data-studio="codex-logout"]').hidden,true);
  authenticated=true;click('[data-cx="refresh"]');await tick();
+ click('[data-cx="update-cli"]');await tick();assert.ok(calls.some(c=>c.action==='setup'&&c.args.refresh===true&&c.deviceId==='local'));assert.match(d.querySelector('#cx-cli-version').textContent,/0.154.0/);
  assert.match(d.querySelector('#cx-account').textContent,/ssh@example.com/);
  assert.match(d.querySelector('#studio-auth').textContent,/ssh@example.com/);
  click('[data-studio="save"]');await tick();

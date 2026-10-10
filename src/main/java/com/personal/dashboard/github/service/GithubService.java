@@ -55,13 +55,19 @@ public class GithubService {
     owners.add(
         new GithubDto.Owner(
             text(viewer, "login"), "USER", text(viewer, "avatar_url"), text(viewer, "html_url")));
-    for (JsonNode organization : requireArray(cli.api("user/orgs?per_page=100")))
-      owners.add(
-          new GithubDto.Owner(
-              text(organization, "login"),
-              "ORGANIZATION",
-              text(organization, "avatar_url"),
-              text(organization, "html_url")));
+    for (int page = 1; ; page++) {
+      if (page > 100) throw new WorkspaceException(502, "Too many organization pages.");
+      JsonNode batch =
+          requireArray(cli.api("user/orgs?per_page=100" + (page == 1 ? "" : "&page=" + page)));
+      for (JsonNode organization : batch)
+        owners.add(
+            new GithubDto.Owner(
+                text(organization, "login"),
+                "ORGANIZATION",
+                text(organization, "avatar_url"),
+                text(organization, "html_url")));
+      if (batch.size() < 100) break;
+    }
     return owners;
   }
 
@@ -167,10 +173,15 @@ public class GithubService {
         throw new WorkspaceException(400, "홈페이지 URL을 확인해 주세요.");
       body.put("homepage", homepage);
     }
-    if (request.topics() != null)
-      body.set("topics", json.valueToTree(requireNames(request.topics(), "topic")));
-    if (body.isEmpty()) throw new WorkspaceException(400, "변경할 저장소 필드가 없습니다.");
-    cli.apiWrite("PATCH", "repos/" + target, body);
+    var topics = request.topics() == null ? null : requireNames(request.topics(), "topic");
+    if (body.isEmpty() && topics == null)
+      throw new WorkspaceException(400, "No repository fields to update.");
+    if (!body.isEmpty()) cli.apiWrite("PATCH", "repos/" + target, body);
+    if (topics != null) {
+      var topicBody = json.createObjectNode();
+      topicBody.set("names", json.valueToTree(topics));
+      cli.apiWrite("PUT", "repos/" + target + "/topics", topicBody);
+    }
     return repository(target);
   }
 

@@ -1,9 +1,9 @@
 /* Theme values live here. Feature styles consume semantic roles only. */
 :root {
   color-scheme: dark;
-  --text-primary: #edf0f5;
-  --text-secondary: #c0c7d3;
-  --text-muted: #a9b2bf;
+  --text-primary: #d9e1eb;
+  --text-secondary: #b8c5d5;
+  --text-muted: #98a8bb;
   --text-inverse: #ffffff;
   --border-subtle: #2a303a;
   --border-default: #3b4552;

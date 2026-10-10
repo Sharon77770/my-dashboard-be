@@ -40,7 +40,17 @@ public class TerminalAdapter {
       builder
           .environment()
           .keySet()
-          .removeIf(key -> !java.util.Set.of("PATH", "HOME", "LANG", "LC_ALL").contains(key));
+          .removeIf(
+              key ->
+                  !java.util.Set.of(
+                          "PATH",
+                          "HOME",
+                          "LANG",
+                          "LC_ALL",
+                          "DOCKER_HOST",
+                          "DOCKER_TLS_VERIFY",
+                          "DOCKER_CERT_PATH")
+                      .contains(key));
       builder.environment().put("TERM", "xterm-256color");
       Process process = builder.start();
       return new Connection() {

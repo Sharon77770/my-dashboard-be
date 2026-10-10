@@ -1,0 +1,35 @@
+# Opt-in single-owner development mode. Requires Compose 2.24.4+.
+# The builder is privileged; review docs/deployment.md before enabling.
+services:
+  dashboard:
+    build:
+      args:
+        WORKSPACE_DEVELOPMENT: "true"
+    security_opt: !override
+      - no-new-privileges:false
+    cap_drop: !reset []
+    environment:
+      DOCKER_HOST: tcp://workspace-docker:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /run/workspace-docker-certs
+    volumes:
+      - workspace-docker-client:/run/workspace-docker-certs:ro
+  workspace-docker:
+    build: ./docker/workspace-docker
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+      DOCKER_TLS_SAN: DNS:workspace-docker
+    volumes:
+      - workspace-docker-data:/var/lib/docker
+      - workspace-docker-client:/certs/client
+    healthcheck:
+      test: ["CMD", "docker", "--host=unix:///var/run/docker.sock", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+volumes:
+  workspace-docker-data:
+  workspace-docker-client:

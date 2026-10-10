@@ -22,7 +22,7 @@
   const setStatus = (message, tone = 'info') => {$('#github-status').textContent = message; $('#github-status').dataset.state = tone;};
   $('#github-status').classList.add('ui-status');
   const layout = $('.github-layout');
-  layout.innerHTML = '<section class="panel github-scope"><label>Scope <select id="github-owner"></select></label><nav id="github-nav" aria-label="GitHub 탐색"></nav><label>저장소 검색 <input id="github-search" type="search" placeholder="이름 또는 설명"></label><label>필터 <select id="github-filter"><option value="all">전체</option><option value="public">Public</option><option value="private">Private</option><option value="archived">Archived</option><option value="fork">Fork</option></select></label><label>정렬 <select id="github-sort"><option value="updated">최근 업데이트</option><option value="name">이름</option></select></label><div id="github-repositories"></div></section><section class="panel github-content"><div class="github-content-head"><h2 id="github-selected">Owner를 선택하세요</h2><span id="github-context"></span></div><div id="github-items"></div><div id="github-detail" hidden></div></section>';
+  layout.innerHTML = '<section class="panel github-scope"><label>오너 검색<input id="github-owner-search" type="search" placeholder="사용자 또는 조직 검색" aria-label="오너 검색"></label><label>Scope <select id="github-owner"></select></label><nav id="github-nav" aria-label="GitHub 탐색"></nav><label>저장소 검색 <input id="github-search" type="search" placeholder="이름 또는 설명"></label><label>필터 <select id="github-filter"><option value="all">전체</option><option value="public">Public</option><option value="private">Private</option><option value="archived">Archived</option><option value="fork">Fork</option></select></label><label>정렬 <select id="github-sort"><option value="updated">최근 업데이트</option><option value="name">이름</option></select></label><div id="github-repositories"></div></section><section class="panel github-content"><div class="github-content-head"><h2 id="github-selected">Owner를 선택하세요</h2><span id="github-context"></span></div><div id="github-items"></div><div id="github-detail" hidden></div></section>';
   $('.github-content-head').insertAdjacentHTML('afterbegin',`<button type="button" class="github-scope-trigger" data-drawer-target=".github-scope" data-drawer-title="GitHub 탐색" aria-label="GitHub 탐색 열기" aria-haspopup="dialog" aria-expanded="false" title="GitHub 탐색 열기">${window.WorkspaceUI.icon('menu')}</button>`);
   const actionBar = document.createElement('div'); actionBar.id = 'github-actions';
   const formHost = document.createElement('div'); formHost.id = 'github-form'; formHost.hidden = true;
@@ -31,13 +31,13 @@
   approvalPanel.innerHTML = '<h2>GitHub 승인 대기</h2><div id="github-approvals"></div>';
   approvalPanel.hidden = true;
   layout.after(approvalPanel);
-  const tabs = [['overview','Overview'],['repositories','Repositories'],['issues','Issues'],['pull-requests','Pull Requests'],['actions','Actions'],['releases','Releases'],['files','Files'],['commits','Commits'],['members','Members']];
-  const tabIcons = {overview:'activity',repositories:'folder',issues:'issue','pull-requests':'pull',actions:'refresh',releases:'check',files:'files',commits:'git',members:'devices'};
+  const tabs = [['overview','Overview'],['repositories','Repositories'],['issues','Issues'],['pull-requests','Pull Requests'],['actions','Actions'],['releases','Releases'],['files','Files'],['branches','Branches'],['tags','Tags'],['commits','Commits'],['members','Members']];
+  const tabIcons = {overview:'activity',repositories:'folder',issues:'issue','pull-requests':'pull',actions:'refresh',releases:'check',files:'files',branches:'git',tags:'git',commits:'git',members:'devices'};
   function renderNav() {
     const nav = $('#github-nav'); nav.replaceChildren();
     for (const [id, label] of tabs) {
       if ((id === 'members' && !owners.some(item => item.login === owner && item.type === 'ORGANIZATION')) ||
-          (['actions','releases','files','commits'].includes(id) && !repository)) continue;
+          (['actions','releases','files','commits','branches','tags'].includes(id) && !repository)) continue;
       const button = document.createElement('button'); button.type = 'button'; button.dataset.tab = id;
       button.innerHTML = window.WorkspaceUI.icon(tabIcons[id]) + '<span>' + label + '</span>';
       button.dataset.tooltip = label; button.setAttribute('aria-current', String(tab === id)); nav.append(button);
@@ -102,7 +102,7 @@
     }
   }
   function detailRow(title, detail, kind, id, url, targetRepository = repository) {
-    const row = document.createElement('div'); row.className = 'github-detail-row';row.dataset.liveKey=kind+':'+targetRepository+':'+id;
+    const row = document.createElement('div'); row.className = 'github-detail-row';row.dataset.kind=kind;row.dataset.liveKey=kind+':'+targetRepository+':'+id;
     const button = document.createElement('button'); button.type = 'button'; button.className = 'github-row';
     button.dataset.detailKind = kind; button.dataset.detailId = String(id);
     button.dataset.detailRepository = targetRepository;
@@ -118,6 +118,25 @@
     const match = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\//.exec(value || '');
     return match?.[1] || repository;
   };
+  function renderOwners() {
+    const query = $('#github-owner-search').value.trim().toLowerCase();
+    const selector = $('#github-owner'); selector.replaceChildren();
+    selector.append(option('', '오너 선택'));
+    for (const item of owners.filter(item => item.login.toLowerCase().includes(query)))
+      selector.append(option(item.login, item.login + (item.type === 'ORGANIZATION' ? ' · Organization' : '')));
+    selector.value = [...selector.options].some(item => item.value === owner) ? owner : '';
+  }
+  function markdown(source) {
+    const article = document.createElement('article'); article.className = 'github-markdown';
+    window.AssistantMarkdown.render(article, source || '');
+    for (const item of article.querySelectorAll('li')) {
+      const node = item.firstChild; if (node?.nodeType !== Node.TEXT_NODE) continue;
+      const match = /^\[([ xX])\]\s/.exec(node.textContent); if (!match) continue;
+      node.textContent = node.textContent.slice(match[0].length);
+      const check = document.createElement('input'); check.type = 'checkbox'; check.disabled = true; check.checked = match[1].toLowerCase() === 'x'; item.prepend(check);
+    }
+    return article;
+  }
   async function load() {
     setStatus('GitHub 인증 확인 중…');
     const status = await ui.api('/github/status');
@@ -128,10 +147,8 @@
       return;
     }
     owners = await ui.api('/github/owners');
-    const selector = $('#github-owner'); selector.replaceChildren();
-    for (const item of owners) selector.append(option(item.login, (item.type === 'ORGANIZATION' ? '🏢 ' : '👤 ') + item.login));
     if (!owners.some(item => item.login === owner)) owner = owners[0]?.login || '';
-    selector.value = owner;
+    renderOwners();
     setStatus('서버 GitHub 연결됨', 'success');
     await loadApprovals();
     await loadOwner();
@@ -164,7 +181,7 @@
   async function loadOwner() {
     if (!owner) return;
     const token = ++viewToken;
-    repository = ''; tab = 'overview';
+    repository = ''; fileRef = ''; tab = 'overview';
     $('#github-selected').textContent = owner;
     $('#github-items').innerHTML = window.WorkspaceUI.skeleton(3);
     renderNav();
@@ -173,14 +190,14 @@
     renderRepositories(); await renderContent();
   }
   async function renderContent(options={}) {
-    if(options.quiet&&(!formHost.hidden||!$('#github-detail').hidden||busy))return;
+    if(options.quiet&&(root.querySelector('.github-about details[open]')||!formHost.hidden||!$('#github-detail').hidden||busy))return;
     const get=path=>ui.api(path,'GET',undefined,options);
     const token = ++viewToken;
     const list = options.quiet?document.createElement('div'):$('#github-items');
     if(!options.quiet){list.innerHTML = window.WorkspaceUI.skeleton(3);
     $('#github-detail').hidden = true; $('#github-detail').replaceChildren();
     $('#github-selected').textContent = repository || owner;
-    $('#github-context').textContent = repository ? 'Repository' : owners.find(item => item.login === owner)?.type || '';
+    $('#github-context').textContent = repository ? (tab === 'files' && fileRef ? fileRef : 'Repository') : owners.find(item => item.login === owner)?.type || '';
     renderNav(); renderRepositories(); renderActions();}
     try {
       let data;
@@ -200,14 +217,34 @@
         runs: await get('/github/actions/runs' + repoQuery),
         workflows: await get('/github/actions/workflows' + repoQuery)
       };
+      else if (tab === 'branches' || tab === 'tags') data = await get('/github/repositories/' + tab + repoQuery);
       else if (tab === 'releases') data = await get('/github/releases' + repoQuery);
-      else if (tab === 'files') {const detail = await get('/github/repositories/detail' + repoQuery); fileRef = detail.defaultBranch;
+      else if (tab === 'files') {const detail = await get('/github/repositories/detail' + repoQuery); fileRef ||= detail.defaultBranch;
         data = await get('/github/repositories/tree' + repoQuery + '&ref=' + encodeURIComponent(fileRef));}
       else if (tab === 'commits') data = await get('/github/repositories/commits' + repoQuery);
       else if (tab === 'members') data = await get('/github/organizations/' + encodeURIComponent(owner) + '/members');
       if (token !== viewToken) return;
       list.replaceChildren();
       if (tab === 'overview') {
+        if (repository) {
+          const about = document.createElement('section'); about.className = 'github-about';
+          about.append(line('About', data.repository.description || 'No description'));
+          const topics = document.createElement('div'); topics.className = 'github-topics';
+          for (const topic of data.repository.topics || []) {const chip = document.createElement('span'); chip.textContent = topic; topics.append(chip);}
+          about.append(topics, line('Default branch', data.repository.defaultBranch));
+          if (/^https?:\/\//i.test(data.repository.homepage || '')) {
+            const link = document.createElement('a'); link.href = data.repository.homepage;
+            link.textContent = data.repository.homepage; link.target = '_blank'; link.rel = 'noopener noreferrer'; about.append(link);
+          }
+          const edit = document.createElement('details'); const title = document.createElement('summary'); title.textContent = '설명 · 토픽 수정';
+          const form = document.createElement('form'); form.dataset.githubMetadata = repository;
+          for (const [name, value] of [['description', data.repository.description], ['homepage', data.repository.homepage], ['topics', (data.repository.topics || []).join(', ')]]) {
+            const label = document.createElement('label'); label.textContent = name === 'topics' ? '토픽 (쉼표로 구분)' : name;
+            const input = document.createElement('input'); input.name = name; input.value = value || ''; label.append(input); form.append(label);
+          }
+          const save = document.createElement('button'); save.textContent = '저장'; form.append(save); edit.append(title, form); about.append(edit);
+          list.append(about);
+        }
         const summary = document.createElement('div'); summary.className = 'github-summary';
         const metrics = repository
           ? [['Open Issues',data.openIssues.length,'issue'],['Open PRs',data.openPullRequests.length,'pull'],['Workflow Runs',data.recentWorkflowRuns.length,'activity']]
@@ -257,6 +294,10 @@
             repositoryFromUrl(item.url)));
           else if (tab === 'releases') list.append(detailRow(item.name || item.tag,
             item.tag + ' · ' + item.publishedAt, 'release', item.id, item.url));
+          else if (tab === 'branches' || tab === 'tags') {
+            const row = document.createElement('button'); row.type = 'button'; row.className = 'github-row';
+            row.dataset.browseRef = item.name; row.append(line(item.name, item.sha?.slice(0,7) + (item.isProtected ? ' · Protected' : ''))); list.append(row);
+          }
           else if (tab === 'files') list.append(detailRow(item.path, item.type + (item.size ? ' · ' + item.size + ' bytes' : ''),
             item.type === 'blob' ? 'file' : 'tree', item.path, null));
           else if (tab === 'commits') list.append(detailRow(item.message?.split('\n')[0] || item.sha,
@@ -269,6 +310,7 @@
   }
   async function showDetail(button) {
     if (button.dataset.detailKind === 'tree') return;
+    const detailToken = ++viewToken;
     const detail = $('#github-detail'); detail.hidden = false; detail.innerHTML = window.WorkspaceUI.skeleton(2);
     const target = button.dataset.detailRepository;
     const id = button.dataset.detailId;
@@ -288,6 +330,7 @@
       else if (kind === 'file') item = await ui.api('/github/repositories/file' + query + '&path=' + encodeURIComponent(id)
         + '&ref=' + encodeURIComponent(fileRef));
       else return;
+      if (detailToken !== viewToken) return;
       detail.replaceChildren();
       const heading = document.createElement('h3'); heading.textContent = kind === 'run' ? item.run.name :
         (item.title || item.name || item.path || item.message?.split('\n')[0] || id); detail.append(heading);
@@ -301,7 +344,7 @@
       const body = document.createElement('pre'); body.className = 'github-detail-body';
       body.textContent = kind === 'run' ? (item.failedLogs || '실패 로그가 없습니다.') :
         kind === 'file' ? item.content : (item.body || item.message || '본문이 없습니다.');
-      detail.append(body);
+      detail.append(['issue','pr','release'].includes(kind) || (kind === 'file' && /\.md$/i.test(id)) ? markdown(body.textContent) : body);
       if (kind === 'release' && item.assets?.length) {
         const title = document.createElement('h4'); title.textContent = 'Assets'; detail.append(title);
         for (const asset of item.assets) detail.append(line(asset.name,
@@ -405,7 +448,9 @@
         return await loadApprovals();
       }
       const selected = event.target.closest('[data-repository]');
-      if (selected) {repository = selected.dataset.repository; window.WorkspaceLauncher?.rememberContext('repository',repository,repository); tab = 'overview';if(selected.closest('.ui-side-drawer'))window.WorkspaceDrawers?.close();return await renderContent();}
+      if (selected) {repository = selected.dataset.repository; fileRef = ''; window.WorkspaceLauncher?.rememberContext('repository',repository,repository); tab = 'overview';if(selected.closest('.ui-side-drawer'))window.WorkspaceDrawers?.close();return await renderContent();}
+      const refButton = event.target.closest('[data-browse-ref]');
+      if (refButton) {fileRef = refButton.dataset.browseRef; tab = 'files'; return await renderContent();}
       const detailButton = event.target.closest('[data-detail-kind]');
       if (detailButton) return await showDetail(detailButton);
       const create = event.target.closest('[data-create-kind]');
@@ -433,6 +478,14 @@
     } catch (error) {setStatus(error.message);}
   });
   root.addEventListener('submit', async event => {
+    const metadata = event.target.closest('[data-github-metadata]');
+    if (metadata) {
+      event.preventDefault(); const values = new FormData(metadata); const submit = metadata.querySelector('button'); submit.disabled = true;
+      try {await ui.api('/github/repositories?repository=' + encodeURIComponent(metadata.dataset.githubMetadata), 'PATCH', {
+        description:values.get('description'), homepage:values.get('homepage'), topics:String(values.get('topics')).split(',').map(value => value.trim()).filter(Boolean)
+      }); await renderContent(); setStatus('저장소 정보를 저장했습니다.', 'success');}
+      catch (error) {setStatus(error.message, 'warning');} finally {submit.disabled = false;} return;
+    }
     const dispatch = event.target.closest('[data-github-dispatch]');
     if (dispatch) {
       event.preventDefault();
@@ -474,7 +527,8 @@
       setStatus(kind === 'issue' ? '이슈를 생성했습니다.' : 'PR을 생성했습니다.'); await renderContent();}
     catch (error) {setStatus(error.message);}
   });
-  $('#github-owner').addEventListener('change', async event => {owner = event.target.value; try {await loadOwner();} catch (error) {setStatus(error.message);}});
+  $('#github-owner').addEventListener('change', async event => {owner = event.target.value; if (!owner) return; try {await loadOwner();} catch (error) {setStatus(error.message);}});
+  $('#github-owner-search').addEventListener('input', renderOwners);
   $('#github-search').addEventListener('input', renderRepositories);
   $('#github-filter').addEventListener('change', renderRepositories);
   $('#github-sort').addEventListener('change', renderRepositories);

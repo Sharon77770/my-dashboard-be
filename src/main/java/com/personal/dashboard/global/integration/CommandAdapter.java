@@ -24,7 +24,17 @@ public class CommandAdapter {
         builder
             .environment()
             .keySet()
-            .removeIf(key -> !java.util.Set.of("PATH", "HOME", "LANG", "LC_ALL").contains(key));
+            .removeIf(
+                key ->
+                    !java.util.Set.of(
+                            "PATH",
+                            "HOME",
+                            "LANG",
+                            "LC_ALL",
+                            "DOCKER_HOST",
+                            "DOCKER_TLS_VERIFY",
+                            "DOCKER_CERT_PATH")
+                        .contains(key));
         Process process = builder.start();
         CompletableFuture<byte[]> output =
             CompletableFuture.supplyAsync(() -> read(process.getInputStream()));

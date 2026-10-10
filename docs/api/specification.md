@@ -752,3 +752,19 @@ topic은 `workspace`, `devices`, `notes`, `calendar`, `military`, `timetables`, 
 - `POST studio/api/replay`: `{deviceId,root,id}`; 저장된 요청을 실제로 다시 보내고 새 기록을 만든다. 인증값은 history 응답이나 브라우저 localStorage로 반환하지 않는다.
 - API 상태는 SQLite entity와 무관한 vault 암호화 파일이며 key는 기존 CredentialVault를 공유한다. `workspace.studio-state-path` 기본값은 `./data/studio-api`. 최신 요청/응답 30개를 유지한다.
 - local 프로젝트 Codex를 허용한다. trusted adapter `projectCodex` 플래그와 별도 CODEX_HOME으로 기존 서버 assistant의 MCP/읽기 전용 계약을 유지한다. HTTP 요청에서 이 내부 플래그는 받지 않는다.
+
+
+Studio setup의 선택 boolean args.refresh=true는 local/SSH 모두 최신 Codex 캐시를 무효화한다. 명시적 갱신 실패는 JobView state=FAILED, errorStatus=502로 반환하며 기존 버전 fallback 성공을 반환하지 않는다. refresh=false/생략은 기존 초기 준비 동작을 유지한다. OWNER·CSRF와 job 소유권 검사는 동일하다.
+
+Studio `git-status` 응답은 `repository` 여부를 제공한다. false이면 `repositories`에 장비 경계 안에서 발견한 열기 후보를 반환하며 `changes/branches/history`는 비어 있다. true이면 기존 상태 필드에 `upstream`, `ahead`, `behind`를 추가한다. 네트워크 fetch는 발생하지 않는다. GitHub 로그인 job은 기존 생성/조회/취소 계약을 유지하며 인증 중 프로젝트 편집 잠금을 보유하지 않는다.
+
+AI 비서의 요청 root는 하위 실행 경로를 지정하지 않는다. 인증된 assistant 전용 adapter가 서버 홈의 비공개 작업 영역을 사용한다. 공개 Studio/Files 경로 경계와 OWNER·CSRF·job 소유권 검사는 유지한다. 기존 assistant 대화의 cwd 호환은 원래 서버 파일 루트로만 제한하며 IDE 경로 권한을 확장하지 않는다.
+
+### GitHub repository navigation (2026-10-10)
+- Owner search filters accessible users/organizations; organization retrieval follows pages of 100 (up to 100 pages, explicit error beyond limit).
+- Repository overview displays description, topics, homepage and default branch. An explicit save form edits description/homepage/topics.
+- Branches and tags open the selected ref's file tree; releases and commit details retain existing navigation.
+- Issue/PR/release/Markdown file bodies and PR discussion use the safe DOM Markdown renderer, including disabled task checkboxes. Raw HTML is not executed. Full GitHub Flavored Markdown parity is not claimed.
+- `PATCH /api/v1/github/repositories`: description/homepage use GitHub PATCH repository; topics use PUT repository/topics with `names`. Null topics leave them untouched; empty list removes all topics. Both writes are sequential and not atomic; a topics error can follow a successful description update.
+- Browser regression: `node scripts/check-github.mjs` uses real Chromium and fixture API responses; it does not establish live GitHub authorization or remote-write success.
+- GitHub product parity is not implemented: Discussions, Projects, security administration, organization/billing settings and full Markdown compatibility remain outside this change. Existing list endpoints may still be bounded.

@@ -163,3 +163,9 @@ Database Studio의 `database/adapter/DatabaseTargetAdapter.java`는 등록 장�
 
 - static/css/compact-workspace.css: 공통 UI 밀도와 앱별 작업 영역·반응형 조정. tools/ui/workspace.css에서 기존 CSS 뒤에 합성한다.
 - scripts/check-ui.mjs: 격리 대시보드의 실제 Playwright 전체 앱 화면·설정 캡처와 레이아웃 검사.
+
+- compose.development.yaml: sudo 및 TLS DinD를 연결하는 명시적 개발 모드. 기본 배포와 분리한다.
+- docker/workspace-docker/: 전용 DinD 이미지와 UID 10001용 TLS 인증서 권한 초기화.
+
+- `src/main/resources/static/js/container-picker.js`: 앱 공통 컨테이너 검색·자동완성 select UI.
+- `scripts/check-container-picker.mjs`, `scripts/check-container-picker-app.mjs`: 브라우저 컴포넌트 및 데이터베이스 화면 검색 통합 검증. 앱 통합 검증은 테스트용 컨테이너 목록을 주입하며 실제 DB 연결은 수행하지 않는다.

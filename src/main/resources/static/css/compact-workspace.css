@@ -117,3 +117,48 @@
 @media(pointer:coarse){
  .view .ui-density-action,.ui-density-action.ui-density-icon{min-height:44px;min-width:44px}
 }
+
+/* Shared searchable container selection; the native select retains form semantics. */
+.container-picker{position:relative;min-width:0;width:100%;font-weight:400}
+.container-picker>input{width:100%;min-width:0}
+.container-picker-options{position:absolute;z-index:80;top:calc(100% - 14px);left:0;right:0;max-height:240px;overflow:auto;background:var(--surface,#20242c);border:1px solid var(--border,#454954);border-radius:6px;box-shadow:0 8px 24px #0006}
+.container-picker-options>[role=option]{padding:7px 9px;font-size:12px;line-height:1.4;cursor:pointer;overflow-wrap:anywhere}
+.container-picker-options>[aria-selected=true],.container-picker-options>[role=option]:hover{background:var(--accent-soft,#343951)}
+.container-picker-status{display:block;min-height:14px;font-size:10px;line-height:14px;color:var(--muted,#a5abba)}
+.container-picker select[hidden],.container-picker-options[hidden]{display:none!important}
+
+/* Editor commands occupy one row even when side panels narrow the editor. */
+#studio .studio-editor>.studio-editor-actions{flex-wrap:nowrap;min-height:30px;height:30px;padding:2px 6px;gap:4px;overflow:visible}
+#studio .studio-editor-actions>button,#studio .studio-editor-actions>.ui-menu>summary{width:26px;min-width:26px;height:24px;min-height:24px;padding:2px;display:grid;place-items:center;font-size:14px;flex-shrink:0}
+#studio .studio-editor-actions #studio-file-label{font-size:11px;font-weight:400}
+#studio .studio-editor-actions .ui-menu-content{right:0;left:auto;min-width:150px;z-index:30}
+#studio .studio-editor-actions .ui-menu-content button{justify-content:flex-start;white-space:nowrap}
+
+/* Git follows review -> stage -> commit; authentication never covers the editor. */
+#studio-git{padding:0 8px 8px}
+#studio-git>.studio-toolbar{min-height:32px}
+#studio-git .studio-github-bar{display:flex;gap:4px;margin:4px 0}
+#studio-git .studio-github-bar button{font-size:11px;min-height:26px;padding:3px 7px}
+#studio-github-progress{padding:8px;border:1px solid var(--border-subtle);border-radius:5px;margin:6px 0;font-size:12px;overflow-wrap:anywhere}
+#studio-github-progress p{margin:0 0 6px}
+#studio-github-progress code{display:block;font-size:18px;user-select:all;padding:6px 0}
+#studio-github-progress a{display:block;margin:5px 0}
+#studio-git-sync{font-size:11px;color:var(--text-muted);margin:4px 0;overflow-wrap:anywhere}
+#studio-git .studio-branch-select{margin:5px 0}
+#studio-git .studio-git-actions{margin:4px 0}
+#studio-git .change-group{margin:4px 0;border-top:1px solid var(--border-subtle)}
+#studio-git .change-group summary{min-height:28px;gap:4px}
+#studio-git .change-group summary button{font-size:10px;padding:2px 4px;min-height:24px}
+#studio-git .change-group .empty-state{padding:4px 0;margin:0;font-size:11px}
+#studio-git .studio-change em{font-size:10px;flex-shrink:0}
+#studio-git #studio-commit{margin:8px 0;gap:4px}
+#studio-git #studio-commit textarea{min-height:52px;resize:vertical}
+#studio-git #studio-commit button{justify-self:stretch}
+#studio-git[data-repository=false]>.studio-branch-select,#studio-git[data-repository=false]>.studio-git-actions,#studio-git[data-repository=false]>#studio-commit,#studio-git[data-repository=false]>.studio-history,#studio-git[data-repository=false]>#studio-git-sync{display:none}
+.studio-git-empty{display:grid;gap:6px;padding:12px 0;font-size:12px}
+.studio-git-empty button{white-space:normal;overflow-wrap:anywhere}
+#studio-git-diff:not(:has(pre:not(:empty))){display:none}
+#studio-git-diff{margin:8px 0;font-size:12px}
+#studio-git-diff summary{overflow-wrap:anywhere;cursor:pointer}
+#studio-git-diff pre{max-height:260px;overflow:auto;font:11px/1.5 var(--font-mono,monospace);white-space:pre;padding:8px;background:var(--bg-primary)}
+#studio-git #studio-changes>.empty-state{padding:8px 0;min-height:0;margin:0;font-size:11px;text-align:left}

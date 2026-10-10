@@ -46,3 +46,17 @@
 #studio .studio-terminal-control[hidden]{display:none}
 #studio .studio-terminal-control [role=status]{font-size:10px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:4px 0}
 @media(max-width:700px){#studio .studio-terminal-sidebar{flex-basis:84px;padding:4px}}
+
+#studio .studio-browser-dialog{width:min(1440px,calc(100vw - 32px));height:calc(100dvh - 48px);max-width:none;max-height:none;padding:0;margin:auto;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-surface);color:var(--text-primary);overflow:hidden;box-shadow:0 20px 80px #0008}
+#studio .studio-browser-dialog[open]{display:flex;flex-direction:column}
+#studio .studio-browser-dialog::backdrop{background:#0009}
+#studio .studio-browser-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border-subtle);flex-shrink:0;font-size:13px}
+#studio .studio-browser-dialog-head button{min-width:30px;min-height:28px;padding:3px}
+#studio .studio-browser-dialog-body{min-height:0;flex:1;overflow:auto;padding:8px}
+#studio .studio-browser-dialog .studio-tool-actions{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 6px}
+#studio .studio-browser-dialog .studio-tool-actions input{flex:1 1 240px;min-width:100px}
+#studio .studio-browser-dialog .studio-browser-screen{margin:0 auto;max-width:1200px;width:100%;height:auto}
+#studio .studio-browser-dialog details{font-size:12px;margin-top:8px}
+#studio .studio-browser-dialog pre{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+#studio .studio-browser-launcher{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px;font-size:12px;color:var(--text-muted)}
+@media(max-width:600px){#studio .studio-browser-dialog{width:100vw;height:100dvh;border-radius:0}#studio .studio-browser-dialog-body{padding:6px}#studio .studio-browser-dialog .studio-tool-actions input[name=url]{order:-1;flex-basis:100%}}

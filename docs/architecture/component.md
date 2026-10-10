@@ -65,3 +65,27 @@ WorkspaceEvents는 도메인 리소스를 읽지 않는 공통 알림 서비스�
 
 병역 전용 MilitaryService는 복무기간·진급 순서·휴가 중복·revision과 집계를 소유한다. MilitaryRecords는 저장 모델, MilitaryDto는 HTTP 모델, MilitaryDates.Progress는 계산 모델로 구분한다. PlannerService에는 Calendar EventView 읽기 투영만 제공한다. military.js는 공통 editor/confirmAction/API/LiveDOM을 조합하고 서버가 반환한 시간 구간 사이의 초 단위 표시만 보간한다. 공통 live coordinator의 `military` 영역으로 갱신하며 별도 WebSocket을 만들지 않는다.
 Studio 하단 도구는 StudioWorkbench가 프로젝트별 UI 상태를 소유한다. StudioProcesses는 기존 Studio jobs/helper를 재사용하며, StudioBrowserController → StudioBrowserService → StudioBrowserAdapter는 기존 서버 Chromium과 SshAdapter의 표준 TCP 포워더를 연결한다. StudioApiController → StudioApiService → StudioAdapter는 대상 장비 HTTP client를 호출한다. StudioApiRepository는 별도 persistence record를 CredentialVault로 암호화해 보관하며 DTO를 저장 모델로 직접 사용하지 않는다. 상세 경계와 수명은 [Studio 프로젝트 도구](../studio-workbench.md)를 참조한다.
+
+## 컨테이너 검색 선택
+
+`container-picker.js`는 `select[data-container-search]`에 공통 자동완성 입력을 붙인다. 데이터베이스 연결, 서비스 Runtime/Settings 연결, 장비 로그 대상 선택에 적용한다. 기존 select의 값·FormData·change 이벤트를 유지하며, 검색 자체로 선택을 바꾸거나 작업을 실행하지 않는다. 이름과 제공된 이미지/ID를 대소문자 구분 없이 부분 검색하고 방향키/Enter 또는 클릭으로 선택한다. Escape/포커스 이동은 확정된 값으로 복원한다. 목록 로딩·비활성화·갱신·필수 선택 검증을 기존 앱과 동기화한다. 장비 로그의 tmux 대상에도 같은 검색 UI를 사용한다.
+
+## AI 비서 전용 작업 영역
+
+서버 AI 비서는 `$HOME/.local/share/personal-workspace/assistant-workspace`를 cwd로 사용한다. 기본 Docker 구성에서는 `/app/data/home/.local/share/personal-workspace/assistant-workspace`이며, 일반 Files/IDE 루트 `/app/data/files` 밖에 있고 권한은 0700이다. 폴더 선택 UI에 등록하지 않는다. 이는 동일 OS 계정의 셸 접근까지 막는 별도 보안 sandbox는 아니다.
+
+Assistant 전용 adapter가 내부 `assistantWorkspace` 플래그를 설정하며 브라우저가 보낸 root는 실행 cwd로 사용하지 않는다. IDE 및 SSH 장비 Codex에는 이 플래그를 부여하지 않는다. AI 비서와 IDE는 cwd 기반 작업 잠금도 분리된다. 인증과 대화 저장소인 기존 CODEX_HOME은 유지한다. 기존 서버 파일 루트에서 생성된 AI 비서 대화는 전용 assistant 경로에서만 호환 조회하며, 다음 대화 실행은 전용 cwd로 resume한다. 이전 대화를 복사하거나 삭제하지 않는다.
+
+## Semantic UI roles (2026-10-10)
+
+All application views share `semantic-ui.css`, compiled from `tools/ui/workspace.css`. Body text uses a softer cool gray; meaning is emphasized through foreground, subtle background, border and a symbol/text label together.
+
+- Green: successful/completed/connected or added Git files. Amber: pending/modified/attention. Red: failure/disconnection/conflict/deletion. Blue: running/loading/information. Neutral: unknown, idle or stopped; absence of data is never success.
+- App category accents identify location only, not health. All 21 views use common focus, selection and status primitives. Calendar/course colors remain user-owned categories.
+- Devices: existing CPU/RAM/disk thresholds (75/90 percent) emphasize numeric values as well as bars. Services/Home reuse health badges. Telemetry distinguishes receiving data from unknown.
+- Drive and device files: folder/code/media/config/archive icon roles. Clipboard: expiry within five minutes is amber, retaining the expiry text. Notes: saved/dirty/error status. AI: user/assistant boundaries and error/notice roles.
+- Database query lifecycle and Studio process/API response states use explicit state data. API 2xx is green, 3xx amber, 4xx/5xx red; reset clears prior response tone.
+- IDE explorer uses actual Git changes, includes parent-directory cues and textual labels, and refreshes while the IDE is visible even when the Git inspector is hidden. Conflict takes priority over modification/addition.
+- Raw terminal ANSI colors and external remote/app content remain owned by their producers; dashboard chrome uses shared roles. Embedded third-party pages cannot be restyled reliably across origins.
+
+Verification: `node scripts/check-semantic-ui.mjs` renders the authenticated QA dashboard using current source assets, checks all 21 views in dark/light mode, and checks six mobile views for page overflow. Screenshots/report are in `artifacts/semantic-ui`. Empty and disconnected states are valid render checks, not proof of every connected service workflow. `node tools/studio-editor/test.cjs` verifies real Git state-to-explorer decoration alongside existing editor behavior.

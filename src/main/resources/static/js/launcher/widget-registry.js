@@ -74,7 +74,7 @@ window.WorkspaceWidgets = (() => {
         const summary=`<button data-view="devices" class="widget-metric"><span class="ui-status" data-state="${online===state.devices.length&&online>0?'success':'warning'}">${online} / ${state.devices.length}</span><small>장비 온라인</small></button>`;
         if(compact)return summary;
         return summary+rows(state.devices.slice(0,2).map(device=>{const status=statuses.get(device.id);
-          return `<button class="widget-row widget-device" data-open="TERMINAL" data-target="${e(device.id)}"><b>${e(device.name)}</b><span class="widget-device-metrics"><span>CPU ${status?.cpu==null?'—':Math.round(status.cpu)+'%'}</span>${window.WorkspaceUI.progress(status?.cpu,'CPU')}</span><span class="widget-device-metrics"><span>RAM ${status?.memory==null?'—':Math.round(status.memory)+'%'}</span>${window.WorkspaceUI.progress(status?.memory,'RAM')}</span></button>`;
+          return `<button class="widget-row widget-device" data-open="TERMINAL" data-target="${e(device.id)}"><b>${e(device.name)}</b><span class="widget-device-metrics"><span>CPU ${status?.cpu==null?'—':Math.round(status.cpu)+'%'}</span>${window.WorkspaceUI.progress(status?.cpu,'CPU',window.WorkspaceUI.usageTone(status?.cpu))}</span><span class="widget-device-metrics"><span>RAM ${status?.memory==null?'—':Math.round(status.memory)+'%'}</span>${window.WorkspaceUI.progress(status?.memory,'RAM',window.WorkspaceUI.usageTone(status?.memory))}</span></button>`;
         }));
       }
       case 'service-analytics':{

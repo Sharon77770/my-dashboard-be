@@ -195,6 +195,7 @@ def assistant_thread(thread):
 class CodexBridge:
     def __init__(self, root, dashboard=False, device_codex=False, reviewer='user'):
         self.root, self.serial, self.sequence = root, 0, 0
+        self.legacy_root = globals().get("assistant_legacy_root") if dashboard else None
         self.frames, self.replies, self.pending = queue.Queue(maxsize=512), {}, {}
         self.control_replies = set()
         self.thread_id, self.turn_id, self.finished = None, None, None
@@ -338,9 +339,13 @@ class CodexBridge:
         elif kind in ('interrupt', 'steer'):
             self.event('notice', text='Codex 작업이 아직 시작되지 않았습니다. 잠시 후 다시 시도하거나 하단 실행 중지를 사용하세요.')
 
+    def owns_cwd(self, cwd):
+        # Previous assistant threads remain readable; resumed turns use the private cwd.
+        return Path(cwd).resolve() in (self.root, self.legacy_root)
+
     def owned(self, ident):
         thread = self.call('thread/read', dict(threadId=ident, includeTurns=True))['thread']
-        if Path(thread['cwd']).resolve() != self.root: raise Failure('다른 작업 폴더의 세션에는 접근할 수 없습니다.', 403)
+        if not self.owns_cwd(thread['cwd']): raise Failure('다른 작업 폴더의 세션에는 접근할 수 없습니다.', 403)
         return thread
 
     def connections(self, thread_id=None):
@@ -409,10 +414,10 @@ def codex_action(root, action, args, dashboard=False, device_codex=False):
                 defaultModel=m.get('isDefault', False), defaultEffort=m.get('defaultReasoningEffort'),
                 efforts=m.get('supportedReasoningEfforts', []), inputModalities=m.get('inputModalities', [])) for m in result.get('data', [])]))
         if action == 'codex-threads':
-            result = bridge.call('thread/list', dict(cwd=str(root), limit=25, cursor=args.get('cursor'),
+            result = bridge.call('thread/list', dict(cwd=None if bridge.legacy_root else str(root), limit=25, cursor=args.get('cursor'),
                 archived=bool(args.get('archived')), searchTerm=args.get('query'), sortKey='updated_at',
                 sourceKinds=['cli', 'vscode', 'exec', 'appServer']))
-            return dict(assistant=dict(threads=[assistant_thread(t) for t in result.get('data', []) if Path(t['cwd']).resolve() == root], nextCursor=result.get('nextCursor')))
+            return dict(assistant=dict(threads=[assistant_thread(t) for t in result.get('data', []) if bridge.owns_cwd(t['cwd'])], nextCursor=result.get('nextCursor')))
         if action == 'codex-account':
             result = bridge.call('account/read', {})
             account = result.get('account') or {}

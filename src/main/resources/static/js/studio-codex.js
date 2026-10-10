@@ -8,7 +8,7 @@
     let thread=null, models=[], contexts=[], running=null, sequence=0, loaded=false, cursor=null, archived=false;
     const items=new Map();
     let sending=false, pendingUser=null, localMessageSequence=0, usage=null, preferences={};
-    panel.innerHTML=`<div class="studio-toolbar"><div class="cx-panel-title"><strong>Codex</strong><span id="cx-title">새 세션</span><small id="cx-thread-id" hidden></small></div><button data-cx="history" title="세션 목록" aria-label="세션 목록">◷</button><button data-cx="new" title="새 세션" aria-label="새 세션">＋</button><details class="ui-menu"><summary aria-label="세션 메뉴">⋯</summary><div class="ui-menu-content"><span id="studio-auth" class="badge">인증 확인 전</span><button data-cx="rename">이름 변경</button><button data-cx="fork">세션 분기</button><button data-cx="compact">컨텍스트 압축</button><button data-cx="rollback">마지막 대화 되돌리기</button><button data-cx="archive">세션 보관</button><button data-cx="review">변경 사항 리뷰</button><button data-cx="skills">스킬 첨부</button><button data-cx="connections">MCP 연결 상태</button><button data-cx="refresh">모델·인증 새로고침</button><button data-studio="codex-login">기기 코드 로그인</button><button data-studio="codex-logout" hidden>로그아웃</button></div></details></div>
+    panel.innerHTML=`<div class="studio-toolbar"><div class="cx-panel-title"><strong>Codex</strong><span id="cx-title">새 세션</span><small id="cx-thread-id" hidden></small></div><button data-cx="history" title="세션 목록" aria-label="세션 목록">◷</button><button data-cx="new" title="새 세션" aria-label="새 세션">＋</button><details class="ui-menu"><summary aria-label="세션 메뉴">⋯</summary><div class="ui-menu-content"><span id="studio-auth" class="badge">인증 확인 전</span><button data-cx="rename">이름 변경</button><button data-cx="fork">세션 분기</button><button data-cx="compact">컨텍스트 압축</button><button data-cx="rollback">마지막 대화 되돌리기</button><button data-cx="archive">세션 보관</button><button data-cx="review">변경 사항 리뷰</button><button data-cx="skills">스킬 첨부</button><button data-cx="connections">MCP 연결 상태</button><button data-cx="refresh">모델·인증 새로고침</button>${host.updateCli?'<button data-cx="update-cli">Codex 업데이트</button><small id="cx-cli-version" role="status"></small>':''}<button data-studio="codex-login">기기 코드 로그인</button><button data-studio="codex-logout" hidden>로그아웃</button></div></details></div>
       <div id="cx-account" role="status">SSH Codex · 계정 확인 전</div>
       <section id="cx-preferences" class="cx-preferences" aria-label="Codex 설정 및 사용량" hidden>
         <header><strong>설정 · 사용량</strong><button type="button" data-cx="settings-close" aria-label="설정 닫기">닫기</button></header>
@@ -32,7 +32,7 @@
     const modelControls=panel.querySelector('.cx-composer-toolbar .cx-settings');modelControls.querySelectorAll('label span').forEach(label=>label.classList.remove('studio-sr-only'));$('#cx-preferences').insertBefore(modelControls,modeLabel);
     if(host.toggleFocus){const expand=document.createElement('button');expand.type='button';expand.dataset.cx='focus';expand.textContent='대화 확대';expand.setAttribute('aria-label','Codex 대화 확대');expand.setAttribute('aria-pressed','false');panel.querySelector('.studio-toolbar').append(expand);}
     function status(text){$('#cx-status').textContent=text;}
-    function reset(){$('#cx-history').hidden=true;$('#cx-sessions').replaceChildren();thread=null;contexts=[];loaded=false;models=[];items.clear();account(null);usage=null;renderUsage();$('#cx-limits').textContent='사용 한도 확인 전';$('#cx-preferences').hidden=true;settingsButton.setAttribute('aria-expanded','false');restorePreferences();renderThread();renderContexts();$('#studio-context').textContent=host.project()?.root||'작업 폴더';}
+    function reset(){if($('#cx-cli-version'))$('#cx-cli-version').textContent='';$('#cx-history').hidden=true;$('#cx-sessions').replaceChildren();thread=null;contexts=[];loaded=false;models=[];items.clear();account(null);usage=null;renderUsage();$('#cx-limits').textContent='사용 한도 확인 전';$('#cx-preferences').hidden=true;settingsButton.setAttribute('aria-expanded','false');restorePreferences();renderThread();renderContexts();$('#studio-context').textContent=host.project()?.root||'작업 폴더';}
     function executionSettings(){const choice=$('#cx-approval').value;return {model:$('#studio-codex-model').value,effort:$('#cx-effort').value,mode:$('#studio-codex-mode').value,approval:choice==='never'?'never':'on-request',reviewer:choice==='auto_review'?'auto_review':'user'};}
     function savePreferences(){preferences=executionSettings();if(host.project())try{sessionStorage.setItem(storageKey()+':settings',JSON.stringify(preferences));}catch{}permissionHelp();}
     function restorePreferences(){preferences={};if(host.project())try{preferences=JSON.parse(sessionStorage.getItem(storageKey()+':settings'))||{};}catch{}$('#studio-codex-model').innerHTML='<option value="">기본 모델</option>';$('#cx-effort').innerHTML='<option value="">기본</option>';$('#studio-codex-mode').value=['read-only','workspace-write','danger-full-access'].includes(preferences.mode)?preferences.mode:'read-only';$('#cx-approval').value=preferences.approval==='never'?'never':preferences.reviewer==='auto_review'?'auto_review':'user';permissionHelp();}
@@ -160,6 +160,20 @@
       if(name==='review'){if(host.dirty())throw Error('편집 내용을 먼저 저장하세요.');return run('codex-review',{threadId:thread?.id,...executionSettings()});}
       if(name==='connections'){const result=await run('codex-connections');status(result.connections?.map(c=>c.name+': '+c.status).join(' · ')||'등록된 MCP 서버가 없습니다.');return;}
       if(name==='skills'){const result=await run('codex-skills');const skills=(result.skills||[]).filter(s=>s.enabled);if(!skills.length){status('활성화된 스킬이 없습니다.');return;}host.editor('스킬 첨부','<label>스킬<select name="skill">'+skills.map((s,i)=>'<option value="'+i+'">'+esc(s.name)+' — '+esc(s.description)+'</option>').join('')+'</select></label>',async form=>{const skill=skills[Number(form.get('skill'))];contexts.push({kind:'skill',name:skill.name,path:skill.path});renderContexts();});return;}
+      if(name==='update-cli'){
+        if(host.busy()||sending||running)throw Error('진행 중인 작업이 끝난 뒤 업데이트해 주세요.');
+        if(!host.project())throw Error('먼저 작업 폴더를 열어 주세요.');
+        button.disabled=true;status('선택 장비의 Codex 최신 버전을 확인하고 업데이트하는 중…');
+        try{
+          const result=await host.updateCli();
+          const version=String(result.codex||'').match(/codex-cli\s+\d+\.\d+\.\d+/)?.[0]||'버전 확인 완료';
+          $('#cx-cli-version').textContent=version;
+          loaded=false;
+          try{await load(true);}catch(error){status(version+' · 업데이트 완료. 모델·인증 새로고침 실패: '+error.message);return;}
+          status(version+' · 업데이트 확인 완료');
+        }finally{button.disabled=false;}
+        return;
+      }
       if(name==='refresh'){loaded=false;return load();}
       if(name==='new'){await run('codex-thread-new',executionSettings());contexts=[];renderContexts();$('#cx-history').hidden=true;host.historyVisibility?.(false);return;}
       if(['rename','fork','compact','archive','rollback'].includes(name)){

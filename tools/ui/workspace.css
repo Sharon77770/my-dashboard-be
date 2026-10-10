@@ -22,6 +22,7 @@
 @import "../../src/main/resources/static/css/databases.css" layer(base);
 @import "../../src/main/resources/static/css/shell.css" layer(base);
 @import "../../src/main/resources/static/css/compact-workspace.css" layer(base);
+@import "../../src/main/resources/static/css/semantic-ui.css" layer(base);
 @source "../../src/main/resources/templates";
 @source "../../src/main/resources/static/js";
 

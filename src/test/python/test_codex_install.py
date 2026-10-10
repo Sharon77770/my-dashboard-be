@@ -26,6 +26,31 @@ class CodexInstallTest(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_explicit_ssh_refresh_uses_latest_and_clears_cache(self):
+        cache = self.root / '.cache/personal-workspace/codex-release.json'
+        cache.parent.mkdir(parents=True)
+        cache.write_text('{}')
+        with patch.object(remote.Path, 'home', return_value=self.root), \
+                patch.object(remote.os, 'uname', return_value=types.SimpleNamespace(machine='x86_64')), \
+                patch.object(remote, 'emit'), patch.object(remote, 'ensure_server_codex') as update, \
+                patch.object(remote, 'install_github_cli'), \
+                patch.object(remote, 'git', return_value=(0, b'git version test')), \
+                patch.object(remote, 'run', return_value=(0, b'codex-cli 0.154.0')):
+            result = remote.setup('ssh-device', refresh=True, project_codex=True)
+            update.assert_called_once()
+            self.assertFalse(cache.exists())
+            self.assertEqual(result['codex'], 'codex-cli 0.154.0')
+
+    def test_explicit_refresh_failure_never_reports_existing_version_as_success(self):
+        with patch.object(remote.Path, 'home', return_value=self.root), \
+                patch.object(remote.os, 'uname', return_value=types.SimpleNamespace(machine='x86_64')), \
+                patch.object(remote, 'emit'), \
+                patch.object(remote, 'ensure_server_codex', side_effect=OSError('network unavailable')), \
+                patch.object(remote, 'install_codex_artifact') as fallback:
+            with self.assertRaises(remote.Failure):
+                remote.setup('ssh-device', refresh=True, project_codex=True)
+            fallback.assert_not_called()
+
     def test_same_cli_version_repairs_missing_host(self):
         with patch.object(remote, 'latest_codex_release', return_value=self.release), \
                 patch.object(remote, 'installed_codex_version', return_value='0.154.0'), \

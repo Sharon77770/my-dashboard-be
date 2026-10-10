@@ -15,7 +15,7 @@ window.StudioWorkbench = (root, host) => {
   const maximumHeight=()=>Math.max(0,editorColumn.clientHeight-160);
   function resize(){panel.style.setProperty('--bottom-height',Math.min(height,maximumHeight())+'px');for(const session of terminals.values())if(!session.element.hidden&&panel.offsetHeight)session.fit.fit();}
   function show(name){selected=name;panel.hidden=false;panel.classList.remove('collapsed');panel.querySelector('[data-bottom-fold]').setAttribute('aria-expanded','true');for(const item of panel.querySelectorAll('[data-bottom-page]'))item.hidden=item.dataset.bottomPage!==name;for(const button of panel.querySelectorAll('[data-bottom]'))button.setAttribute('aria-selected',String(button.dataset.bottom===name));resize();}
-  panel.querySelectorAll('[data-bottom]').forEach(button=>button.onclick=()=>show(button.dataset.bottom));
+  panel.querySelectorAll('[data-bottom]').forEach(button=>button.onclick=()=>{show(button.dataset.bottom);if(button.dataset.bottom==='Browser')bench.browser?.present();});
   panel.querySelector('[data-bottom-fold]').onclick=event=>{panel.classList.toggle('collapsed');event.currentTarget.setAttribute('aria-expanded',String(!panel.classList.contains('collapsed')));resize();};
   const handle=panel.querySelector('.studio-bottom-resize');let drag;
   handle.onpointerdown=event=>{drag={y:event.clientY,height};handle.setPointerCapture(event.pointerId);event.preventDefault();};

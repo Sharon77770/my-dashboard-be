@@ -1,0 +1,84 @@
+﻿/* Semantic cues are shared across apps; category color never represents health. */
+:root {
+ --text-primary:#d9e1eb;
+ --text-secondary:#b8c5d5;
+ --text-muted:#98a8bb;
+ --semantic-merged:var(--category-ai);
+ --file-folder:var(--warning);
+ --file-code:var(--info);
+ --file-media:var(--category-ai);
+ --file-config:var(--category-infra);
+ --file-archive:var(--category-productivity);
+}
+:root[data-theme=light] { --text-primary:#243247; --text-secondary:#475970; --text-muted:#53667d; }
+.ui-status { --status-color:var(--text-muted); --status-bg:var(--bg-secondary); color:var(--status-color); background:var(--status-bg); border:1px solid color-mix(in srgb,var(--status-color) 24%,transparent); border-radius:5px; padding:2px 6px; gap:5px; max-width:100%; white-space:normal; line-height:1.4; }
+.ui-status:empty { display:none; }
+.ui-status:is([data-state=success],[data-state=online],[data-state=connected],[data-state=healthy]) { --status-color:var(--success); --status-bg:var(--success-subtle); --status-symbol:'✓'; }
+.ui-status:is([data-state=warning],[data-state=degraded],[data-state=pending]) { --status-color:var(--warning); --status-bg:var(--warning-subtle); --status-symbol:'!'; }
+.ui-status:is([data-state=danger],[data-state=error],[data-state=offline]) { --status-color:var(--danger); --status-bg:var(--danger-subtle); --status-symbol:'×'; }
+.ui-status:is([data-state=info],[data-state=running],[data-state=loading]) { --status-color:var(--info); --status-bg:var(--info-subtle); --status-symbol:'›'; }
+.ui-status[data-state=merged] { --status-color:var(--semantic-merged); --status-bg:var(--accent-subtle); --status-symbol:'↳'; }
+.ui-status::before { content:var(--status-symbol,'○'); color:var(--status-color); background:none!important; width:1em; height:auto; border-radius:0; text-align:center; font-weight:700; }
+.badge.success,.ok { color:var(--success); background:var(--success-subtle); }
+.badge.error,.form-error { color:var(--danger); }
+button.danger,.button.danger { color:var(--danger); border-color:color-mix(in srgb,var(--danger) 40%,transparent); }
+:is(button,a,input,select,textarea,summary):focus-visible { outline:2px solid var(--info); outline-offset:2px; }
+input[type=checkbox],input[type=radio] { accent-color:var(--accent-solid); }
+::selection { background:var(--accent-subtle); color:var(--text-primary); }
+/* A stable accent helps recognize location while neutral surfaces carry long-form content. */
+.view { --view-color:var(--category-dev); }
+:is(#home,#calendar,#timetable,#military,#notes,#files,#cloud) { --view-color:var(--category-productivity); }
+:is(#devices,#services,#remote,#databases) { --view-color:var(--category-infra); }
+:is(#assistant,#device-codex) { --view-color:var(--category-ai); }
+:is(#telemetry,#logs) { --view-color:var(--category-monitor); }
+.view :is(.page-head h1,.studio-head h1,.launcher-head h1,.log-toolbar h1) { border-inline-start:3px solid var(--view-color); padding-inline-start:9px; }
+.view :is(.eyebrow,.panel-head>.ui-icon) { color:var(--view-color); }
+.view :is(nav button[aria-current=true],nav button[aria-selected=true],nav button[aria-pressed=true]) { color:var(--view-color); background:color-mix(in srgb,var(--view-color) 12%,var(--bg-surface)); box-shadow:inset 0 -2px var(--view-color); }
+.view :is(thead th,dt) { color:var(--text-secondary); }
+.view :is(tbody tr:hover,.cloud-item:hover,.studio-file-row:hover) { background:var(--bg-surface-hover); }
+/* Files and directories retain names and type labels alongside color. */
+[data-file-kind=folder],.cloud-folder-icon { color:var(--file-folder); }
+[data-file-kind=code] { color:var(--file-code); }
+[data-file-kind=media] { color:var(--file-media); }
+[data-file-kind=config] { color:var(--file-config); }
+[data-file-kind=archive] { color:var(--file-archive); }
+[data-file-kind=document] { color:var(--text-secondary); }
+.studio-file-row[data-change=success] { --change-color:var(--success); }
+.studio-file-row[data-change=warning] { --change-color:var(--warning); }
+.studio-file-row[data-change=danger] { --change-color:var(--danger); }
+.studio-file-row[data-change=neutral] { --change-color:var(--info); }
+.studio-file-row[data-change] { border-inline-start:2px solid var(--change-color); }
+.studio-file-row[data-change]>button:first-child { color:var(--change-color); }
+.studio-tree-change { flex:none; margin-inline-start:auto; padding-inline:4px; font-size:10px; color:inherit; }
+.studio-change:has(.git-status-success) button:first-child { color:var(--success); }
+.studio-change:has(.git-status-warning) button:first-child { color:var(--warning); }
+.studio-change:has(.git-status-danger) button:first-child { color:var(--danger); }
+/* Scheduling: category color marks the edge; content remains readable. */
+.agenda-event,.course-summary { border-inline-start:3px solid var(--event-color,var(--view-color)); }
+.calendar-day .is-today { color:var(--info); outline:1px solid var(--info); outline-offset:-1px; }
+.event-chip,.course-block { border-inline-start:3px solid var(--event-color,var(--course-color,var(--view-color))); }
+/* Notes, AI and data tools keep long reading surfaces quiet. */
+.notes-tree-row.active { color:var(--category-productivity); border-inline-start:2px solid currentColor; }
+.assistant-message[data-role=user] { border-inline-start:2px solid var(--info); }
+.assistant-message[data-role=assistant] { border-inline-start:2px solid var(--category-ai); }
+.assistant-message[data-pending=true] { border-inline-start-color:var(--warning); }
+:is(.db-result-head,.db-mobile-result header) .ui-status { font-variant-numeric:tabular-nums; }
+:is(.service-tile,.device-card,.widget-row):has(.ui-status[data-state=danger]) { border-inline-start:2px solid var(--danger); }
+:is(.service-tile,.device-card,.widget-row):has(.ui-status[data-state=warning]) { border-inline-start:2px solid var(--warning); }
+.ui-progress[data-tone=warning]>span { background:var(--warning); }
+.ui-progress[data-tone=danger]>span { background:var(--danger); }
+@media(forced-colors:active) { .ui-status,.studio-file-row[data-change] { border-color:CanvasText; } }
+:is(#clipboard,#recent) { --view-color:var(--category-productivity); }
+#apps { --view-color:var(--category-dev); }
+.clip-item[data-expiring=true] small { color:var(--warning); }
+.clip-item[data-expiring=true] { border-inline-start:2px solid var(--warning); }
+.metric-tile[data-tone=warning] b { color:var(--warning); }
+.metric-tile[data-tone=danger] b { color:var(--danger); }
+.bookmark-item>button:first-child { color:var(--file-folder); }
+#recent .type,.app-item .app-icon { color:var(--view-color); }
+.github-detail-row[data-kind=issue] b { color:var(--info); }
+.github-detail-row[data-kind=pr] b { color:var(--category-ai); }
+.github-detail-row[data-kind=release] b { color:var(--category-productivity); }
+.assistant-tool-report { border-inline-start:2px solid var(--info); }
+.assistant-message-notices { color:var(--warning); }
+@media(prefers-reduced-motion:reduce) { .ui-status::before { animation:none; } }

@@ -1,6 +1,7 @@
 """Fixed SSH command adapter. Only the JSON request arrives on stdin; never shell input."""
 import fcntl
 import hashlib
+import itertools
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,7 @@ import urllib.request
 import urllib.parse
 
 LIMIT = 1024 * 1024
+assistant_legacy_root = None
 processes = set()
 process_lock = threading.Lock()
 env = dict(os.environ, PATH=str(Path.home() / '.local/bin') + ':/usr/local/bin:/usr/bin:/bin',
@@ -329,12 +331,14 @@ def setup(device_id=None, refresh=False, device_codex=False, project_codex=False
         fallback = dict(version='0.154.0',
             hostUrl='https://github.com/openai/codex/releases/download/rust-v0.154.0/codex-code-mode-host-' + arch + '-unknown-linux-musl.tar.gz',
             hostDigest='sha256:' + host_hashes[arch])
-        if device_id == 'local' or device_codex:
+        if device_id == 'local' or device_codex or refresh:
             if refresh:
                 (lockdir / 'codex-release.json').unlink(missing_ok=True)
             try:
                 ensure_server_codex(destination, arch, lockdir / 'codex-release.json')
             except Exception:
+                if refresh:
+                    raise Failure('Codex 업데이트에 실패했습니다. 네트워크 연결을 확인하고 다시 시도하세요.', 502)
                 installed = installed_codex_version(destination)
                 if not installed:
                     emit(event='최신 Codex 확인에 실패해 검증된 기본 버전을 설치합니다')
@@ -399,12 +403,41 @@ def handle(request):
         env['CODEX_HOME']=str(home)
         for key in ('DASHBOARD_MCP_TOKEN','DASHBOARD_MCP_URL','CODEX_API_KEY','OPENAI_API_KEY'):env.pop(key,None)
     if action == 'setup': return setup(request.get('deviceId'), args.get('refresh') is True, device_codex, project_codex)
-    base = Path(request['base']).resolve(strict=True)
-    root = within(base, request['root']).resolve(strict=True)
+    global assistant_legacy_root
+    assistant_legacy_root = None
+    if request.get('assistantWorkspace') is True:
+        # This flag is supplied only by the authenticated server assistant adapter.
+        if request.get('deviceId') != 'local' or not action.startswith('codex-'):
+            raise Failure('Invalid assistant workspace action.', 403)
+        assistant_legacy_root = Path(request['base']).resolve()
+        base = within(Path.home().resolve(), '.local/share/personal-workspace/assistant-workspace')
+        base.mkdir(parents=True, exist_ok=True, mode=0o700)
+        base.chmod(0o700)
+        root = base.resolve(strict=True)
+    else:
+        base = Path(request['base']).resolve(strict=True)
+        root = within(base, request['root']).resolve(strict=True)
     if not root.is_dir(): raise Failure('작업 폴더가 아닙니다.')
     if action in ('logs-targets', 'logs-follow'): return device_logs(action, args, root)
     if action == 'api-request': return api_request(args)
     if action in ('run-list', 'run-logs', 'run-commands', 'ports'): return process_action(root, action, args)
+    if action == 'github-status':
+        try:
+            rc, unused = run(['gh', 'auth', 'status', '--hostname', 'github.com'], check=False)
+            return dict(authenticated=rc == 0)
+        except FileNotFoundError:
+            return dict(authenticated=False)
+    if action == 'github-login':
+        auth_dir = Path.home() / '.cache/personal-workspace'
+        auth_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with (auth_dir / 'github-auth.lock').open('w') as auth_lock:
+            try: fcntl.flock(auth_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError: raise Failure('GitHub login is already running on this account.', 409)
+            install_github_cli()
+            emit(event='GitHub authorization pending')
+            run(['gh', 'auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web'], data='\n', stream=True, auth=True)
+            run(['gh', 'auth', 'setup-git', '--hostname', 'github.com'])
+            return dict(authenticated=True)
     # Serialize editor/Git/Codex mutations across HTTP sessions on this SSH account.
     lockdir = Path.home() / '.cache/personal-workspace'
     lockdir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -412,18 +445,12 @@ def handle(request):
     # lock while invoking its process tool, so reusing that lock deadlocks restart.
     suffix = '.process.lock' if action.startswith('run-') else '.lock'
     lock = (lockdir / (hashlib.sha256(str(root).encode()).hexdigest() + suffix)).open('w')
-    try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        if action != 'git-status': fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        else: env['GIT_OPTIONAL_LOCKS'] = '0'
     except BlockingIOError: raise Failure('이 작업 폴더에서 다른 작업이 진행 중입니다.', 409)
     with lock:
         if action.startswith('run-') or action == 'ports': return process_action(root, action, args)
-        if action == 'github-status':
-            rc, unused = run(['gh', 'auth', 'status', '--hostname', 'github.com'], check=False)
-            return dict(authenticated=rc == 0)
-        if action == 'github-login':
-            install_github_cli()
-            run(['gh', 'auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web'], data='\n', stream=True, auth=True)
-            run(['gh', 'auth', 'setup-git', '--hostname', 'github.com'])
-            return dict(authenticated=True)
         if action == 'list':
             directory = file_path(root, dict(path=args.get('path', '.')))
             entries = []
@@ -473,6 +500,17 @@ def handle(request):
             if target.exists(): raise Failure('복제 대상은 존재하지 않는 새 폴더여야 합니다.', 409)
             git(root, 'clone', '--', url, str(target)); return dict(path=str(target))
         if action.startswith('git-'):
+            if action == 'git-status':
+                rc, top = git(root, 'rev-parse', '--show-toplevel', check=False)
+                if rc:
+                    candidates = []
+                    for child in itertools.islice(root.iterdir(), 200):
+                        if not child.is_symlink() and child.is_dir() and (child / '.git').is_dir():
+                            candidates.append(str(child))
+                    return dict(repository=False, repositories=candidates, changes=[], branches=[], history='')
+                if Path(top.decode().strip()).resolve() != root:
+                    parent = within(base, top.decode().strip())
+                    return dict(repository=False, repositories=[str(parent)], changes=[], branches=[], history='')
             repository(root)
             if action == 'git-status':
                 raw = git(root, 'status', '--porcelain=v1', '-z', '--untracked-files=normal')[1].decode('utf-8', errors='replace').split('\0')
@@ -485,7 +523,10 @@ def handle(request):
                 branches = git(root, 'for-each-ref', '--format=%(refname:short)', 'refs/heads')[1].decode().splitlines()
                 branch = git(root, 'symbolic-ref', '--short', '-q', 'HEAD', check=False)[1].decode().strip() or '(detached)'
                 history = git(root, 'log', '-15', '--format=%h %s', check=False)[1].decode(errors='replace')
-                return dict(branch=branch, branches=branches, changes=changes, history=clean(history))
+                upstream = git(root, 'rev-parse', '--abbrev-ref', '@{upstream}', check=False)[1].decode().strip()
+                counts = git(root, 'rev-list', '--left-right', '--count', 'HEAD...@{upstream}', check=False)
+                ahead, behind = map(int, counts[1].split()) if counts[0] == 0 else (0, 0)
+                return dict(repository=True, branch=branch, branches=branches, changes=changes, history=clean(history) if git(root, 'rev-parse', '--verify', 'HEAD', check=False)[0] == 0 else '', upstream=upstream if counts[0] == 0 else '', ahead=ahead, behind=behind)
             if action in ('git-stage', 'git-unstage', 'git-diff'):
                 path = file_path(root, args)
                 relative = str(path.relative_to(root))

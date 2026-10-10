@@ -1,0 +1,54 @@
+﻿import {chromium} from 'playwright';
+import {readFile, mkdir} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const browser = await chromium.launch({headless:true});
+const page = await browser.newPage({viewport:{width:1280,height:800}});
+const errors=[];page.on('pageerror', e=>errors.push(e.message));
+try {
+ await page.setContent('<section id="github"><div id="github-status"></div><button id="github-login"></button><div id="github-auth"></div><div class="github-layout"></div></section>');
+ await page.addStyleTag({path:'src/main/resources/static/vendor/workspace-ui.css'});
+ await page.evaluate(()=>{
+  window.workspaceInitial={devices:[{id:'local'}]};window.WorkspaceUI={icon:()=>'',skeleton:()=>'',emptyState:title=>title};
+  window.calls=[];window.fixture={repository:{description:'Portfolio project',topics:['java','portfolio'],defaultBranch:'main',homepage:'https://example.com'},openIssues:[],openPullRequests:[],recentWorkflowRuns:[]};
+  window.runtime={api:async(path,method,body)=>{
+   window.calls.push({path,method,body});
+   if(path==='/github/status')return {authenticated:true};
+   if(path==='/github/owners')return Array.from({length:150},(_,i)=>({login:'owner-'+i,type:'ORGANIZATION'}));
+   if(path==='/github/approvals')return [];
+   if(path.includes('/owners/')&&path.endsWith('/repositories'))return [{nameWithOwner:'owner-149/demo',description:'demo',updatedAt:'2026-10-10'}];
+   if(path.endsWith('/overview'))return {repositories:[],openIssues:[],openPullRequests:[]};
+   if(path.includes('/repositories/context'))return window.fixture;
+   if(path.includes('/repositories/branches')||path.includes('/repositories/tags'))return [{name:'feature/demo',sha:'123456789',isProtected:true}];
+   if(path.includes('/repositories/detail'))return {defaultBranch:'main'};
+   if(path.includes('/repositories/tree'))return [{path:'README.md',type:'blob',size:10}];
+   if(path.includes('/repositories/file'))return {path:'README.md',content:'# Readme\n\n**Hello**'};
+   if(path.includes('/issues/detail'))return {title:'Issue',state:'open',body:'# Heading\n\n**Bold**\n\n<script>window.pwned=true</script>\n\n[bad](javascript:alert(1))'};
+   if(path.includes('/issues?'))return [{number:1,title:'Issue',state:'open',updatedAt:'today',url:'https://github.com/owner-149/demo/issues/1'}];
+   if(method==='PATCH')return {};
+   throw new Error('Unmocked '+path);
+  }};
+ });
+ await page.addScriptTag({path:'src/main/resources/static/js/assistant-markdown.js'});
+ await page.addScriptTag({path:'src/main/resources/static/js/github.js'});
+ await page.evaluate(async()=>{WorkspaceGithub.init(runtime);await WorkspaceGithub.open('github');});
+ await page.locator('#github-owner-search').fill('owner-149');
+ assert.equal(await page.locator('#github-owner option').count(),2);
+ await page.locator('#github-owner').selectOption('owner-149');
+ await page.locator('[data-repository="owner-149/demo"]').click();
+ await page.locator('.github-topics').waitFor();
+ assert.match(await page.locator('.github-about').innerText(),/Portfolio project/);
+ await page.locator('.github-about summary').click();
+ await page.locator('[name=topics]').fill('java, dashboard');await page.locator('.github-about button').click();
+ await page.waitForFunction(()=>calls.some(c=>c.method==='PATCH'));
+ assert.deepEqual(await page.evaluate(()=>calls.find(c=>c.method==='PATCH').body.topics),['java','dashboard']);
+ await page.locator('[data-tab=branches]').click();await page.locator('[data-browse-ref]').click();
+ await page.locator('[data-detail-kind=file]').click();await page.locator('.github-markdown h1').waitFor();
+ assert(await page.evaluate(()=>calls.some(c=>c.path.includes('ref=feature%2Fdemo'))));
+ await page.locator('[data-tab=issues]').click();await page.locator('[data-detail-kind=issue]').click();
+ await page.locator('.github-markdown strong').waitFor();
+ assert.equal(await page.locator('.github-markdown script').count(),0);
+ assert.equal(await page.locator('.github-markdown a[href^="javascript:"]').count(),0);
+ assert.equal(await page.evaluate(()=>window.pwned),undefined);
+ await mkdir('artifacts',{recursive:true});await page.screenshot({path:'artifacts/github-review.png',fullPage:true});
+ assert.deepEqual(errors,[]);console.log('PASS browser: 150 owners, metadata editing, branch file navigation, Markdown, XSS safety. GitHub API responses are fixtures.');
+} finally {await browser.close();}

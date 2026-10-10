@@ -45,3 +45,9 @@ Service의 `DATABASE` 리소스는 기존 `database_connections.id`를 참조한
 Docker 목록/inspect는 실제 테스트 컨테이너의 ID·네트워크 정보를 기록해 재생하는 CLI fixture를 사용했다. 따라서 실제 원격 Docker 데몬 권한·CLI 실행의 종단 검증과는 구분한다. 호스트 Docker 소켓을 테스트 SSH 컨테이너에 연결하는 방식은 자동 승인 검토가 호스트 제어 권한 위험으로 거부했으며 적용하지 않았다. 운영 장비의 Docker CLI와 SSH 계정 접근 권한은 별도 확인 대상이다. 이번 DB 기능은 검증 이미지에 반영했으며 운영 컨테이너는 재배포하지 않았다.
 
 최종 Playwright 결과: 위 5개 연결 흐름 통과, 1440px/390px 가로 넘침 없음, console/pageerror 0건. 결과는 artifacts/database-target-report.json, 화면은 artifacts/database-target-1440.png 및 database-target-390.png에 저장한다.
+
+## 간단한 연결 폼
+
+기본 화면에는 연결 방식·DB 종류와 해당 대상에 필요한 접속 정보만 표시한다. 서버형의 데이터베이스 이름과 SQLite 기존 파일 경로를 별도 라벨·도움말로 구분한다. SQLite에서는 서버 주소·사용자·비밀번호·포트·TLS를 숨긴다. 연결 별칭은 선택 사항이며 비워 두면 DB/파일 이름과 접속 대상으로 자동 생성한다. API의 필수 name 계약은 유지한다.
+
+포트(종류별 기본값), TLS, 조회/수정 권한, 별칭은 접힌 고급 설정에 둔다. 조회만 허용이 기본이다. Metadata JSON은 입력 화면에서 제거하고 기존 값을 보존한다. 연결 테스트도 브라우저 필수 입력 검증을 거친다. `scripts/check-database-form.mjs`는 격리 QA SQLite에서 별칭 없는 테스트·저장 및 desktop/mobile 화면을 확인한다.

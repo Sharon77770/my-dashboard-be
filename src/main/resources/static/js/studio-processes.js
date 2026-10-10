@@ -8,7 +8,7 @@ window.StudioProcesses=(bench,host)=>{
   let records=[],portRecords=[],selected=null,latestOutput='',loading=false,generation=0,recipes=[];
   const guard=action=>Promise.resolve().then(action).catch(error=>host.toast(error.message));
   function render(){
-    const rows=items=>items.map(item=>`<div class="studio-process-row"><button data-run="logs" data-id="${esc(item.id)}">${esc(item.name)} · ${esc(item.state)} · PID ${item.pid||'—'} · ${portRecords.filter(port=>port.pids?.includes(item.pid)).map(port=>port.port).join(', ')}</button><button data-run="stop" data-id="${esc(item.id)}">Stop</button><button data-run="restart" data-id="${esc(item.id)}">Restart</button><button data-run="delete" data-id="${esc(item.id)}">삭제</button><small>${esc(item.command)}</small></div>`).join('')||'<p>등록된 프로세스가 없습니다.</p>';
+    const rows=items=>items.map(item=>`<div class="studio-process-row"><button data-run="logs" data-id="${esc(item.id)}">${esc(item.name)} · ${window.WorkspaceUI.status(item.state)} · PID ${item.pid||'—'} · ${portRecords.filter(port=>port.pids?.includes(item.pid)).map(port=>port.port).join(', ')}</button><button data-run="stop" data-id="${esc(item.id)}">Stop</button><button data-run="restart" data-id="${esc(item.id)}">Restart</button><button data-run="delete" data-id="${esc(item.id)}">삭제</button><small>${esc(item.command)}</small></div>`).join('')||'<p>등록된 프로세스가 없습니다.</p>';
     controls.querySelector('[data-processes]').innerHTML=rows(records);
     tests.querySelector('[data-tests]').innerHTML=rows(records.filter(item=>item.kind==='test'));
   }

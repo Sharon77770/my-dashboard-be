@@ -4,7 +4,7 @@ window.WorkspaceNotes=(()=>{
  let ui,root,entries=[],current=null,editor=null,folder=null,timer=null,saving=null,version=0,savedVersion=0,loading=false;
  const expanded=new Set(),$=selector=>root.querySelector(selector),esc=value=>ui.escape(value);
  const dirty=()=>version!==savedVersion;
- const tell=(message,error=false)=>{const status=$('[data-notes-status]');status.textContent=message;status.classList.toggle('form-error',error);};
+ const tell=(message,error=false)=>{const status=$('[data-notes-status]');status.textContent=message;status.classList.toggle('form-error',error);status.classList.add('ui-status');status.dataset.state=error?'danger':dirty()?'warning':current?'success':'neutral';};
  const pathOf=entry=>{const names=[],seen=new Set();while(entry&&!seen.has(entry.id)){seen.add(entry.id);names.unshift(entry.title);entry=entries.find(item=>item.id===entry.parentId);}return names.join(' / ');};
  const setEntry=entry=>{entries=entries.map(item=>item.id===entry.id?entry:item);if(current?.id===entry.id)current=entry;drawTree();};
  const paint=(target,html)=>window.WorkspaceLiveDOM?window.WorkspaceLiveDOM.patch(target,html):target.innerHTML=html;

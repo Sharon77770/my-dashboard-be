@@ -405,3 +405,17 @@
   font-size: 12px
 }
 }
+
+/* Repository reading surface: compact metadata and safe Markdown. */
+.github-about { padding:12px; border:1px solid var(--border); border-radius:8px; margin-bottom:12px; }
+.github-topics { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+.github-topics span { padding:2px 8px; border-radius:12px; background:rgba(88,166,255,.12); color:#91bfff; font-size:12px; }
+.github-about form { display:grid; gap:8px; padding-top:8px; }
+.github-about label { display:grid; gap:4px; }
+.github-markdown { font-size:13px; line-height:1.65; overflow-wrap:anywhere; min-width:0; padding:12px 0; }
+.github-markdown pre { overflow:auto; padding:12px; background:rgba(0,0,0,.2); border-radius:6px; }
+.github-markdown table { display:block; overflow:auto; border-collapse:collapse; }
+.github-markdown th,.github-markdown td { padding:6px 10px; border:1px solid #394252; }
+.github-markdown blockquote { margin:8px 0; padding-left:12px; border-left:3px solid #56647a; }
+.github-markdown h1,.github-markdown h2 { font-size:18px; margin:12px 0 8px; }
+.github-markdown ul,.github-markdown ol { padding-left:24px; }

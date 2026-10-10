@@ -35,6 +35,7 @@ try{
   for(const [type,host,port,mode] of cases){
     await page.locator('[data-db-action=new-connection]').click();
     const form=page.locator('#db-connection-form');
+    await form.locator('.db-advanced summary').click();
     await form.locator('[name=type]').selectOption(type);
     await form.locator('[name=targetMode]').selectOption(mode);
     await form.locator('[name=deviceId] option[value="'+device.id+'"]').waitFor({state:'attached'});

@@ -73,7 +73,7 @@
   function metric(value) { return value === null || value === undefined ? '—' : `${value.toFixed(0)}%`; }
   function metricTile(name, value, symbol) {
     const tone=value==null?'accent':value>=90?'danger':value>=75?'warning':'accent';
-    return `<div class="metric-tile"><span class="metric-tile-head">${window.WorkspaceUI.icon(symbol)}<small>${name}</small><b>${metric(value)}</b></span>${window.WorkspaceUI.progress(value,name,tone)}</div>`;
+    return `<div class="metric-tile" data-tone="${tone}"><span class="metric-tile-head">${window.WorkspaceUI.icon(symbol)}<small>${name}</small><b>${metric(value)}</b></span>${window.WorkspaceUI.progress(value,name,tone)}</div>`;
   }
   function statusLine(id) {
     const status = statuses.get(id);
@@ -84,7 +84,7 @@
   }
   const paint=(target,html)=>window.WorkspaceLiveDOM?window.WorkspaceLiveDOM.patch(target,html):target.innerHTML=html;
   function renderClips() {
-    paint($('#clip-list'), state.clips.filter(item => item.expiresAt > Date.now()).map(item => `<div class="clip-item"><button data-action="clip-view" data-id="${item.id}"><b>${escape(item.content)}</b><small>${Math.max(1,Math.ceil((item.expiresAt-Date.now())/60000))}분 후 만료</small></button><button data-action="clip-delete" data-id="${item.id}" aria-label="삭제">×</button></div>`).join('') || empty('텍스트를 저장해 다른 세션에서 이어 쓰세요.'));
+    paint($('#clip-list'), state.clips.filter(item => item.expiresAt > Date.now()).map(item => `<div class="clip-item" data-expiring="${item.expiresAt-Date.now()<300000}"><button data-action="clip-view" data-id="${item.id}"><b>${escape(item.content)}</b><small>${Math.max(1,Math.ceil((item.expiresAt-Date.now())/60000))}분 후 만료</small></button><button data-action="clip-delete" data-id="${item.id}" aria-label="삭제">×</button></div>`).join('') || empty('텍스트를 저장해 다른 세션에서 이어 쓰세요.'));
   }
   function render() {
     document.documentElement.dataset.theme = state.preferences.theme;
@@ -303,7 +303,7 @@
         <button data-file="mkdir" aria-label="새 폴더" title="새 폴더">${window.WorkspaceUI.icon('folderPlus')}<span class="file-action-label">새 폴더</span></button>
       </div><div class="file-layout"><aside><b>즐겨찾기</b>${state.bookmarks.filter(item=>item.deviceId===tab.targetId).map(item=>`<div class="bookmark-item"><button data-file="navigate" data-path="${escape(item.path)}">${escape(item.path)}</button><button data-action="bookmark-delete" data-id="${item.id}" aria-label="즐겨찾기 삭제">×</button></div>`).join('') || '<small>아직 없습니다.</small>'}<b>최근</b>${state.activity.filter(item=>item.kind==='FILES' && item.targetId===tab.targetId).slice(0,6).map(item=>`<button data-file="navigate" data-path="${escape(item.path)}">${escape(item.path)}</button>`).join('')}</aside>
       <div class="file-table"><div class="file-row head"><span>이름</span><span>수정</span><span>크기</span><span>동작</span></div>${listing.entries.map(item=>`<div class="file-row">
-        <button class="file-row-open" data-file="${item.directory?'navigate':'download'}" data-path="${escape(item.path)}"><span class="file-row-icon" aria-hidden="true">${window.WorkspaceUI.icon(item.directory?'folder':'file')}</span><span class="file-row-copy"><b>${escape(item.name)}</b><small class="file-mobile-meta">${item.directory?'폴더':bytes(item.size)} · ${timestamp(item.modifiedAt)}</small></span></button>
+        <button class="file-row-open" data-file="${item.directory?'navigate':'download'}" data-path="${escape(item.path)}"><span class="file-row-icon" data-file-kind="${window.WorkspaceUI.fileKind(item.name,item.directory)}" aria-hidden="true">${window.WorkspaceUI.icon(item.directory?'folder':'file')}</span><span class="file-row-copy"><b>${escape(item.name)}</b><small class="file-mobile-meta">${item.directory?'폴더':bytes(item.size)} · ${timestamp(item.modifiedAt)}</small></span></button>
         <span class="file-modified">${timestamp(item.modifiedAt)}</span><span class="file-size">${item.directory?'—':bytes(item.size)}</span>
         <span class="file-actions"><button data-file="rename" data-path="${escape(item.path)}" data-name="${escape(item.name)}">이름</button><button data-file="delete" data-path="${escape(item.path)}">삭제</button></span>
         <details class="ui-menu file-mobile-actions"><summary aria-label="${escape(item.name)} 작업" title="파일 작업">${window.WorkspaceUI.icon('more')}</summary><div class="ui-menu-content"><button data-file="rename" data-path="${escape(item.path)}" data-name="${escape(item.name)}">이름 변경</button><button data-file="delete" data-path="${escape(item.path)}">삭제</button></div></details>
@@ -341,7 +341,7 @@
   async function connectRuntime(tab) {
     const runtime=runtimes.get(tab.id); const root=runtime.element;
     root.innerHTML=`<div class="terminal live-runtime"><div class="terminal-head"><span><i class="dot amber"></i><b>${escape(tab.title)}</b><small class="connection-state">연결 중...</small></span><div class="actions runtime-actions"><button data-runtime-action="reconnect" aria-label="다시 연결" title="다시 연결">${window.WorkspaceUI.icon('refresh')}<span class="runtime-action-label">다시 연결</span></button><button data-runtime-action="new" aria-label="새 세션" title="새 세션">${window.WorkspaceUI.icon('plus')}<span class="runtime-action-label">새 세션</span></button>${tab.kind!=='TERMINAL'?`<button data-runtime-action="fullscreen" aria-label="전체 화면" title="전체 화면">${window.WorkspaceUI.icon('maximize')}<span class="runtime-action-label">전체 화면</span></button><button data-runtime-action="paste" aria-label="텍스트 전송" title="텍스트 전송">${window.WorkspaceUI.icon('clip')}<span class="runtime-action-label">텍스트 전송</span></button>`:''}</div></div><div class="stream-area" tabindex="0" aria-label="${tab.kind==='TERMINAL'?'서버 터미널':'원격 화면'}"></div></div>`;
-    const status=message=>{runtime.connected=message==='연결됨';if($('.connection-state',root))$('.connection-state',root).textContent=message;renderTabs();};
+    const status=message=>{runtime.connected=message==='연결됨';if($('.connection-state',root)){const label=$('.connection-state',root);label.textContent=message;label.classList.add('ui-status');label.dataset.state=runtime.connected?'success':'warning';}renderTabs();};
     try {
       const session=await api('/sessions','POST',{kind:tab.kind,targetId:tab.targetId,width:Math.max(320,Math.min(1920,Math.round(root.clientWidth))),height:Math.max(240,Math.min(1080,Math.round(root.clientHeight-42)))});
       runtime.sessionId=session.id;

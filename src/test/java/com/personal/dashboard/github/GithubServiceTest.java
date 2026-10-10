@@ -18,6 +18,43 @@ class GithubServiceTest {
       new GithubService(cli, new ObjectMapper(), mock(GithubApprovalService.class));
 
   @Test
+  void followsOrganizationPagesBeyondFirstHundred() {
+    when(cli.authenticated()).thenReturn(true);
+    ObjectMapper json = new ObjectMapper();
+    when(cli.api("user")).thenReturn(json.createObjectNode().put("login", "viewer"));
+    var first = json.createArrayNode();
+    for (int i = 0; i < 100; i++) first.add(json.createObjectNode().put("login", "org-" + i));
+    when(cli.api("user/orgs?per_page=100")).thenReturn(first);
+    when(cli.api("user/orgs?per_page=100&page=2"))
+        .thenReturn(json.createArrayNode().add(json.createObjectNode().put("login", "last-org")));
+    var owners = service.owners();
+    assertEquals(102, owners.size());
+    assertEquals("last-org", owners.get(101).login());
+  }
+
+  @Test
+  void writesTopicsThroughDedicatedEndpointIncludingEmptyList() {
+    when(cli.authenticated()).thenReturn(true);
+    ObjectMapper json = new ObjectMapper();
+    when(cli.api("repos/owner/repo")).thenReturn(json.createObjectNode());
+    service.updateRepository(
+        "owner/repo", new GithubDto.UpdateRepository(null, null, java.util.List.of("java")));
+    verify(cli)
+        .apiWrite(
+            eq("PUT"),
+            eq("repos/owner/repo/topics"),
+            eq(json.createObjectNode().set("names", json.createArrayNode().add("java"))));
+    service.updateRepository(
+        "owner/repo", new GithubDto.UpdateRepository(null, null, java.util.List.of()));
+    verify(cli)
+        .apiWrite(
+            eq("PUT"),
+            eq("repos/owner/repo/topics"),
+            eq(json.createObjectNode().set("names", json.createArrayNode())));
+    verify(cli, never()).apiWrite(eq("PATCH"), anyString(), any());
+  }
+
+  @Test
   void rejectsInvalidRepositoryBeforeCliCall() {
     when(cli.authenticated()).thenReturn(true);
     for (String input :

@@ -6,12 +6,11 @@
   margin-bottom: 16px
 }
 /* Editor actions remain reachable when the existing Studio columns are narrow. */
-#studio .studio-editor>.studio-toolbar,
 #studio .studio-explorer>.studio-toolbar {
   flex-wrap: wrap;
 }
 #studio .studio-editor>.studio-toolbar #studio-file-label {
-  flex: 1 1 100%;
+  flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

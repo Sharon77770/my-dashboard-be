@@ -216,12 +216,23 @@ public class StudioAdapter {
     try {
       var builder =
           new ProcessBuilder("/bin/sh", "-c", command)
-              .directory(new File(device.rootPath()))
+              .directory(new File(projectCodex ? device.rootPath() : "/"))
               .redirectError(ProcessBuilder.Redirect.DISCARD);
       builder
           .environment()
           .keySet()
-          .removeIf(key -> !Set.of("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR").contains(key));
+          .removeIf(
+              key ->
+                  !Set.of(
+                          "PATH",
+                          "HOME",
+                          "LANG",
+                          "LC_ALL",
+                          "DOCKER_HOST",
+                          "DOCKER_TLS_VERIFY",
+                          "DOCKER_CERT_PATH",
+                          "TMPDIR")
+                      .contains(key));
       if (!projectCodex) {
         builder.environment().put("DASHBOARD_MCP_TOKEN", mcpAccess.token());
         builder.environment().put("DASHBOARD_MCP_URL", mcpAccess.url());
@@ -269,6 +280,7 @@ public class StudioAdapter {
     input.put("base", deviceCodex ? "/" : device.rootPath());
     input.put("deviceCodex", deviceCodex);
     input.put("projectCodex", projectCodex);
+    input.put("assistantWorkspace", device.id().equals("local") && !projectCodex);
     input.put("root", request.root());
     input.put("action", request.action());
     input.set(

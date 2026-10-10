@@ -88,6 +88,7 @@
   function setStatus(text, kind = '') {
     statusLabel.textContent = text;
     statusLabel.dataset.kind = kind;
+    statusLabel.classList.add('ui-status');statusLabel.dataset.state = window.WorkspaceUI.stateTone(kind);
   }
 
   function saveConversation() {

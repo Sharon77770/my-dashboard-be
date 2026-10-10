@@ -541,3 +541,9 @@
   padding-bottom: env(safe-area-inset-bottom)
 }
 }
+
+.db-advanced { grid-column:1 / -1; border-top:1px solid var(--border-subtle); padding-top:8px; }
+.db-advanced summary { cursor:pointer; font-size:12px; color:var(--text-secondary); }
+.db-advanced-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; padding-top:10px; }
+.db-form label small { color:var(--text-muted); font-size:11px; font-weight:normal; }
+@media(max-width:600px) { .db-advanced-fields { grid-template-columns:minmax(0,1fr); } }

@@ -32,6 +32,11 @@ class StudioLocalAdapterTest {
   }
 
   private StudioAdapter.Message execute(String action, Map<String, Object> args) throws Exception {
+    return execute(action, args, false);
+  }
+
+  private StudioAdapter.Message execute(String action, Map<String, Object> args, boolean assistant)
+      throws Exception {
     var device =
         new DeviceRecord(
             "local",
@@ -52,11 +57,22 @@ class StudioLocalAdapterTest {
     var input =
         new Request("local", directory.toString(), action, json.convertValue(args, Args.class));
     var messages = new ArrayList<StudioAdapter.Message>();
-    new StudioAdapter(ssh, json, mcpAccess)
-        .execute(device, input, new StudioAdapter.Execution(), messages::add);
+    var adapter = new StudioAdapter(ssh, json, mcpAccess);
+    if (assistant)
+      adapter.executeAssistant(device, input, new StudioAdapter.Execution(), messages::add);
+    else adapter.execute(device, input, new StudioAdapter.Execution(), messages::add);
     verifyNoInteractions(ssh);
     assertThat(messages).isNotEmpty();
     return messages.getLast();
+  }
+
+  @Test
+  void assistantUsesPrivateWorkspaceWithoutStartingCodex() throws Exception {
+    var result = execute("codex-thread-new", Map.of(), true).result();
+    assertThat(result.assistant().thread().cwd())
+        .endsWith("/.local/share/personal-workspace/assistant-workspace")
+        .isNotEqualTo(directory.toString());
+    assertThat(Files.list(directory).toList()).isEmpty();
   }
 
   @Test
@@ -91,7 +107,11 @@ class StudioLocalAdapterTest {
         .isTrue();
     assertThat(execute("git-stage", Map.of("path", "code.py")).result().ok()).isTrue();
     assertThat(execute("git-commit", Map.of("message", "local fixture")).result().ok()).isTrue();
-    assertThat(execute("git-status", Map.of()).result().changes()).isEmpty();
+    var status = execute("git-status", Map.of()).result();
+    assertThat(status.changes()).isEmpty();
+    assertThat(status.repository()).isTrue();
+    assertThat(status.ahead()).isZero();
+    assertThat(status.behind()).isZero();
   }
 
   @Test
