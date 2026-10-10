@@ -191,3 +191,5 @@ docker/wine/Dockerfile 및 wine_session.py: 공식 카카오톡 설치 파일을
 - `runtime/dto/DesktopSetupPlan.java`, `DesktopSetupRequest.java`, `DesktopConnectionRequest.java`: 읽기 전용 추천, 일회성 설치 인증, 원격 연결 설정 전용 계약.
 - `static/js/remote-setup.js`: 준비 안내·진행 재개·간편 연결 설정. `static/js/remote-desktop.js`, `static/css/remote-desktop.css`: 원격 화면 입력·크기·모바일 조작.
 - `scripts/check-remote-desktop-live.mjs`, `scripts/fixtures/remote-desktop/`: 격리 SSH sudo 설치·실제 원격 연결 검증.
+
+- `runtime/{controller,service,adapter}/*Clipboard*`: ?? ??? ?? ?? ???? API? ?? Linux SSH ??. `remote-desktop/clipboard.py`? ?? ??? ?? ?? X11 ????? ????? ????.

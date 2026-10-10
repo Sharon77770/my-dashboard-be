@@ -36,6 +36,48 @@ class WorkspaceIntegrationTest {
   @Autowired JdbcTemplate jdbc;
 
   @Test
+  void clipboardRequiresOwnerCsrfAndBoundedText() throws Exception {
+    String path = "/api/v1/sessions/missing/clipboard";
+    String body = "{\"text\":\"hello\"}";
+    mvc.perform(post(path).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(body))
+        .andExpect(status().isUnauthorized());
+    mvc.perform(
+            post(path)
+                .with(user("owner").roles("OWNER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post(path)
+                .with(csrf())
+                .with(user("viewer").roles("VIEWER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isForbidden());
+    mvc.perform(
+            post(path)
+                .with(csrf())
+                .with(user("owner").roles("OWNER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isNotFound());
+    for (String invalid :
+        new String[] {
+          "{}",
+          "{\"text\":null}",
+          mapper.writeValueAsString(Map.of("text", "a".repeat(32001))),
+          mapper.writeValueAsString(Map.of("text", "a\0b"))
+        })
+      mvc.perform(
+              post(path)
+                  .with(csrf())
+                  .with(user("owner").roles("OWNER"))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(invalid))
+          .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void chromeRequiresOwnerCsrfAndValidViewport() throws Exception {
     String path = "/api/v1/chrome/sessions";
     String body = "{\"width\":1600,\"height\":900}";

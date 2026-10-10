@@ -395,7 +395,13 @@
     if(action==='secure-attention')runtime.remoteControls?.secureAttention();
     if(action==='remote-setup')openRemoteSetup(tab.targetId);
     if(action==='fullscreen'){if(document.fullscreenElement)await document.exitFullscreen();else if(runtime.element.requestFullscreen)await runtime.element.requestFullscreen();else toast('이 기기에서는 전체 화면을 지원하지 않습니다.');}
-    if(action==='paste') editor('원격 클립보드',`<label>원격 화면에 전송할 텍스트<textarea name="text" rows="7" maxlength="32000">${escape(runtime.remoteClipboard || '')}</textarea></label><p class="section-hint">전송 후 원격 앱에서 붙여넣기 하세요. 원격에서 복사한 텍스트도 이 창에서 확인할 수 있습니다.</p>`,async form=>{if(!runtime.guacamole)throw new Error('원격 연결이 없습니다.');const writer=new Guacamole.StringWriter(runtime.guacamole.createClipboardStream('text/plain'));writer.sendText(form.get('text'));writer.sendEnd();},'전송');
+    if(action==='paste') {
+      editor('원격 클립보드',`<label>원격 화면에 전송할 텍스트<textarea name="text" rows="7" maxlength="32000">${escape(runtime.remoteClipboard || '')}</textarea></label><label>전송 방식<select name="pasteMode"><option value="clipboard">클립보드에만 보내기</option><option value="paste">보내고 붙여넣기 (Ctrl+V)</option><option value="terminal">보내고 터미널에 붙여넣기 (Ctrl+Shift+V)</option></select></label><p class="section-hint">붙여넣기를 선택하면 원격에서 마지막으로 선택한 입력창에 입력됩니다. 터미널에서 줄바꿈이 있는 텍스트를 붙여넣으면 명령이 실행될 수 있습니다.</p>`,async form=>{
+        await window.WorkspaceRemoteDesktop.sendClipboard(runtime,form.get('text'),form.get('pasteMode'),text=>api(`/sessions/${runtime.sessionId}/clipboard`,'POST',{text}));
+        toast('클립보드를 전송했습니다.');
+      },'전송');
+      $('#editor-dialog').addEventListener('close',()=>runtime.remoteControls?.focus(),{once:true});
+    }
     if(action==='docker') editor('컨테이너 제어',fields.input('container','컨테이너 이름 또는 ID','','text','required')+fields.select('action','동작','restart',[['start','시작'],['stop','중지'],['restart','재시작']]),async form=>{const result=await api(`/devices/${tab.targetId}/docker`,'POST',Object.fromEntries(form));await loadInspection(tab);toast(result.output || '요청을 실행했습니다.');},'실행');
   }
   let searchTimer, searchVersion=0;

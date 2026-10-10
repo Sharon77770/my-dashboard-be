@@ -314,3 +314,5 @@ Terminal은 기존 `POST /api/v1/sessions`에 선택 필드 `root`를 전달한�
 | GET | `/api/v1/communications/accounts/{id}/message-search` | OWNER | SEARCH 권한이 있는 연결 계정의 공식 메시지 검색 및 cursor 페이지 조회 |
 | GET | `/api/v1/communications/accounts/{id}/participants` | OWNER | PARTICIPANTS 권한이 있는 대화의 원본 참여자 ID 페이지 조회 |
 | POST | /api/v1/chrome/sessions | OWNER + CSRF | 서버 Chrome 원격 화면 및 오디오 세션 생성 |
+
+- `POST /api/v1/sessions/{id}/clipboard` ? OWNER + CSRF + ?? ??? ?? ??: ??? ?? Linux ??? ???? ??.

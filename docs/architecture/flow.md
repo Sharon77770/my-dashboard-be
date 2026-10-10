@@ -180,3 +180,5 @@ Communications 격리 Chromium은 환경변수 인증값 없이 전용 control �
 앱 라이브러리 Chrome → viewport 크기로 세션 생성 → 로그인 세션 소유 WebSocket 연결 → 원격 Chromium 조작. 연결 대기·실패·종료 메시지와 수동 다시 연결을 제공한다. 화면 전환·pagehide는 연결을 해제하고 서버 탭을 유지한다. 연결 요청 중 화면을 떠나면 뒤늦게 도착한 세션도 삭제한다. 전체 화면 API 미지원 시 가용 화면을 유지한다. 오디오 활성화는 사용자의 소리 버튼 조작으로 수행한다.
 
 원격 데스크톱: 모든 등록 SSH 장비 표시 → 읽기 전용 plan → 사용자의 준비/연결 버튼 → CHECKING/INSTALLING/STARTING/VERIFYING → READY 자동 화면 연결 또는 BLOCKED 복구 안내. 닫기는 작업 취소가 아니며 재진입 시 진행 중 작업을 이어서 조회한다. 기존 연결은 보존하고 실패 시 도우미 안에서 원격 필드만 수정한다. 자동 프로필은 접속 확인 후 저장한다. [원격 데스크톱](../remote-desktop.md).
+
+- ?? ????: UI ? OWNER/CSRF API ? ?? ?? ???REMOTE ?? ?? ?? ? ?? VNC identity/port ?? ? SSH stdin ? X11 ??? ?? ? ?? ? ??? ???? ? ??. ?? ?? ??? ??? ???? ?? ??? Guacamole ????? ????.
