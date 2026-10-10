@@ -167,10 +167,29 @@ def assistant_rate_limits(result):
     return limits
 
 
+def assistant_user_text(item):
+    """Keep submitted text intact while summarizing separately appended context blocks."""
+    parts = []
+    for index, content in enumerate(item.get('content') or []):
+        text = content.get('text')
+        if isinstance(text, str):
+            # codex_input always places the user's prompt before attachment blocks.
+            # Never interpret markers inside that prompt as generated context.
+            if index > 0 and text.startswith('Attached text file: studio-runtime-observations.txt\n'):
+                continue
+            if index > 0 and text.startswith(('Attached text file: ', 'File context: ')):
+                parts.append('[첨부: ' + text.split('\n', 1)[0].split(': ', 1)[1] + ']')
+            else:
+                parts.append(text)
+        else:
+            parts.append(content.get('path') or '[이미지]')
+    return '\n'.join(parts)
+
+
 def assistant_item(item):
     kind = item.get('type', '')
     text = item.get('text') or ''
-    if kind == 'userMessage': text = '\n'.join(x.get('text', x.get('path', '[이미지]')) for x in item.get('content', []))
+    if kind == 'userMessage': text = assistant_user_text(item)
     if kind == 'reasoning': text = '\n'.join(item.get('summary') or [])
     if kind == 'webSearch': text = item.get('query') or ''
     return dict(id=item.get('id', ''), type=kind, text=clean(text)[:64000],

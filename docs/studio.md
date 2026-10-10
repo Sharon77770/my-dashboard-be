@@ -44,6 +44,10 @@ python3 -m unittest discover -s src/test/python -v
 
 Python 검사는 Git/Python이 설치된 Linux에서 수행한다. 에디터 번들 재생성 방법은 `tools/studio-editor/README.md`에 있다. HTTP/SSH 실제 통합 검증은 실제 계정 대신 격리된 SSH 서버와 임의 자격증명을 사용한다. 정상 계정의 Codex 코드 생성, 유료 모델 응답, 외부 저장소 push는 로그인 실패 검증에 포함하지 않는다.
 
+## 채팅의 사용자 메시지 표시
+
+IDE가 자동 첨부하는 `studio-runtime-observations.txt` 실행 관측 정보는 모델 입력에 유지하지만 사용자 말풍선에는 표시하지 않는다. 파일·선택 영역·텍스트 첨부는 이름만 표시하고 본문을 사용자 입력 뒤에 펼치지 않는다. 직접 입력한 본문은 그대로 보존한다. 이 변환은 서버의 공통 메시지 변환 경로에 적용하여 실시간 이벤트와 저장된 세션을 다시 열 때 동일하게 동작한다.
+
 ## 공식 계약
 
 - [Codex App Server](https://learn.chatgpt.com/docs/app-server)

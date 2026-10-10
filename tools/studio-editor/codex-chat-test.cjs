@@ -7,7 +7,7 @@ async function verify(idPrefix){
   const w=dom.window,d=w.document,panel=d.querySelector('#chat');
   let busy=false,releasePrepare,releasePoll,releaseControl,posts=0,controls=0,poll=0,fail=false;
   const prepareGate=new Promise(resolve=>{releasePrepare=resolve;});
-  const user={id:'user-1',type:'userMessage',text:'Inspect service\nFile context: config.txt'};
+  const user={id:'user-1',type:'userMessage',text:'Inspect service\n[첨부: config.txt]'};
   const event=(sequence,item)=>({assistant:{sequence,kind:'item',item}});
   w.WorkspaceRealtime={waitForJob:()=>new Promise(resolve=>{releasePoll=resolve;})};
   w.eval(script);
@@ -33,7 +33,7 @@ async function verify(idPrefix){
   releasePrepare();await tick();assert.equal(posts,1,'rapid submit during preparation creates one request');
   const rows=()=>panel.querySelectorAll('[data-kind=userMessage]');
   assert.equal(rows().length,1,'server echo replaces optimistic row even with attached context');
-  const acknowledged=rows()[0];assert.match(acknowledged.textContent,/File context/);
+  const acknowledged=rows()[0];assert.match(acknowledged.textContent,/첨부: config.txt/);assert.doesNotMatch(acknowledged.textContent,/Untrusted tool output|studio-runtime-observations/);
   prompt.value='Additional instruction';send();send();await tick();assert.equal(controls,1,'steering is also single flight');releaseControl();await tick();
   releasePoll();await tick();assert.equal(rows().length,1,'replayed user items do not append');assert.equal(rows()[0],acknowledged);
   releasePoll();await tick();assert.equal(rows().length,2,'identical text intentionally sent in a later turn is preserved');assert.equal(busy,false);
